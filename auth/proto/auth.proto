@@ -1,0 +1,71 @@
+syntax="proto3";
+
+package auth;
+
+option go_package="mzhn/proto/auth;authpb";
+
+service Auth {
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+  rpc Profile(ProfileRequest) returns (ProfileResponse);
+  rpc AddRole(AddRoleRequest) returns (AddRoleResponse);
+}
+
+enum Role {
+  ADMIN = 0;
+  REGULAR = 1;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string accessToken = 1;
+  string refreshToken = 2;
+}
+
+// Authenticate
+message AuthenticateRequest {
+  string accessToken = 1;
+  repeated Role roles = 2;
+}
+message AuthenticateResponse {
+  bool approved = 1;
+}
+
+// Refresh
+message RefreshRequest {
+  string refreshToken = 1;
+}
+message RefreshResponse {
+  string accessToken = 1;
+  string refreshToken = 2;
+}
+
+// Profile
+message ProfileRequest {
+  string accessToken = 1;
+}
+message ProfileResponse {
+  string id = 1;
+  string email = 2;
+  repeated Role roles = 3;
+  string registeredAt = 4;
+}
+
+// AddRole
+message AddRoleRequest {
+  string accessToken = 1;
+  string userId = 2;
+  repeated Role roles = 3;
+}
+message AddRoleResponse {}
