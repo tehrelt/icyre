@@ -6,7 +6,7 @@ import (
 	"mzhn/auth/pb/authpb"
 )
 
-func (s *Server) Login(ctx context.Context, in *authpb.LoginRequest) (*authpb.AuthResponse, error) {
+func (s *Server) Login(ctx context.Context, in *authpb.LoginReuest) (*authpb.AuthResponse, error) {
 	tokens, err := s.as.Login(ctx, &dto.Login{
 		Email:    in.Email,
 		Password: in.Password,

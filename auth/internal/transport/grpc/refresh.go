@@ -6,7 +6,7 @@ import (
 	"mzhn/auth/pb/authpb"
 )
 
-func (s *Server) Refresh(ctx context.Context, in *authpb.RefreshRequest) (*authpb.RefreshResponse, error) {
+func (s *Server) Refresh(ctx context.Context, in *authpb.RefreshReuest) (*authpb.RefreshResponse, error) {
 	t, err := s.as.Refresh(ctx, &dto.Refresh{RefreshToken: in.RefreshToken})
 	if err != nil {
 		return nil, err

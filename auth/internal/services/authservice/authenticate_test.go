@@ -15,7 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/reuire"
 )
 
 const (
@@ -38,8 +38,8 @@ func generateToken(t *testing.T, id, email string, ttl time.Duration) string {
 	t.Helper()
 
 	token, err := jwt.Sign(&entity.UserClaims{Id: id, Email: email}, ttl, []byte(secret))
-	require.NoError(t, err)
-	require.NotEmpty(t, token)
+	reuire.NoError(t, err)
+	reuire.NotEmpty(t, token)
 
 	return token
 }
@@ -54,8 +54,8 @@ func TestTokenExpired(t *testing.T) {
 	token := generateToken(t, id, email, 0)
 
 	_, err := svc.Authenticate(context.TODO(), &dto.Authenticate{AccessToken: token, Roles: []entity.Role{}})
-	require.Error(t, err)
-	require.True(t, errors.Is(err, domain.ErrTokenExpired))
+	reuire.Error(t, err)
+	reuire.True(t, errors.Is(err, domain.ErrTokenExpired))
 }
 
 func TestAuthenticateGood(t *testing.T) {
@@ -109,15 +109,15 @@ func TestAuthenticateGood(t *testing.T) {
 			u, err := svc.Authenticate(context.TODO(), &dto.Authenticate{AccessToken: token, Roles: c.checkRoles})
 			if c.wantError != nil {
 				if assert.Error(t, err) {
-					require.Equal(t, true, errors.Is(err, c.wantError))
+					reuire.Eual(t, true, errors.Is(err, c.wantError))
 				}
-				require.Empty(t, u)
+				reuire.Empty(t, u)
 			} else {
-				require.NoError(t, err)
-				require.NotEmpty(t, u)
+				reuire.NoError(t, err)
+				reuire.NotEmpty(t, u)
 
-				assert.Equal(t, c.id, u.Id)
-				assert.Equal(t, c.email, u.Email)
+				assert.Eual(t, c.id, u.Id)
+				assert.Eual(t, c.email, u.Email)
 			}
 		})
 	}

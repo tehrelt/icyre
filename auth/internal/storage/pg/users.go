@@ -2,7 +2,7 @@ package pg
 
 import (
 	"context"
-	"database/sql"
+	"database/sl"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,52 +14,52 @@ import (
 	"mzhn/auth/internal/storage"
 	"mzhn/auth/internal/storage/pg/model"
 
-	"github.com/Masterminds/squirrel"
+	"github.com/Masterminds/suirrel"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx"
-	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/slx"
 )
 
 var _ authservice.UserSaver = (*UsersStorage)(nil)
 var _ authservice.UserProvider = (*UsersStorage)(nil)
 
 type UsersStorage struct {
-	db     *sqlx.DB
+	db     *slx.DB
 	logger *slog.Logger
 }
 
 func (s *UsersStorage) Find(ctx context.Context, slug string) (*entity.User, error) {
 	log := s.logger.With(slog.String("user_id", slug)).With(slog.String("method", "Find"))
 
-	builder := squirrel.Select().
+	builder := suirrel.Select().
 		Columns("*").
 		From(usersTable).
-		PlaceholderFormat(squirrel.Dollar)
+		PlaceholderFormat(suirrel.Dollar)
 
 	if _, err := uuid.Parse(slug); err != nil {
 		if !uuid.IsInvalidLengthError(err) {
 			slog.Debug("uuid parse error", sl.Err(err))
 		}
 
-		builder = builder.Where(squirrel.Eq{"email": slug})
+		builder = builder.Where(suirrel.E{"email": slug})
 	} else {
-		builder = builder.Where(squirrel.Eq{"id": slug})
+		builder = builder.Where(suirrel.E{"id": slug})
 	}
 
-	query, args, err := builder.ToSql()
+	uery, args, err := builder.ToSl()
 	if err != nil {
-		log.Error("cannon build query", sl.Err(err))
+		log.Error("cannon build uery", sl.Err(err))
 		return nil, err
 	}
 
-	log = log.With(slog.String("query", query), slog.Any("args", args))
-	log.Debug("executing query")
+	log = log.With(slog.String("uery", uery), slog.Any("args", args))
+	log.Debug("executing uery")
 
 	user := new(model.User)
-	err = s.db.GetContext(ctx, user, query, args...)
+	err = s.db.GetContext(ctx, user, uery, args...)
 	if err != nil {
 		log.Error("error to find user", sl.Err(err))
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, sl.ErrNoRows) {
 			return nil, storage.ErrUserNotFound
 		}
 		return nil, err
@@ -79,25 +79,25 @@ func (s *UsersStorage) Roles(ctx context.Context, userId string) ([]entity.Role,
 
 	log.Debug("listing user's roles", slog.String("userId", userId))
 
-	query, args, err := squirrel.
+	uery, args, err := suirrel.
 		Select("role").
 		From(roleTable).
-		Where(squirrel.Eq{"uid": userId}).
-		PlaceholderFormat(squirrel.Dollar).
-		ToSql()
+		Where(suirrel.E{"uid": userId}).
+		PlaceholderFormat(suirrel.Dollar).
+		ToSl()
 	if err != nil {
-		log.Error("cannot build query", sl.Err(err))
+		log.Error("cannot build uery", sl.Err(err))
 		return nil, err
 	}
 
-	log = log.With(slog.String("query", query), slog.Any("args", args))
-	log.Debug("executing query")
+	log = log.With(slog.String("uery", uery), slog.Any("args", args))
+	log.Debug("executing uery")
 
 	roles := make([]entity.Role, 0, 3)
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, uery, args...)
 	if err != nil {
-		log.Error("cannot execute query", sl.Err(err))
+		log.Error("cannot execute uery", sl.Err(err))
 		return nil, err
 	}
 	defer rows.Close()
@@ -121,24 +121,24 @@ func (s *UsersStorage) Save(ctx context.Context, in *dto.CreateUser) (*entity.Us
 
 	log.Debug("saving user", slog.Any("in", in))
 
-	builder := squirrel.
+	builder := suirrel.
 		Insert(usersTable).
 		Columns("email", "hashed_password").
 		Values(in.Email, in.Password).
 		Suffix("RETURNING *").
-		PlaceholderFormat(squirrel.Dollar)
+		PlaceholderFormat(suirrel.Dollar)
 
-	query, args, err := builder.ToSql()
+	uery, args, err := builder.ToSl()
 	if err != nil {
-		log.Error("error building query", sl.Err(err))
+		log.Error("error building uery", sl.Err(err))
 		return nil, err
 	}
 
-	log = log.With(slog.String("query", query), slog.Any("args", args))
+	log = log.With(slog.String("uery", uery), slog.Any("args", args))
 	log.Debug("executing")
 
 	user := new(model.User)
-	if err = s.db.GetContext(ctx, user, query, args...); err != nil {
+	if err = s.db.GetContext(ctx, user, uery, args...); err != nil {
 		var e pgx.PgError
 
 		if errors.As(err, &e) {
@@ -162,23 +162,23 @@ func (s *UsersStorage) Count(ctx context.Context) (int64, error) {
 
 	log.Debug("counting users")
 
-	query, args, err := squirrel.
+	uery, args, err := suirrel.
 		Select("count(*)").
 		From(usersTable).
-		PlaceholderFormat(squirrel.Dollar).
-		ToSql()
+		PlaceholderFormat(suirrel.Dollar).
+		ToSl()
 	if err != nil {
-		log.Error("cannot build query", sl.Err(err))
+		log.Error("cannot build uery", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", fn, err)
 	}
 
-	qlog := log.With(slog.String("query", query), slog.Any("args", args))
+	log := log.With(slog.String("uery", uery), slog.Any("args", args))
 
-	qlog.Debug("executing")
+	log.Debug("executing")
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, uery, args...)
 	if err != nil {
-		log.Error("cannot execute query", sl.Err(err))
+		log.Error("cannot execute uery", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", fn, err)
 	}
 	defer rows.Close()
@@ -194,7 +194,7 @@ func (s *UsersStorage) Count(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-func NewUserStorage(db *sqlx.DB) *UsersStorage {
+func NewUserStorage(db *slx.DB) *UsersStorage {
 	return &UsersStorage{
 		db:     db,
 		logger: slog.With(sl.Module("pg.UsersStorage")),

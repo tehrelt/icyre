@@ -66,7 +66,7 @@ func (Role) EnumDescriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{0}
 }
 
-type LoginRequest struct {
+type LoginReuest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -75,20 +75,20 @@ type LoginRequest struct {
 	Password string `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 }
 
-func (x *LoginRequest) Reset() {
-	*x = LoginRequest{}
+func (x *LoginReuest) Reset() {
+	*x = LoginReuest{}
 	mi := &file_proto_auth_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *LoginRequest) String() string {
+func (x *LoginReuest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*LoginRequest) ProtoMessage() {}
+func (*LoginReuest) ProtoMessage() {}
 
-func (x *LoginRequest) ProtoReflect() protoreflect.Message {
+func (x *LoginReuest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -100,26 +100,26 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
-func (*LoginRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use LoginReuest.ProtoReflect.Descriptor instead.
+func (*LoginReuest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *LoginRequest) GetEmail() string {
+func (x *LoginReuest) GetEmail() string {
 	if x != nil {
 		return x.Email
 	}
 	return ""
 }
 
-func (x *LoginRequest) GetPassword() string {
+func (x *LoginReuest) GetPassword() string {
 	if x != nil {
 		return x.Password
 	}
 	return ""
 }
 
-type RegisterRequest struct {
+type RegisterReuest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -128,20 +128,20 @@ type RegisterRequest struct {
 	Password string `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 }
 
-func (x *RegisterRequest) Reset() {
-	*x = RegisterRequest{}
+func (x *RegisterReuest) Reset() {
+	*x = RegisterReuest{}
 	mi := &file_proto_auth_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegisterRequest) String() string {
+func (x *RegisterReuest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegisterRequest) ProtoMessage() {}
+func (*RegisterReuest) ProtoMessage() {}
 
-func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
+func (x *RegisterReuest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -153,19 +153,19 @@ func (x *RegisterRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegisterRequest.ProtoReflect.Descriptor instead.
-func (*RegisterRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RegisterReuest.ProtoReflect.Descriptor instead.
+func (*RegisterReuest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RegisterRequest) GetEmail() string {
+func (x *RegisterReuest) GetEmail() string {
 	if x != nil {
 		return x.Email
 	}
 	return ""
 }
 
-func (x *RegisterRequest) GetPassword() string {
+func (x *RegisterReuest) GetPassword() string {
 	if x != nil {
 		return x.Password
 	}
@@ -226,7 +226,7 @@ func (x *AuthResponse) GetRefreshToken() string {
 }
 
 // Authenticate
-type AuthenticateRequest struct {
+type AuthenticateReuest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -235,20 +235,20 @@ type AuthenticateRequest struct {
 	Roles       []Role `protobuf:"varint,2,rep,packed,name=roles,proto3,enum=auth.Role" json:"roles,omitempty"`
 }
 
-func (x *AuthenticateRequest) Reset() {
-	*x = AuthenticateRequest{}
+func (x *AuthenticateReuest) Reset() {
+	*x = AuthenticateReuest{}
 	mi := &file_proto_auth_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AuthenticateRequest) String() string {
+func (x *AuthenticateReuest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AuthenticateRequest) ProtoMessage() {}
+func (*AuthenticateReuest) ProtoMessage() {}
 
-func (x *AuthenticateRequest) ProtoReflect() protoreflect.Message {
+func (x *AuthenticateReuest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -260,19 +260,19 @@ func (x *AuthenticateRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AuthenticateRequest.ProtoReflect.Descriptor instead.
-func (*AuthenticateRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AuthenticateReuest.ProtoReflect.Descriptor instead.
+func (*AuthenticateReuest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *AuthenticateRequest) GetAccessToken() string {
+func (x *AuthenticateReuest) GetAccessToken() string {
 	if x != nil {
 		return x.AccessToken
 	}
 	return ""
 }
 
-func (x *AuthenticateRequest) GetRoles() []Role {
+func (x *AuthenticateReuest) GetRoles() []Role {
 	if x != nil {
 		return x.Roles
 	}
@@ -325,7 +325,7 @@ func (x *AuthenticateResponse) GetApproved() bool {
 }
 
 // Refresh
-type RefreshRequest struct {
+type RefreshReuest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -333,20 +333,20 @@ type RefreshRequest struct {
 	RefreshToken string `protobuf:"bytes,1,opt,name=refreshToken,proto3" json:"refreshToken,omitempty"`
 }
 
-func (x *RefreshRequest) Reset() {
-	*x = RefreshRequest{}
+func (x *RefreshReuest) Reset() {
+	*x = RefreshReuest{}
 	mi := &file_proto_auth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RefreshRequest) String() string {
+func (x *RefreshReuest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RefreshRequest) ProtoMessage() {}
+func (*RefreshReuest) ProtoMessage() {}
 
-func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
+func (x *RefreshReuest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -358,12 +358,12 @@ func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RefreshRequest.ProtoReflect.Descriptor instead.
-func (*RefreshRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RefreshReuest.ProtoReflect.Descriptor instead.
+func (*RefreshReuest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *RefreshRequest) GetRefreshToken() string {
+func (x *RefreshReuest) GetRefreshToken() string {
 	if x != nil {
 		return x.RefreshToken
 	}
@@ -424,7 +424,7 @@ func (x *RefreshResponse) GetRefreshToken() string {
 }
 
 // Profile
-type ProfileRequest struct {
+type ProfileReuest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -432,20 +432,20 @@ type ProfileRequest struct {
 	AccessToken string `protobuf:"bytes,1,opt,name=accessToken,proto3" json:"accessToken,omitempty"`
 }
 
-func (x *ProfileRequest) Reset() {
-	*x = ProfileRequest{}
+func (x *ProfileReuest) Reset() {
+	*x = ProfileReuest{}
 	mi := &file_proto_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProfileRequest) String() string {
+func (x *ProfileReuest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProfileRequest) ProtoMessage() {}
+func (*ProfileReuest) ProtoMessage() {}
 
-func (x *ProfileRequest) ProtoReflect() protoreflect.Message {
+func (x *ProfileReuest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -457,12 +457,12 @@ func (x *ProfileRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProfileRequest.ProtoReflect.Descriptor instead.
-func (*ProfileRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProfileReuest.ProtoReflect.Descriptor instead.
+func (*ProfileReuest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ProfileRequest) GetAccessToken() string {
+func (x *ProfileReuest) GetAccessToken() string {
 	if x != nil {
 		return x.AccessToken
 	}
@@ -539,7 +539,7 @@ func (x *ProfileResponse) GetRegisteredAt() string {
 }
 
 // AddRole
-type AddRoleRequest struct {
+type AddRoleReuest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -549,20 +549,20 @@ type AddRoleRequest struct {
 	Roles       []Role `protobuf:"varint,3,rep,packed,name=roles,proto3,enum=auth.Role" json:"roles,omitempty"`
 }
 
-func (x *AddRoleRequest) Reset() {
-	*x = AddRoleRequest{}
+func (x *AddRoleReuest) Reset() {
+	*x = AddRoleReuest{}
 	mi := &file_proto_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AddRoleRequest) String() string {
+func (x *AddRoleReuest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AddRoleRequest) ProtoMessage() {}
+func (*AddRoleReuest) ProtoMessage() {}
 
-func (x *AddRoleRequest) ProtoReflect() protoreflect.Message {
+func (x *AddRoleReuest) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -574,26 +574,26 @@ func (x *AddRoleRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AddRoleRequest.ProtoReflect.Descriptor instead.
-func (*AddRoleRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use AddRoleReuest.ProtoReflect.Descriptor instead.
+func (*AddRoleReuest) Descriptor() ([]byte, []int) {
 	return file_proto_auth_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *AddRoleRequest) GetAccessToken() string {
+func (x *AddRoleReuest) GetAccessToken() string {
 	if x != nil {
 		return x.AccessToken
 	}
 	return ""
 }
 
-func (x *AddRoleRequest) GetUserId() string {
+func (x *AddRoleReuest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *AddRoleRequest) GetRoles() []Role {
+func (x *AddRoleReuest) GetRoles() []Role {
 	if x != nil {
 		return x.Roles
 	}
@@ -736,28 +736,28 @@ var file_proto_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_proto_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_proto_auth_proto_goTypes = []any{
 	(Role)(0),                    // 0: auth.Role
-	(*LoginRequest)(nil),         // 1: auth.LoginRequest
-	(*RegisterRequest)(nil),      // 2: auth.RegisterRequest
+	(*LoginReuest)(nil),         // 1: auth.LoginReuest
+	(*RegisterReuest)(nil),      // 2: auth.RegisterReuest
 	(*AuthResponse)(nil),         // 3: auth.AuthResponse
-	(*AuthenticateRequest)(nil),  // 4: auth.AuthenticateRequest
+	(*AuthenticateReuest)(nil),  // 4: auth.AuthenticateReuest
 	(*AuthenticateResponse)(nil), // 5: auth.AuthenticateResponse
-	(*RefreshRequest)(nil),       // 6: auth.RefreshRequest
+	(*RefreshReuest)(nil),       // 6: auth.RefreshReuest
 	(*RefreshResponse)(nil),      // 7: auth.RefreshResponse
-	(*ProfileRequest)(nil),       // 8: auth.ProfileRequest
+	(*ProfileReuest)(nil),       // 8: auth.ProfileReuest
 	(*ProfileResponse)(nil),      // 9: auth.ProfileResponse
-	(*AddRoleRequest)(nil),       // 10: auth.AddRoleRequest
+	(*AddRoleReuest)(nil),       // 10: auth.AddRoleReuest
 	(*AddRoleResponse)(nil),      // 11: auth.AddRoleResponse
 }
 var file_proto_auth_proto_depIdxs = []int32{
-	0,  // 0: auth.AuthenticateRequest.roles:type_name -> auth.Role
+	0,  // 0: auth.AuthenticateReuest.roles:type_name -> auth.Role
 	0,  // 1: auth.ProfileResponse.roles:type_name -> auth.Role
-	0,  // 2: auth.AddRoleRequest.roles:type_name -> auth.Role
-	1,  // 3: auth.Auth.Login:input_type -> auth.LoginRequest
-	2,  // 4: auth.Auth.Register:input_type -> auth.RegisterRequest
-	4,  // 5: auth.Auth.Authenticate:input_type -> auth.AuthenticateRequest
-	6,  // 6: auth.Auth.Refresh:input_type -> auth.RefreshRequest
-	8,  // 7: auth.Auth.Profile:input_type -> auth.ProfileRequest
-	10, // 8: auth.Auth.AddRole:input_type -> auth.AddRoleRequest
+	0,  // 2: auth.AddRoleReuest.roles:type_name -> auth.Role
+	1,  // 3: auth.Auth.Login:input_type -> auth.LoginReuest
+	2,  // 4: auth.Auth.Register:input_type -> auth.RegisterReuest
+	4,  // 5: auth.Auth.Authenticate:input_type -> auth.AuthenticateReuest
+	6,  // 6: auth.Auth.Refresh:input_type -> auth.RefreshReuest
+	8,  // 7: auth.Auth.Profile:input_type -> auth.ProfileReuest
+	10, // 8: auth.Auth.AddRole:input_type -> auth.AddRoleReuest
 	3,  // 9: auth.Auth.Login:output_type -> auth.AuthResponse
 	3,  // 10: auth.Auth.Register:output_type -> auth.AuthResponse
 	5,  // 11: auth.Auth.Authenticate:output_type -> auth.AuthenticateResponse

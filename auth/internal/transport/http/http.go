@@ -44,7 +44,7 @@ func (h *Server) setup() {
 	}))
 
 	tokguard := middleware.Token()
-	authguard := middleware.RequireAuth(h.as, h.cfg)
+	authguard := middleware.ReuireAuth(h.as, h.cfg)
 
 	h.POST("/register", handlers.Register(h.as))
 	h.POST("/login", handlers.Login(h.as))

@@ -15,19 +15,19 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-// Requires gRPC-Go v1.32.0 or later.
+// Reuires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // AuthClient is the client API for Auth service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AuthClient interface {
-	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*AuthResponse, error)
-	Authenticate(ctx context.Context, in *AuthenticateRequest, opts ...grpc.CallOption) (*AuthenticateResponse, error)
-	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
-	Profile(ctx context.Context, in *ProfileRequest, opts ...grpc.CallOption) (*ProfileResponse, error)
-	AddRole(ctx context.Context, in *AddRoleRequest, opts ...grpc.CallOption) (*AddRoleResponse, error)
+	Login(ctx context.Context, in *LoginReuest, opts ...grpc.CallOption) (*AuthResponse, error)
+	Register(ctx context.Context, in *RegisterReuest, opts ...grpc.CallOption) (*AuthResponse, error)
+	Authenticate(ctx context.Context, in *AuthenticateReuest, opts ...grpc.CallOption) (*AuthenticateResponse, error)
+	Refresh(ctx context.Context, in *RefreshReuest, opts ...grpc.CallOption) (*RefreshResponse, error)
+	Profile(ctx context.Context, in *ProfileReuest, opts ...grpc.CallOption) (*ProfileResponse, error)
+	AddRole(ctx context.Context, in *AddRoleReuest, opts ...grpc.CallOption) (*AddRoleResponse, error)
 }
 
 type authClient struct {
@@ -38,7 +38,7 @@ func NewAuthClient(cc grpc.ClientConnInterface) AuthClient {
 	return &authClient{cc}
 }
 
-func (c *authClient) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
+func (c *authClient) Login(ctx context.Context, in *LoginReuest, opts ...grpc.CallOption) (*AuthResponse, error) {
 	out := new(AuthResponse)
 	err := c.cc.Invoke(ctx, "/auth.Auth/Login", in, out, opts...)
 	if err != nil {
@@ -47,7 +47,7 @@ func (c *authClient) Login(ctx context.Context, in *LoginRequest, opts ...grpc.C
 	return out, nil
 }
 
-func (c *authClient) Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*AuthResponse, error) {
+func (c *authClient) Register(ctx context.Context, in *RegisterReuest, opts ...grpc.CallOption) (*AuthResponse, error) {
 	out := new(AuthResponse)
 	err := c.cc.Invoke(ctx, "/auth.Auth/Register", in, out, opts...)
 	if err != nil {
@@ -56,7 +56,7 @@ func (c *authClient) Register(ctx context.Context, in *RegisterRequest, opts ...
 	return out, nil
 }
 
-func (c *authClient) Authenticate(ctx context.Context, in *AuthenticateRequest, opts ...grpc.CallOption) (*AuthenticateResponse, error) {
+func (c *authClient) Authenticate(ctx context.Context, in *AuthenticateReuest, opts ...grpc.CallOption) (*AuthenticateResponse, error) {
 	out := new(AuthenticateResponse)
 	err := c.cc.Invoke(ctx, "/auth.Auth/Authenticate", in, out, opts...)
 	if err != nil {
@@ -65,7 +65,7 @@ func (c *authClient) Authenticate(ctx context.Context, in *AuthenticateRequest, 
 	return out, nil
 }
 
-func (c *authClient) Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error) {
+func (c *authClient) Refresh(ctx context.Context, in *RefreshReuest, opts ...grpc.CallOption) (*RefreshResponse, error) {
 	out := new(RefreshResponse)
 	err := c.cc.Invoke(ctx, "/auth.Auth/Refresh", in, out, opts...)
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *authClient) Refresh(ctx context.Context, in *RefreshRequest, opts ...gr
 	return out, nil
 }
 
-func (c *authClient) Profile(ctx context.Context, in *ProfileRequest, opts ...grpc.CallOption) (*ProfileResponse, error) {
+func (c *authClient) Profile(ctx context.Context, in *ProfileReuest, opts ...grpc.CallOption) (*ProfileResponse, error) {
 	out := new(ProfileResponse)
 	err := c.cc.Invoke(ctx, "/auth.Auth/Profile", in, out, opts...)
 	if err != nil {
@@ -83,7 +83,7 @@ func (c *authClient) Profile(ctx context.Context, in *ProfileRequest, opts ...gr
 	return out, nil
 }
 
-func (c *authClient) AddRole(ctx context.Context, in *AddRoleRequest, opts ...grpc.CallOption) (*AddRoleResponse, error) {
+func (c *authClient) AddRole(ctx context.Context, in *AddRoleReuest, opts ...grpc.CallOption) (*AddRoleResponse, error) {
 	out := new(AddRoleResponse)
 	err := c.cc.Invoke(ctx, "/auth.Auth/AddRole", in, out, opts...)
 	if err != nil {
@@ -96,12 +96,12 @@ func (c *authClient) AddRole(ctx context.Context, in *AddRoleRequest, opts ...gr
 // All implementations must embed UnimplementedAuthServer
 // for forward compatibility
 type AuthServer interface {
-	Login(context.Context, *LoginRequest) (*AuthResponse, error)
-	Register(context.Context, *RegisterRequest) (*AuthResponse, error)
-	Authenticate(context.Context, *AuthenticateRequest) (*AuthenticateResponse, error)
-	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
-	Profile(context.Context, *ProfileRequest) (*ProfileResponse, error)
-	AddRole(context.Context, *AddRoleRequest) (*AddRoleResponse, error)
+	Login(context.Context, *LoginReuest) (*AuthResponse, error)
+	Register(context.Context, *RegisterReuest) (*AuthResponse, error)
+	Authenticate(context.Context, *AuthenticateReuest) (*AuthenticateResponse, error)
+	Refresh(context.Context, *RefreshReuest) (*RefreshResponse, error)
+	Profile(context.Context, *ProfileReuest) (*ProfileResponse, error)
+	AddRole(context.Context, *AddRoleReuest) (*AddRoleResponse, error)
 	mustEmbedUnimplementedAuthServer()
 }
 
@@ -109,22 +109,22 @@ type AuthServer interface {
 type UnimplementedAuthServer struct {
 }
 
-func (UnimplementedAuthServer) Login(context.Context, *LoginRequest) (*AuthResponse, error) {
+func (UnimplementedAuthServer) Login(context.Context, *LoginReuest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
 }
-func (UnimplementedAuthServer) Register(context.Context, *RegisterRequest) (*AuthResponse, error) {
+func (UnimplementedAuthServer) Register(context.Context, *RegisterReuest) (*AuthResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Register not implemented")
 }
-func (UnimplementedAuthServer) Authenticate(context.Context, *AuthenticateRequest) (*AuthenticateResponse, error) {
+func (UnimplementedAuthServer) Authenticate(context.Context, *AuthenticateReuest) (*AuthenticateResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Authenticate not implemented")
 }
-func (UnimplementedAuthServer) Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error) {
+func (UnimplementedAuthServer) Refresh(context.Context, *RefreshReuest) (*RefreshResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Refresh not implemented")
 }
-func (UnimplementedAuthServer) Profile(context.Context, *ProfileRequest) (*ProfileResponse, error) {
+func (UnimplementedAuthServer) Profile(context.Context, *ProfileReuest) (*ProfileResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Profile not implemented")
 }
-func (UnimplementedAuthServer) AddRole(context.Context, *AddRoleRequest) (*AddRoleResponse, error) {
+func (UnimplementedAuthServer) AddRole(context.Context, *AddRoleReuest) (*AddRoleResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddRole not implemented")
 }
 func (UnimplementedAuthServer) mustEmbedUnimplementedAuthServer() {}
@@ -141,7 +141,7 @@ func RegisterAuthServer(s grpc.ServiceRegistrar, srv AuthServer) {
 }
 
 func _Auth_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LoginRequest)
+	in := new(LoginReuest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -152,14 +152,14 @@ func _Auth_Login_Handler(srv interface{}, ctx context.Context, dec func(interfac
 		Server:     srv,
 		FullMethod: "/auth.Auth/Login",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).Login(ctx, req.(*LoginRequest))
+	handler := func(ctx context.Context, re interface{}) (interface{}, error) {
+		return srv.(AuthServer).Login(ctx, re.(*LoginReuest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_Register_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterRequest)
+	in := new(RegisterReuest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -170,14 +170,14 @@ func _Auth_Register_Handler(srv interface{}, ctx context.Context, dec func(inter
 		Server:     srv,
 		FullMethod: "/auth.Auth/Register",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).Register(ctx, req.(*RegisterRequest))
+	handler := func(ctx context.Context, re interface{}) (interface{}, error) {
+		return srv.(AuthServer).Register(ctx, re.(*RegisterReuest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_Authenticate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AuthenticateRequest)
+	in := new(AuthenticateReuest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -188,14 +188,14 @@ func _Auth_Authenticate_Handler(srv interface{}, ctx context.Context, dec func(i
 		Server:     srv,
 		FullMethod: "/auth.Auth/Authenticate",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).Authenticate(ctx, req.(*AuthenticateRequest))
+	handler := func(ctx context.Context, re interface{}) (interface{}, error) {
+		return srv.(AuthServer).Authenticate(ctx, re.(*AuthenticateReuest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_Refresh_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RefreshRequest)
+	in := new(RefreshReuest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -206,14 +206,14 @@ func _Auth_Refresh_Handler(srv interface{}, ctx context.Context, dec func(interf
 		Server:     srv,
 		FullMethod: "/auth.Auth/Refresh",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).Refresh(ctx, req.(*RefreshRequest))
+	handler := func(ctx context.Context, re interface{}) (interface{}, error) {
+		return srv.(AuthServer).Refresh(ctx, re.(*RefreshReuest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_Profile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProfileRequest)
+	in := new(ProfileReuest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -224,14 +224,14 @@ func _Auth_Profile_Handler(srv interface{}, ctx context.Context, dec func(interf
 		Server:     srv,
 		FullMethod: "/auth.Auth/Profile",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).Profile(ctx, req.(*ProfileRequest))
+	handler := func(ctx context.Context, re interface{}) (interface{}, error) {
+		return srv.(AuthServer).Profile(ctx, re.(*ProfileReuest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Auth_AddRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddRoleRequest)
+	in := new(AddRoleReuest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -242,8 +242,8 @@ func _Auth_AddRole_Handler(srv interface{}, ctx context.Context, dec func(interf
 		Server:     srv,
 		FullMethod: "/auth.Auth/AddRole",
 	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuthServer).AddRole(ctx, req.(*AddRoleRequest))
+	handler := func(ctx context.Context, re interface{}) (interface{}, error) {
+		return srv.(AuthServer).AddRole(ctx, re.(*AddRoleReuest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

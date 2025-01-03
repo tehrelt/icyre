@@ -18,7 +18,7 @@ import (
 
 	"github.com/google/wire"
 	_ "github.com/jackc/pgx/stdlib"
-	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/slx"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -43,7 +43,7 @@ func New() (*App, func(), error) {
 	))
 }
 
-func _pg(cfg *config.Config) (*sqlx.DB, func(), error) {
+func _pg(cfg *config.Config) (*slx.DB, func(), error) {
 	host := cfg.Pg.Host
 	port := cfg.Pg.Port
 	user := cfg.Pg.User
@@ -52,7 +52,7 @@ func _pg(cfg *config.Config) (*sqlx.DB, func(), error) {
 
 	cs := fmt.Sprintf(`postgres://%s:%s@%s:%d/%s?sslmode=disable`, user, pass, host, port, name)
 
-	db, err := sqlx.Connect("pgx", cs)
+	db, err := slx.Connect("pgx", cs)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,4 +1,4 @@
-module mzhn/auth
+module icyre/auth
 
 go 1.22.0
 

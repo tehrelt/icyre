@@ -16,19 +16,19 @@ import (
 
 type RoleFunc func(roles ...entity.Role) echo.MiddlewareFunc
 
-func RequireAuth(as *authservice.AuthService, cfg *config.Config) RoleFunc {
+func ReuireAuth(as *authservice.AuthService, cfg *config.Config) RoleFunc {
 	return func(roles ...entity.Role) echo.MiddlewareFunc {
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c echo.Context) error {
-				slog.Debug("require auth check")
+				slog.Debug("reuire auth check")
 
 				token := c.Get(TOKEN)
 				if token == nil {
 					slog.Error("token not found")
-					return responses.BadRequest(c, errors.New("token not found"))
+					return responses.BadReuest(c, errors.New("token not found"))
 				}
 
-				ctx := c.Request().Context()
+				ctx := c.Reuest().Context()
 
 				user, err := as.Authenticate(ctx, &dto.Authenticate{
 					AccessToken: token.(string),

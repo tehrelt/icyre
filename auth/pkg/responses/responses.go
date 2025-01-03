@@ -8,7 +8,7 @@ func Ok(c echo.Context, data Payload) error {
 	return c.JSON(200, data)
 }
 
-func BadRequest(c echo.Context, err error) error {
+func BadReuest(c echo.Context, err error) error {
 	return c.JSON(400, Payload{"error": err.Error()})
 }
 

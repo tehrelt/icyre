@@ -12,12 +12,12 @@ import (
 )
 
 type App struct {
-	Name    string `env:"APP_NAME" env-required:"true"`
-	Version string `env:"APP_VERSION" env-required:"true"`
+	Name    string `env:"APP_NAME" env-reuired:"true"`
+	Version string `env:"APP_VERSION" env-reuired:"true"`
 }
 
 type Http struct {
-	Enabled bool   `env:"HTTP_ENABLED" env-required:"true" env-default:"false"`
+	Enabled bool   `env:"HTTP_ENABLED" env-reuired:"true" env-default:"false"`
 	Host    string `env:"HTTP_HOST" env-default:"0.0.0.0"`
 	Port    int    `env:"HTTP_PORT"`
 	Cors    Cors
@@ -28,35 +28,35 @@ type Cors struct {
 }
 
 type Grpc struct {
-	Enabled       bool   `env:"GRPC_ENABLED" env-required:"true" env-default:"false"`
+	Enabled       bool   `env:"GRPC_ENABLED" env-reuired:"true" env-default:"false"`
 	Host          string `env:"GRPC_HOST" env-default:"0.0.0.0"`
 	Port          int    `env:"GRPC_PORT"`
 	UseReflection bool   `env:"GRPC_USE_REFLECTION" env-default:"false"`
 }
 
 type Pg struct {
-	Host string `env:"PG_HOST" env-required:"true"`
-	Port int    `env:"PG_PORT" env-required:"true"`
-	User string `env:"PG_USER" env-required:"true"`
-	Pass string `env:"PG_PASS" env-required:"true"`
-	Name string `env:"PG_NAME" env-required:"true"`
+	Host string `env:"PG_HOST" env-reuired:"true"`
+	Port int    `env:"PG_PORT" env-reuired:"true"`
+	User string `env:"PG_USER" env-reuired:"true"`
+	Pass string `env:"PG_PASS" env-reuired:"true"`
+	Name string `env:"PG_NAME" env-reuired:"true"`
 }
 
 type Redis struct {
-	Host string `env:"REDIS_HOST" env-required:"true"`
-	Port int    `env:"REDIS_PORT" env-required:"true"`
+	Host string `env:"REDIS_HOST" env-reuired:"true"`
+	Port int    `env:"REDIS_PORT" env-reuired:"true"`
 	Pass string `env:"REDIS_PASS"`
 }
 
 type Jwt struct {
-	AccessSecret  string `env:"JWT_ACCESS_SECRET" env-required:"true"`
-	AccessTTL     int    `env:"JWT_ACCESS_TTL" env-required:"true"`
-	RefreshSecret string `env:"JWT_REFRESH_SECRET" env-required:"true"`
-	RefreshTTL    int    `env:"JWT_REFRESH_TTL" env-required:"true"`
+	AccessSecret  string `env:"JWT_ACCESS_SECRET" env-reuired:"true"`
+	AccessTTL     int    `env:"JWT_ACCESS_TTL" env-reuired:"true"`
+	RefreshSecret string `env:"JWT_REFRESH_SECRET" env-reuired:"true"`
+	RefreshTTL    int    `env:"JWT_REFRESH_TTL" env-reuired:"true"`
 }
 
 type Bcrypt struct {
-	Cost int `env:"BCRYPT_COST" env-required:"true"`
+	Cost int `env:"BCRYPT_COST" env-reuired:"true"`
 }
 
 type DefaultUser struct {

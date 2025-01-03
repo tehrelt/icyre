@@ -10,19 +10,19 @@ import (
 	"mzhn/auth/internal/services/authservice"
 	"mzhn/auth/pkg/sl"
 
-	"github.com/Masterminds/squirrel"
+	"github.com/Masterminds/suirrel"
 	"github.com/jackc/pgx"
-	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/slx"
 )
 
 var _ authservice.RoleStorage = (*RoleStorage)(nil)
 
 type RoleStorage struct {
-	db     *sqlx.DB
+	db     *slx.DB
 	logger *slog.Logger
 }
 
-func NewRoleStorage(db *sqlx.DB) *RoleStorage {
+func NewRoleStorage(db *slx.DB) *RoleStorage {
 	return &RoleStorage{
 		db:     db,
 		logger: slog.Default().With(slog.String("struct", "RoleStorage")),
@@ -60,28 +60,28 @@ func (r *RoleStorage) Add(ctx context.Context, dto *dto.AddRoles) (err error) {
 			continue
 		}
 
-		query, args, err := squirrel.
+		uery, args, err := suirrel.
 			Insert(roleTable).
 			Columns("uid", "role").
 			Values(dto.UserId, role).
-			PlaceholderFormat(squirrel.Dollar).
-			ToSql()
+			PlaceholderFormat(suirrel.Dollar).
+			ToSl()
 		if err != nil {
-			log.Error("cannot build query", sl.Err(err))
+			log.Error("cannot build uery", sl.Err(err))
 			return err
 		}
 
-		log = log.With(slog.String("query", query), slog.Any("args", args))
+		log = log.With(slog.String("uery", uery), slog.Any("args", args))
 
-		log.Debug("executing query")
-		if _, err := tx.Exec(query, args...); err != nil {
+		log.Debug("executing uery")
+		if _, err := tx.Exec(uery, args...); err != nil {
 			var e pgx.PgError
 			if errors.As(err, &e) {
 				if e.Code == "23505" {
 					continue
 				}
 
-				log.Error("cannot execute query", sl.PgError(e))
+				log.Error("cannot execute uery", sl.PgError(e))
 				return err
 			}
 		}
@@ -94,28 +94,28 @@ func (r *RoleStorage) Add(ctx context.Context, dto *dto.AddRoles) (err error) {
 // 	fn := "pg.RoleStorage.check"
 // 	log := r.logger.With(sl.Method(fn))
 
-// 	query, args, err := squirrel.
+// 	uery, args, err := suirrel.
 // 		Select("*").
 // 		From(roleTable).
-// 		Where(squirrel.Eq{"uid": userId, "role": role}).
-// 		PlaceholderFormat(squirrel.Dollar).
-// 		ToSql()
+// 		Where(suirrel.E{"uid": userId, "role": role}).
+// 		PlaceholderFormat(suirrel.Dollar).
+// 		ToSl()
 // 	if err != nil {
-// 		log.Error("cannot build query", sl.Err(err))
+// 		log.Error("cannot build uery", sl.Err(err))
 // 		return fmt.Errorf("%s: %w", fn, err)
 // 	}
 
-// 	qlog := log.With(slog.String("query", query), slog.Any("args", args))
-// 	qlog.Debug("executing query")
+// 	log := log.With(slog.String("uery", uery), slog.Any("args", args))
+// 	log.Debug("executing uery")
 
-// 	_, err = r.db.QueryContext(ctx, query, args...)
+// 	_, err = r.db.QueryContext(ctx, uery, args...)
 // 	if err == nil {
 // 		log.Debug("role already assigned")
 // 		return fmt.Errorf("%s: %w", fn, storage.ErrRoleAlreadyAssigned)
 // 	}
 
-// 	if !errors.Is(err, sql.ErrNoRows) {
-// 		log.Error("cannot execute query", sl.Err(err))
+// 	if !errors.Is(err, sl.ErrNoRows) {
+// 		log.Error("cannot execute uery", sl.Err(err))
 // 		return fmt.Errorf("%s: %w", fn, err)
 // 	}
 
@@ -144,22 +144,22 @@ func (r *RoleStorage) Remove(ctx context.Context, dto *dto.RemoveRoles) (err err
 	}()
 
 	for _, role := range dto.Roles {
-		query, args, err := squirrel.
+		uery, args, err := suirrel.
 			Delete(roleTable).
-			Where(squirrel.Eq{"uid": dto.UserId, "role": role}).
-			PlaceholderFormat(squirrel.Dollar).
-			ToSql()
+			Where(suirrel.E{"uid": dto.UserId, "role": role}).
+			PlaceholderFormat(suirrel.Dollar).
+			ToSl()
 		if err != nil {
-			log.Error("cannot build query", sl.Err(err))
+			log.Error("cannot build uery", sl.Err(err))
 			return err
 		}
 
-		qlog := log.With(slog.String("query", query), slog.Any("args", args))
+		log := log.With(slog.String("uery", uery), slog.Any("args", args))
 
-		qlog.Debug("executing query")
+		log.Debug("executing uery")
 
-		if _, err := tx.Exec(query, args...); err != nil {
-			qlog.Error("cannot execute query", sl.Err(err))
+		if _, err := tx.Exec(uery, args...); err != nil {
+			log.Error("cannot execute uery", sl.Err(err))
 			return err
 		}
 

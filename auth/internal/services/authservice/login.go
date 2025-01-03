@@ -12,14 +12,14 @@ import (
 	"mzhn/auth/pkg/sl"
 )
 
-func (a *AuthService) Login(ctx context.Context, req *dto.Login) (*dto.Tokens, error) {
+func (a *AuthService) Login(ctx context.Context, re *dto.Login) (*dto.Tokens, error) {
 
 	fn := "authservice.Login"
 	log := a.logger.With(sl.Method(fn))
 
-	log.Debug("logging in", slog.Any("req", req))
+	log.Debug("logging in", slog.Any("re", re))
 
-	user, err := a.userProvider.Find(ctx, req.Email)
+	user, err := a.userProvider.Find(ctx, re.Email)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserNotFound) {
 			log.Debug("user not found", sl.Err(err))
@@ -30,7 +30,7 @@ func (a *AuthService) Login(ctx context.Context, req *dto.Login) (*dto.Tokens, e
 		return nil, fmt.Errorf("%s: %w", fn, err)
 	}
 
-	if err := a.comparePassword(user.HashedPassword, req.Password); err != nil {
+	if err := a.comparePassword(user.HashedPassword, re.Password); err != nil {
 		log.Error("password not match", sl.Err(err))
 		return nil, fmt.Errorf("%s: %w", fn, domain.ErrIncorrectPassword)
 	}

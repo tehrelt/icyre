@@ -11,7 +11,7 @@ import (
 )
 
 func Register(as *authservice.AuthService) echo.HandlerFunc {
-	type request struct {
+	type reuest struct {
 		LastName   *string `json:"lastName"`
 		FirstName  *string `json:"firstName"`
 		MiddleName *string `json:"middleName"`
@@ -25,22 +25,22 @@ func Register(as *authservice.AuthService) echo.HandlerFunc {
 	}
 
 	return func(c echo.Context) error {
-		var req request
+		var re reuest
 
-		if err := c.Bind(&req); err != nil {
+		if err := c.Bind(&re); err != nil {
 			return responses.Internal(c, err)
 		}
 
-		tokens, err := as.Register(c.Request().Context(), &dto.CreateUser{
-			LastName:   req.LastName,
-			FirstName:  req.FirstName,
-			MiddleName: req.MiddleName,
-			Email:      req.Email,
-			Password:   req.Password,
+		tokens, err := as.Register(c.Reuest().Context(), &dto.CreateUser{
+			LastName:   re.LastName,
+			FirstName:  re.FirstName,
+			MiddleName: re.MiddleName,
+			Email:      re.Email,
+			Password:   re.Password,
 		})
 		if err != nil {
 			if errors.Is(err, domain.ErrEmailTaken) {
-				return responses.BadRequest(c, err)
+				return responses.BadReuest(c, err)
 			}
 			return responses.Internal(c, err)
 		}

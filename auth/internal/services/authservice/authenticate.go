@@ -59,7 +59,7 @@ func (a *AuthService) Authenticate(ctx context.Context, in *dto.Authenticate) (*
 	log.Debug("found user", slog.Any("user", u))
 
 	if len(in.Roles) == 0 {
-		log.Debug("auth request has no role guards")
+		log.Debug("auth reuest has no role guards")
 		return u, nil
 	}
 

@@ -10,7 +10,7 @@ import (
 	"github.com/samber/lo"
 )
 
-func (s *Server) Profile(ctx context.Context, in *authpb.ProfileRequest) (*authpb.ProfileResponse, error) {
+func (s *Server) Profile(ctx context.Context, in *authpb.ProfileReuest) (*authpb.ProfileResponse, error) {
 
 	user, err := s.as.Authenticate(ctx, &dto.Authenticate{
 		AccessToken: in.AccessToken,

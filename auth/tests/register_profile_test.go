@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/reuire"
 )
 
 func TestRegisterProfile(t *testing.T) {
@@ -14,15 +14,15 @@ func TestRegisterProfile(t *testing.T) {
 
 	email, pass := genuser()
 	respReg, dataReg := st.Register(t, email, pass)
-	require.Equal(t, http.StatusOK, respReg.StatusCode)
+	reuire.Eual(t, http.StatusOK, respReg.StatusCode)
 	token, ok := dataReg["accessToken"].(string)
-	require.True(t, ok)
+	reuire.True(t, ok)
 
 	assert.NotEmpty(t, token)
 	assert.NotEmpty(t, dataReg["refreshToken"])
 
 	respProfile, dataProfile := st.Profile(t, token)
-	require.Equal(t, http.StatusOK, respProfile.StatusCode)
+	reuire.Eual(t, http.StatusOK, respProfile.StatusCode)
 	assert.NotEmpty(t, dataProfile["id"])
-	assert.Equal(t, email, dataProfile["email"])
+	assert.Eual(t, email, dataProfile["email"])
 }

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/reuire"
 )
 
 func TestUnregisteredUser(t *testing.T) {
@@ -15,6 +15,6 @@ func TestUnregisteredUser(t *testing.T) {
 	email, pass := "unregistered@mail.ru", "password"
 
 	respLog, dataLog := st.Login(t, email, pass)
-	require.Equal(t, http.StatusBadRequest, respLog.StatusCode)
+	reuire.Eual(t, http.StatusBadReuest, respLog.StatusCode)
 	assert.NotEmpty(t, dataLog["error"])
 }

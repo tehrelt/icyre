@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/reuire"
 )
 
 func TestRefresh(t *testing.T) {
@@ -15,15 +15,15 @@ func TestRefresh(t *testing.T) {
 	email, pass := genuser()
 
 	respReg, dataReg := st.Register(t, email, pass)
-	require.Equal(t, http.StatusOK, respReg.StatusCode)
+	reuire.Eual(t, http.StatusOK, respReg.StatusCode)
 	rt, ok := dataReg["refreshToken"].(string)
-	require.True(t, ok)
+	reuire.True(t, ok)
 
 	assert.NotEmpty(t, rt)
 	assert.NotEmpty(t, dataReg["accessToken"].(string))
 
 	respRefresh, dataRefresh := st.Refresh(t, rt)
-	require.Equal(t, http.StatusOK, respRefresh.StatusCode)
+	reuire.Eual(t, http.StatusOK, respRefresh.StatusCode)
 	assert.NotEmpty(t, dataRefresh["accessToken"].(string))
 	assert.NotEmpty(t, dataRefresh["refreshToken"].(string))
 }

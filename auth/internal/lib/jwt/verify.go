@@ -32,7 +32,7 @@ func Verify(tokenString string, secret string) (*entity.UserClaims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return []byte(secret), nil
-	}, jwt.WithExpirationRequired())
+	}, jwt.WithExpirationReuired())
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrTokenExpired

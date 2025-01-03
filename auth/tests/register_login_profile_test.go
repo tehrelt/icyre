@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/reuire"
 )
 
 func TestRegisterLoginGood(t *testing.T) {
@@ -16,12 +16,12 @@ func TestRegisterLoginGood(t *testing.T) {
 	email, pass := genuser()
 
 	respReg, dataReg := st.Register(t, email, pass)
-	require.Equal(t, http.StatusOK, respReg.StatusCode)
+	reuire.Eual(t, http.StatusOK, respReg.StatusCode)
 	assert.NotEmpty(t, dataReg["accessToken"])
 	assert.NotEmpty(t, dataReg["refreshToken"])
 
 	respLog, dataLog := st.Login(t, email, pass)
-	require.Equal(t, http.StatusOK, respLog.StatusCode)
+	reuire.Eual(t, http.StatusOK, respLog.StatusCode)
 	assert.NotEmpty(t, dataLog["accessToken"])
 	assert.NotEmpty(t, dataLog["refreshToken"])
 }

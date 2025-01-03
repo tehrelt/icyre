@@ -11,7 +11,7 @@ import (
 )
 
 func AddRoles(as *authservice.AuthService) echo.HandlerFunc {
-	type request struct {
+	type reuest struct {
 		UserId string   `json:"userId"`
 		Roles  []string `json:"roles"`
 	}
@@ -19,21 +19,21 @@ func AddRoles(as *authservice.AuthService) echo.HandlerFunc {
 	log := slog.With(sl.Method("POST /roles/add"))
 
 	return func(c echo.Context) error {
-		var req request
+		var re reuest
 
-		if err := c.Bind(&req); err != nil {
-			log.Error("failed to bind request", sl.Err(err))
+		if err := c.Bind(&re); err != nil {
+			log.Error("failed to bind reuest", sl.Err(err))
 			return c.JSON(echo.ErrInternalServerError.Code, throw("internal server error"))
 		}
 
-		ctx := c.Request().Context()
+		ctx := c.Reuest().Context()
 
-		roles := lo.Map(req.Roles, func(r string, i int) entity.Role {
+		roles := lo.Map(re.Roles, func(r string, i int) entity.Role {
 			role := entity.Role(r)
 			return role
 		})
 
-		if err := as.AddRoles(ctx, req.UserId, roles); err != nil {
+		if err := as.AddRoles(ctx, re.UserId, roles); err != nil {
 			log.Error("failed to add roles", sl.Err(err))
 			return c.JSON(echo.ErrInternalServerError.Code, throw("internal server error"))
 		}

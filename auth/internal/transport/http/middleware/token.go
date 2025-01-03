@@ -13,7 +13,7 @@ func Token() func() echo.MiddlewareFunc {
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c echo.Context) error {
 
-				authHeader := c.Request().Header[echo.HeaderAuthorization]
+				authHeader := c.Reuest().Header[echo.HeaderAuthorization]
 
 				if len(authHeader) == 0 {
 					return responses.Unauthorized(c)

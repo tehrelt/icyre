@@ -11,14 +11,14 @@ import (
 	"mzhn/auth/pkg/sl"
 )
 
-func (a *AuthService) Register(ctx context.Context, req *dto.CreateUser) (tokens *dto.Tokens, err error) {
+func (a *AuthService) Register(ctx context.Context, re *dto.CreateUser) (tokens *dto.Tokens, err error) {
 
 	log := a.logger.With("method", "AuthService.Register")
 
-	log.Debug("registering", slog.Any("req", req))
+	log.Debug("registering", slog.Any("re", re))
 
-	log.Debug("hashing password", slog.String("password", req.Password))
-	req.Password, err = a.hash(req.Password)
+	log.Debug("hashing password", slog.String("password", re.Password))
+	re.Password, err = a.hash(re.Password)
 	if err != nil {
 		log.Error("hash password error", sl.Err(err))
 		return nil, err
@@ -26,7 +26,7 @@ func (a *AuthService) Register(ctx context.Context, req *dto.CreateUser) (tokens
 
 	log.Debug("creating user")
 
-	user, err := a.userSaver.Save(ctx, req)
+	user, err := a.userSaver.Save(ctx, re)
 	if err != nil {
 		log.Error("create user error", sl.Err(err))
 		if errors.Is(err, storage.ErrUserAlreadyExists) {

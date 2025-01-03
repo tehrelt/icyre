@@ -22,7 +22,7 @@ func main() {
 
 	pg := cfg.Pg
 
-	cs := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=disable", pg.User, pg.Pass, pg.Host, pg.Port, pg.Name)
+	cs := fmt.Sprintf("postgresl://%s:%s@%s:%d/%s?sslmode=disable", pg.User, pg.Pass, pg.Host, pg.Port, pg.Name)
 	m, err := migrate.New(
 		"file://migrations",
 		cs,

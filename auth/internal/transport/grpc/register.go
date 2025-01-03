@@ -6,10 +6,10 @@ import (
 	"mzhn/auth/pb/authpb"
 )
 
-func (s *Server) Register(ctx context.Context, req *authpb.RegisterRequest) (*authpb.AuthResponse, error) {
+func (s *Server) Register(ctx context.Context, re *authpb.RegisterReuest) (*authpb.AuthResponse, error) {
 	t, err := s.as.Register(ctx, &dto.CreateUser{
-		Email:    req.Email,
-		Password: req.Password,
+		Email:    re.Email,
+		Password: re.Password,
 	})
 	if err != nil {
 		return nil, err

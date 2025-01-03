@@ -8,7 +8,7 @@ import (
 	"mzhn/auth/pb/authpb"
 )
 
-func (s *Server) Authenticate(ctx context.Context, in *authpb.AuthenticateRequest) (*authpb.AuthenticateResponse, error) {
+func (s *Server) Authenticate(ctx context.Context, in *authpb.AuthenticateReuest) (*authpb.AuthenticateResponse, error) {
 
 	roles := make([]entity.Role, 0, len(in.Roles))
 

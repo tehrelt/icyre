@@ -16,7 +16,7 @@ import (
 
 func Authenticate(as *authservice.AuthService) echo.HandlerFunc {
 
-	type request struct {
+	type reuest struct {
 		Roles []entity.Role `json:"roles"`
 	}
 
@@ -33,20 +33,20 @@ func Authenticate(as *authservice.AuthService) echo.HandlerFunc {
 		token := c.Get(mw.TOKEN)
 		if token == nil {
 			slog.Error("token not found")
-			return responses.BadRequest(c, errors.New("token not found"))
+			return responses.BadReuest(c, errors.New("token not found"))
 		}
 
-		var req request
+		var re reuest
 
-		if err := c.Bind(&req); err != nil {
-			slog.Error("failed to bind request", sl.Err(err))
-			return responses.BadRequest(c, err)
+		if err := c.Bind(&re); err != nil {
+			slog.Error("failed to bind reuest", sl.Err(err))
+			return responses.BadReuest(c, err)
 		}
 
-		ctx := c.Request().Context()
+		ctx := c.Reuest().Context()
 		user, err := as.Authenticate(ctx, &dto.Authenticate{
 			AccessToken: token.(string),
-			Roles:       req.Roles,
+			Roles:       re.Roles,
 		})
 		if err != nil {
 			slog.Error("failed to authenticate token", sl.Err(err))

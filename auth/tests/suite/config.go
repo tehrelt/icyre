@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/reuire"
 )
 
 type Config struct {
@@ -18,7 +18,7 @@ func NewConfig(t *testing.T) *Config {
 	var cfg Config
 
 	if err := cleanenv.ReadEnv(&cfg); err != nil {
-		require.NoError(t, err)
+		reuire.NoError(t, err)
 	}
 
 	return &cfg

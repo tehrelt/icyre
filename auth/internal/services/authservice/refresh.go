@@ -8,22 +8,22 @@ import (
 	"mzhn/auth/pkg/sl"
 )
 
-func (a *AuthService) Refresh(ctx context.Context, req *dto.Refresh) (*dto.Tokens, error) {
+func (a *AuthService) Refresh(ctx context.Context, re *dto.Refresh) (*dto.Tokens, error) {
 	fn := "authservice.Refresh"
 	log := a.logger.With(sl.Method(fn))
 
 	log.Debug("refreshing user's session")
 
-	claims, err := jwt.Verify(req.RefreshToken, a.cfg.Jwt.RefreshSecret)
+	claims, err := jwt.Verify(re.RefreshToken, a.cfg.Jwt.RefreshSecret)
 	if err != nil {
 		log.Error("refresh token invalid", sl.Err(err))
-		if err := a.sessions.Delete(ctx, req.RefreshToken); err != nil {
+		if err := a.sessions.Delete(ctx, re.RefreshToken); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("%s: %w", fn, err)
 	}
 
-	if err := a.sessions.Check(ctx, claims.Id, req.RefreshToken); err != nil {
+	if err := a.sessions.Check(ctx, claims.Id, re.RefreshToken); err != nil {
 		log.Error("session not found", sl.Err(err))
 		return nil, err
 	}

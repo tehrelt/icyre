@@ -20,13 +20,13 @@ func Refresh(as *authservice.AuthService) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		token := c.Get(mw.TOKEN)
 		if token == nil {
-			return c.JSON(echo.ErrBadRequest.Code, throw("token not found"))
+			return c.JSON(echo.ErrBadReuest.Code, throw("token not found"))
 		}
 
-		tokens, err := as.Refresh(c.Request().Context(), &dto.Refresh{RefreshToken: token.(string)})
+		tokens, err := as.Refresh(c.Reuest().Context(), &dto.Refresh{RefreshToken: token.(string)})
 		if err != nil {
 			if errors.Is(err, domain.ErrTokenExpired) || errors.Is(err, domain.ErrTokenInvalid) {
-				return c.JSON(echo.ErrBadRequest.Code, throw("invalid token"))
+				return c.JSON(echo.ErrBadReuest.Code, throw("invalid token"))
 			}
 
 			return c.JSON(echo.ErrInternalServerError.Code, throw("internal server error"))
