@@ -31,6 +31,8 @@ type stubCatalog struct {
 	gotCreateTrack application.CreateTrack
 	gotUpdate      application.UpdateTrack
 	gotList        application.ListArtistAlbums
+	gotAlbums      application.ListAlbums
+	gotIDs         []uuid.UUID
 }
 
 func (s *stubCatalog) CreateArtist(_ context.Context, cmd application.CreateArtist) (domain.Artist, error) {
@@ -41,6 +43,14 @@ func (s *stubCatalog) CreateArtist(_ context.Context, cmd application.CreateArti
 }
 func (s *stubCatalog) GetArtist(context.Context, uuid.UUID) (domain.Artist, error) {
 	return s.artist, s.err
+}
+func (s *stubCatalog) ListArtists(_ context.Context, ids []uuid.UUID) ([]domain.Artist, error) {
+	s.gotIDs = ids
+	return []domain.Artist{s.artist}, s.err
+}
+func (s *stubCatalog) ListAlbums(_ context.Context, q application.ListAlbums) (application.AlbumPage, error) {
+	s.gotAlbums = q
+	return s.page, s.err
 }
 func (s *stubCatalog) ListArtistAlbums(_ context.Context, q application.ListArtistAlbums) (application.AlbumPage, error) {
 	s.gotList = q
@@ -221,5 +231,27 @@ func TestCreateTrackMapsDuration(t *testing.T) {
 	}
 	if stub.gotCreateTrack.Duration != 227500*time.Millisecond || stub.gotCreateTrack.AlbumID.String() != album {
 		t.Fatalf("command = %+v", stub.gotCreateTrack)
+	}
+}
+
+func TestBatchArtistsAndAlbumList(t *testing.T) {
+	a, _ := domain.NewArtist(uuid.Must(uuid.NewV7()), "Nova Hale", time.Now())
+	stub := &stubCatalog{artist: a}
+	id1, id2 := uuid.NewString(), uuid.NewString()
+
+	rec := serve(t, stub, http.MethodGet, "/api/v1/artists?ids="+id1+","+id2, "")
+	if rec.Code != http.StatusOK || len(stub.gotIDs) != 2 || !strings.Contains(rec.Body.String(), `"name":"Nova Hale"`) {
+		t.Fatalf("status = %d, ids = %v, body = %s", rec.Code, stub.gotIDs, rec.Body)
+	}
+	if rec := serve(t, stub, http.MethodGet, "/api/v1/artists?ids=nope", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("bad id status = %d", rec.Code)
+	}
+	if rec := serve(t, stub, http.MethodGet, "/api/v1/artists", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing ids status = %d", rec.Code)
+	}
+
+	rec = serve(t, stub, http.MethodGet, "/api/v1/albums?limit=3", "")
+	if rec.Code != http.StatusOK || stub.gotAlbums.Limit != 3 || !strings.Contains(rec.Body.String(), `"pagination"`) {
+		t.Fatalf("status = %d, q = %+v, body = %s", rec.Code, stub.gotAlbums, rec.Body)
 	}
 }

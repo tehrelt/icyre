@@ -10,7 +10,7 @@ describe('apiGet (mock API)', () => {
   });
 
   it('maps the error envelope to ApiError', async () => {
-    const err = await apiGet('/albums/nope/tracks', z.unknown()).catch((e: unknown) => e);
+    const err = await apiGet('/pages/albums/nope', z.unknown()).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     expect(err).toMatchObject({ status: 404, code: 'ALBUM_NOT_FOUND' });
     expect((err as ApiError).requestId).toBeTruthy();

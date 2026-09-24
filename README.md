@@ -14,10 +14,11 @@
 ```text
 apps/web/            React + TypeScript + Vite (Bun workspace)
 services/catalog/    Catalog Service — эталонная vertical slice (Go module)
+services/bff/        Web BFF — page-oriented API для веб-клиента (агрегация сервисов)
 libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, kafka, telemetry
 libs/contracts/      межсервисные контракты: Kafka envelope, event payloads
 api/proto/           protobuf (gRPC, позже)
-deploy/              Prometheus, Grafana, Kafka topics
+deploy/              API gateway (nginx), Prometheus, Grafana, Kafka topics
 go.work              Go workspace
 package.json         Bun workspace
 ```
@@ -33,14 +34,18 @@ package.json         Bun workspace
 ## Быстрый старт
 
 ```bash
-docker compose up -d --build      # Postgres, Kafka, Catalog, Jaeger, Prometheus, Grafana
+docker compose up -d --build      # Postgres, Kafka, Catalog, BFF, Gateway, Jaeger, Prometheus, Grafana
+make seed                         # контент из product canvas → Catalog
 bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
+VITE_API_MOCKS=false bun run dev  # тот же UI на реальных данных через gateway
 ```
 
 | Что | URL |
 |---|---|
 | Web | http://localhost:5173 |
-| Catalog API | http://localhost:8081/api/v1 · `/health/ready` · `/metrics` |
+| API Gateway (публичный `/api/v1`) | http://localhost:8080/api/v1 |
+| Catalog API (напрямую, включая запись) | http://localhost:8081/api/v1 · `/health/ready` · `/metrics` |
+| Web BFF | http://localhost:8082/api/v1/pages/home |
 | Jaeger | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin / admin) → ICYRE → «ICYRE — services» |

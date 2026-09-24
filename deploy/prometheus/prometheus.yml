@@ -13,3 +13,10 @@ scrape_configs:
       - targets: ["catalog:8080"]
         labels:
           service: catalog-service
+
+  - job_name: web-bff
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["bff:8080"]
+        labels:
+          service: web-bff

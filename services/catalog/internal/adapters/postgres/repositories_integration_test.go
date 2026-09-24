@@ -201,4 +201,13 @@ func TestListByArtistKeysetPagination(t *testing.T) {
 	if err != nil || len(page2) != 3 || page2[0].Title != "2021" {
 		t.Fatalf("page2 = %+v, err = %v", page2, err)
 	}
+	all, err := albums.List(ctx, nil, 3)
+	if err != nil || len(all) != 3 || all[0].Title != "2023" || len(all[0].ArtistIDs) != 1 {
+		t.Fatalf("list = %+v, err = %v", all, err)
+	}
+
+	found, err := artists.ListByIDs(ctx, []uuid.UUID{a.ID, newID()})
+	if err != nil || len(found) != 1 || found[0].Name != "Nova Hale" {
+		t.Fatalf("ListByIDs = %+v, err = %v", found, err)
+	}
 }

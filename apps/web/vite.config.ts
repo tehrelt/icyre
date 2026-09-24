@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 // The browser only talks to the public API under /api/v1. In development the
-// Vite server proxies it to the gateway (for now: Catalog Service in compose).
-const apiTarget = process.env.ICYRE_API_PROXY ?? 'http://localhost:8081';
+// Vite server proxies it to the API gateway from docker compose.
+const apiTarget = process.env.ICYRE_API_PROXY ?? 'http://localhost:8080';
 
 export default defineConfig({
   plugins: [react()],

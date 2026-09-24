@@ -114,7 +114,9 @@ function HomeSections({ feed, filter }: { feed: HomeFeed; filter: Filter }) {
         </section>
       )}
 
-      {filter === 'all' && <TrendingSection today={feed.trending.today} week={feed.trending.week} />}
+      {filter === 'all' && (feed.trending.today.length > 0 || feed.trending.week.length > 0) && (
+        <TrendingSection today={feed.trending.today} week={feed.trending.week} />
+      )}
 
       {show('playlist') && (feed.madeForYou.featured || feed.madeForYou.playlists.length > 0) && (
         <section aria-labelledby="mfy-title" className={styles.section}>

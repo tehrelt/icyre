@@ -14,6 +14,11 @@
 
 Catalog Service — эталон для остальных сервисов (`services/catalog/README.md`).
 
+## Edge и агрегация
+
+- [-] EPIC-032 — API Gateway (nginx: routing, request ID, rate limit, access logs; осталось CORS, TLS)
+- [-] EPIC-033 — Web BFF (home + album pages; осталось artist page — нет макета)
+
 ## Frontend
 
 - [x] EPIC-041 — Frontend Foundation
@@ -29,10 +34,11 @@ Catalog Service — эталон для остальных сервисов (`se
 
 ## Next
 
-Все экраны canvas (Home, Album, Search + состояния) реализованы. Дальше — реальные данные вместо mock:
+Home и Album работают на реальных данных: Postgres → Catalog → BFF → Gateway → UI (`make seed`).
+Недостающие источники данных, по порядку ценности для экранов canvas:
 
-1. EPIC-033 — Web BFF: `/api/v1/pages/home`, `/api/v1/pages/albums/{id}` поверх Catalog Service.
-2. EPIC-004 Redis → EPIC-011 Auth Service (нужен для персональных данных BFF).
+1. EPIC-004 Redis → EPIC-011 Auth Service → EPIC-012 User Profile (`/me`, персонализация, sidebar).
+2. EPIC-018 MinIO → EPIC-017 Stream Authorization (signed URL — чтобы плеер играл реальный звук).
 3. EPIC-023…025 — OpenSearch, Search Indexer, Search Service (контракт `/api/v1/search` уже задан фронтендом).
-4. Transactional outbox для catalog events (at-least-once end to end).
-5. Новые frontend-экраны (Library, Playlist, Auth, Artist) — после макетов в canvas.
+4. EPIC-014 Library (sidebar: счётчики, плейлисты), EPIC-026 Listening History (Recently played).
+5. Transactional outbox для catalog events (at-least-once end to end).

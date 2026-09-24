@@ -3,7 +3,7 @@
  * It returns the same status codes and error envelope as the real gateway.
  */
 import { search, searchAlbums, searchArtists, searchBrowsePage, searchPlaylists, type SearchType } from './searchIndex';
-import { currentUser, generatedAlbumPage, generatedTracks, homeFeed, librarySummary, prismHoursPage, prismHoursTracks } from './fixtures';
+import { currentUser, generatedAlbumPage, generatedTracks, homeFeed, librarySummary, prismHoursPage } from './fixtures';
 
 interface MockResponse {
   status: number;
@@ -17,6 +17,9 @@ type Handler = (params: Record<string, string>, query: URLSearchParams) => MockR
  * error states (e.g. `mockFaults.add('/search')`).
  */
 export const mockFaults = new Set<string>();
+
+/** Per-route response overrides for tests (e.g. an empty BFF home page). */
+export const mockOverrides = new Map<string, () => { status: number; json: unknown }>();
 
 const SEARCH_TYPES: SearchType[] = ['all', 'tracks', 'artists', 'albums', 'playlists'];
 
@@ -61,7 +64,6 @@ function collectionIndex(): Map<string, CollectionInfo> {
 const collections = collectionIndex();
 
 function tracksOf(kind: string, id: string): MockResponse {
-  if (kind === 'album' && id === 'alb-prism-hours') return ok({ data: prismHoursTracks });
   const info = collections.get(id);
   if (!info) {
     const code = kind === 'album' ? 'ALBUM_NOT_FOUND' : kind === 'artist' ? 'ARTIST_NOT_FOUND' : 'PLAYLIST_NOT_FOUND';
@@ -88,7 +90,6 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],
   ['GET', '/pages/search', () => ok(searchBrowsePage)],
   ['GET', '/search', (_p, q) => searchRoute(q)],
-  ['GET', '/albums/:id/tracks', (p) => tracksOf('album', p.id ?? '')],
   ['GET', '/playlists/:id/tracks', (p) => tracksOf('playlist', p.id ?? '')],
   ['GET', '/artists/:id/top-tracks', (p) => tracksOf('artist', p.id ?? '')],
   // Stream authorization: no media origin locally, so no signed URL.
@@ -126,6 +127,8 @@ export async function mockRequest(method: string, path: string, _body: unknown, 
     if (m !== method) continue;
     const params = match(pattern, path);
     if (!params) continue;
+    const override = mockOverrides.get(pattern);
+    if (override) return structuredClone(override());
     if (mockFaults.has(pattern)) {
       return { status: 503, json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'Service is temporarily unavailable', requestId: 'mock-fault' } } };
     }

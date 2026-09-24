@@ -15,6 +15,8 @@ import (
 type ArtistRepository interface {
 	Create(ctx context.Context, a domain.Artist) error
 	Get(ctx context.Context, id uuid.UUID) (domain.Artist, error)
+	// ListByIDs returns the artists that exist among ids, in no particular order.
+	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Artist, error)
 }
 
 // AlbumCursor positions keyset pagination over albums ordered by
@@ -34,6 +36,8 @@ type AlbumRepository interface {
 	// ListByArtist returns up to limit albums credited to the artist,
 	// starting after the cursor (nil = first page).
 	ListByArtist(ctx context.Context, artistID uuid.UUID, after *AlbumCursor, limit int) ([]domain.Album, error)
+	// List returns up to limit albums of the whole catalogue, newest first.
+	List(ctx context.Context, after *AlbumCursor, limit int) ([]domain.Album, error)
 }
 
 // TrackRepository persists tracks with their artist credits.

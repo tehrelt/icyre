@@ -28,6 +28,16 @@ func (m memArtists) Get(_ context.Context, id uuid.UUID) (domain.Artist, error) 
 	return a, nil
 }
 
+func (m memArtists) ListByIDs(_ context.Context, ids []uuid.UUID) ([]domain.Artist, error) {
+	var out []domain.Artist
+	for _, id := range ids {
+		if a, ok := m[id]; ok {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
 type memAlbums struct {
 	artists memArtists
 	byID    map[uuid.UUID]domain.Album
@@ -51,9 +61,18 @@ func (m *memAlbums) Get(_ context.Context, id uuid.UUID) (domain.Album, error) {
 	return a, nil
 }
 
+func (m *memAlbums) List(ctx context.Context, after *ports.AlbumCursor, limit int) ([]domain.Album, error) {
+	return m.ListByArtist(ctx, uuid.Nil, after, limit)
+}
+
+// ListByArtist filters by artist; uuid.Nil means every album.
 func (m *memAlbums) ListByArtist(_ context.Context, artistID uuid.UUID, after *ports.AlbumCursor, limit int) ([]domain.Album, error) {
 	var out []domain.Album
 	for _, a := range m.byID {
+		if artistID == uuid.Nil {
+			out = append(out, a)
+			continue
+		}
 		for _, id := range a.ArtistIDs {
 			if id == artistID {
 				out = append(out, a)
@@ -288,5 +307,32 @@ func TestListArtistAlbumsPaginates(t *testing.T) {
 
 	if _, err := f.svc.ListArtistAlbums(ctx, ListArtistAlbums{ArtistID: uuid.New()}); !errors.Is(err, domain.ErrArtistNotFound) {
 		t.Fatalf("expected ErrArtistNotFound, got %v", err)
+	}
+}
+
+func TestListAlbumsAndArtists(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	nova, _ := f.svc.CreateArtist(ctx, CreateArtist{Name: "Nova Hale"})
+	kai, _ := f.svc.CreateArtist(ctx, CreateArtist{Name: "Kai Frost"})
+	f.album(t, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), nova.ID)
+	f.album(t, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), kai.ID)
+	f.album(t, time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), nova.ID)
+
+	page, err := f.svc.ListAlbums(ctx, ListAlbums{Limit: 2})
+	if err != nil || len(page.Albums) != 2 || page.Next == nil || page.Albums[0].ReleaseDate.Year() != 2026 {
+		t.Fatalf("page = %+v, err = %v", page, err)
+	}
+	rest, _ := f.svc.ListAlbums(ctx, ListAlbums{After: page.Next, Limit: 2})
+	if len(rest.Albums) != 1 || rest.Next != nil || rest.Albums[0].ReleaseDate.Year() != 2024 {
+		t.Fatalf("rest = %+v", rest)
+	}
+
+	artists, err := f.svc.ListArtists(ctx, []uuid.UUID{nova.ID, uuid.New(), kai.ID})
+	if err != nil || len(artists) != 2 {
+		t.Fatalf("artists = %v, err = %v", artists, err)
+	}
+	if _, err := f.svc.ListArtists(ctx, make([]uuid.UUID, MaxBatchIDs+1)); err == nil {
+		t.Fatal("expected validation error for oversized batch")
 	}
 }

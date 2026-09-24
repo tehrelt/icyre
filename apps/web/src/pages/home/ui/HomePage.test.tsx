@@ -74,3 +74,35 @@ describe('App shell', () => {
     expect(within(nav).getByRole('link', { name: /Home/ })).toHaveAttribute('aria-current', 'page');
   });
 });
+
+describe('Home with a sparse BFF page', () => {
+  it('shows only the sections the BFF could fill', async () => {
+    const { mockOverrides } = await import('@/shared/api/mock/server');
+    mockOverrides.set('/pages/home', () => ({
+      status: 200,
+      json: {
+        recentlyPlayed: [],
+        albumOfTheWeek: null,
+        recommended: { items: [] },
+        newReleases: {
+          kicker: 'Out this week',
+          items: [{ kind: 'album', id: 'alb-prism-hours', title: 'Prism Hours', artistName: 'Nova Hale', year: 2026, explicit: false, coverUrl: null, art: 0 }],
+        },
+        trending: { today: [], week: [] },
+        madeForYou: { featured: null, playlists: [] },
+        followedArtists: [],
+        unavailable: ['recentlyPlayed', 'albumOfTheWeek', 'recommended', 'trending', 'madeForYou', 'followedArtists'],
+      },
+    }));
+    try {
+      renderApp('/');
+      expect(await screen.findByRole('heading', { name: 'New releases' })).toBeInTheDocument();
+      for (const name of ['Recently played', 'Recommended for you', 'Trending on ICYRE', 'Made for you', 'Artists you follow']) {
+        expect(screen.queryByRole('heading', { name })).not.toBeInTheDocument();
+      }
+      expect(screen.queryByRole('button', { name: 'Play album' })).not.toBeInTheDocument();
+    } finally {
+      mockOverrides.clear();
+    }
+  });
+});

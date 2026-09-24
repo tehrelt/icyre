@@ -48,10 +48,19 @@ lint: ## golangci-lint every module
 build: ## Build service binaries into ./bin
 	@mkdir -p bin
 	cd services/catalog && go build -o ../../bin/catalog ./cmd/catalog
+	cd services/bff && go build -o ../../bin/bff ./cmd/bff
 
 .PHONY: migrate
 migrate: ## Apply Catalog migrations to the local database
 	cd services/catalog && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/catalog migrate
+
+.PHONY: seed
+seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
+	bun scripts/seed-catalog.ts http://localhost:8081
+
+.PHONY: run-bff
+run-bff: ## Run the Web BFF locally against Catalog on :8081
+	cd services/bff && CATALOG_URL=http://localhost:8081 HTTP_ADDR=:8082 LOG_FORMAT=text go run ./cmd/bff
 
 .PHONY: run-catalog
 run-catalog: ## Run Catalog locally against `make up-core`

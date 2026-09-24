@@ -46,6 +46,24 @@ func (r *ArtistRepository) Get(ctx context.Context, id uuid.UUID) (domain.Artist
 	return a, nil
 }
 
+// ListByIDs loads the existing artists among ids.
+func (r *ArtistRepository) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Artist, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT id, name, created_at, updated_at FROM catalog.artists WHERE id = ANY($1::uuid[])`, uuidStrings(ids))
+	if err != nil {
+		return nil, fmt.Errorf("select artists: %w", err)
+	}
+	artists, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Artist, error) {
+		var a domain.Artist
+		err := row.Scan(&a.ID, &a.Name, &a.CreatedAt, &a.UpdatedAt)
+		return a, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("scan artists: %w", err)
+	}
+	return artists, nil
+}
+
 // AlbumRepository implements ports.AlbumRepository.
 type AlbumRepository struct{ pool *pgxpool.Pool }
 
@@ -123,6 +141,28 @@ func (r *AlbumRepository) ListByArtist(ctx context.Context, artistID uuid.UUID, 
 		artistID, afterDate, afterID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("select artist albums: %w", err)
+	}
+	return collectAlbums(rows)
+}
+
+// List pages through all albums, newest first.
+func (r *AlbumRepository) List(ctx context.Context, after *ports.AlbumCursor, limit int) ([]domain.Album, error) {
+	var (
+		afterDate *time.Time
+		afterID   *uuid.UUID
+	)
+	if after != nil {
+		afterDate, afterID = &after.ReleaseDate, &after.ID
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+albumColumns+`
+		FROM catalog.albums a
+		WHERE $1::date IS NULL OR (a.release_date, a.id) < ($1::date, $2::uuid)
+		ORDER BY a.release_date DESC, a.id DESC
+		LIMIT $3`,
+		afterDate, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("select albums: %w", err)
 	}
 	return collectAlbums(rows)
 }

@@ -127,7 +127,8 @@ function AlbumContent({ data }: { data: AlbumPageData }) {
       </div>
 
       <section aria-label="Tracks" role="table" className={cx(styles.tracks, view === 'compact' && styles.compact)}>
-        <TrackListHeader showCover={false} albumLabel="Plays" />
+        {/* Play counts come from analytics; without them the column stays unlabelled. */}
+        <TrackListHeader showCover={false} albumLabel={tracks.some((t) => t.plays != null) ? 'Plays' : ''} />
         {tracks.map((t, i) => (
           <AlbumTrackRow key={t.id} track={t} index={i + 1} onPlay={() => playTrack(t)} />
         ))}

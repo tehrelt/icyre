@@ -24,9 +24,11 @@ FK/unique violations БД маппятся в domain errors (БД — после
 | Метод | Путь | |
 |---|---|---|
 | POST | `/artists` | 201 + Location |
+| GET | `/artists?ids=a,b` | batch-чтение (до 100), неизвестные ID пропускаются |
 | GET | `/artists/{id}` | |
 | GET | `/artists/{id}/albums?limit&cursor` | keyset cursor pagination |
 | POST | `/albums` | `albumType`: ALBUM, EP, SINGLE, COMPILATION; `releaseDate` YYYY-MM-DD |
+| GET | `/albums?limit&cursor` | весь каталог, новые релизы первыми |
 | GET | `/albums/{id}` | |
 | GET | `/albums/{id}/tracks` | |
 | POST | `/tracks` | новый трек в статусе DRAFT; `artistIds` по умолчанию — артисты альбома |

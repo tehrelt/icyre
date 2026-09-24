@@ -12,6 +12,7 @@
 | `postgres` | `pgxpool`, таймауты, метрики/трейсинг запросов, миграции (goose) в schema домена |
 | `kafka` | Producer и consumer helper (franz-go): retries, DLQ `<topic>.dlq`, trace propagation, метрики |
 | `telemetry` | OpenTelemetry (OTLP → Jaeger), Prometheus registry и `/metrics` |
+| `httpclient` | Клиент межсервисных вызовов: trace propagation, `X-Request-ID`, таймаут |
 
 ## Правила
 

@@ -24,7 +24,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-046.5 Контракт BFF `GET /api/v1/pages/home` (zod) + mock fixtures.
 
-- [ ] TASK-046.6 Подключить реальный BFF (EPIC-033) вместо mock.
+- [x] TASK-046.6 Подключить реальный BFF (EPIC-033) вместо mock: `VITE_API_MOCKS=false`; пустые секции скрываются.
 
 ## Definition of Done
 

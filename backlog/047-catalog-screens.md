@@ -24,7 +24,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-047.5 Контракт `GET /api/v1/pages/albums/{id}` (zod) + mock fixtures из canvas; состояния loading / not found / error.
 
-- [ ] TASK-047.6 Реальные данные — BFF album page aggregation (EPIC-033, TASK-033.3).
+- [x] TASK-047.6 Реальные данные — BFF album page aggregation (EPIC-033, TASK-033.3).
 
 ## Definition of Done
 
