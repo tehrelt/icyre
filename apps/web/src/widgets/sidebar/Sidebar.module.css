@@ -1,0 +1,86 @@
+/* Shell / Sidebar (canvas CSidebar): 248px desktop → 72px icon rail on tablet. */
+.sidebar {
+  height: 100%;
+  padding: var(--space-5) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+  background: var(--background-subtle);
+}
+
+.logo {
+  display: block;
+  padding: var(--space-1) var(--space-3) var(--space-5);
+  border-radius: var(--radius-sm);
+}
+.logo:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+.logoSymbol {
+  display: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+.playlistsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-1) var(--space-2) var(--space-3);
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 40px;
+  padding: 0 var(--space-3);
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: var(--border-hairline) solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+
+/* Tablet: icon rail. Labels, counts and the playlist list collapse. */
+@media (max-width: 1199px) {
+  .sidebar {
+    padding: var(--space-5) var(--space-2);
+    align-items: center;
+  }
+  .logo {
+    padding: var(--space-1) 0 var(--space-5);
+  }
+  .logoFull,
+  .playlistsHead,
+  .playlists {
+    display: none;
+  }
+  .logoSymbol {
+    display: block;
+  }
+  .sidebar :global(.ic-sideitem) {
+    width: 48px;
+    justify-content: center;
+    padding: 0;
+  }
+  .sidebar :global(.ic-sideitem-label),
+  .sidebar :global(.ic-sideitem-count),
+  .sidebar :global(.ic-gem) {
+    display: none;
+  }
+  .footer {
+    width: 100%;
+    align-items: center;
+  }
+}

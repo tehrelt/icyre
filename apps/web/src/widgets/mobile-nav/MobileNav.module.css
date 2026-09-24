@@ -1,0 +1,12 @@
+.nav {
+  height: var(--mobile-nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: var(--surface-raised);
+  border-top: var(--border-hairline) solid var(--border-subtle);
+}
+
+.nav :global(.ic-mobnav) {
+  text-decoration: none;
+}

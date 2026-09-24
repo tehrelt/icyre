@@ -1,0 +1,209 @@
+/* Home (canvas Main.dc.html). Columns follow the DS grid: 6 / 4 / 2. */
+.page {
+  padding: var(--space-8) var(--gutter-desktop) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-section);
+  max-width: var(--container-max);
+}
+
+.intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+.introText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns-desktop), minmax(0, 1fr));
+  gap: var(--gap-grid);
+}
+
+.trackList {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Album of the week */
+.aotw {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-8);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+.aotwCard {
+  width: 248px;
+  flex: none;
+}
+.aotwBody {
+  flex-grow: 1;
+  min-width: 0;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.aotwActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.facts {
+  width: 220px;
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-4);
+  padding-left: var(--space-8);
+  border-left: var(--border-hairline) solid var(--border-subtle);
+}
+.facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+}
+.factMono {
+  color: var(--text-primary);
+}
+
+/* Made for you */
+.madeForYou {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: var(--space-10);
+  align-items: start;
+}
+.mixGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--gap-grid);
+  padding-top: 10px;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-section);
+}
+
+/* Tablet 768–1199: 4 columns, facts column folds under the text. */
+@media (max-width: 1199px) {
+  .page {
+    padding: var(--space-6) var(--gutter-tablet) var(--space-12);
+  }
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-tablet), minmax(0, 1fr));
+    gap: 20px;
+  }
+  .quickGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .aotw {
+    flex-wrap: wrap;
+    gap: var(--space-8);
+  }
+  .aotwBody {
+    flex: 1 1 320px;
+  }
+  .facts {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--space-6);
+    padding: var(--space-4) 0 0;
+    border-left: 0;
+    border-top: var(--border-hairline) solid var(--border-subtle);
+  }
+  .madeForYou {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+  .mixGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+/* Mobile <768: 2 columns; intro and editorial blocks stack. */
+@media (max-width: 767px) {
+  .page {
+    padding: var(--space-5) var(--gutter-mobile) var(--space-10);
+    gap: var(--space-10);
+  }
+  .intro {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .quickGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .cardGrid,
+  .mixGrid {
+    grid-template-columns: repeat(var(--grid-columns-mobile), minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .aotw {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-4);
+    gap: var(--space-6);
+  }
+  .aotwCard {
+    width: min(248px, 100%);
+    align-self: center;
+  }
+  .madeForYou {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .madeForYou > :first-child {
+    width: min(248px, 100%);
+    justify-self: center;
+  }
+  /* Dense rows drop the album column on phones. */
+  .trackList :global(.ic-track) {
+    grid-template-columns: 32px 40px minmax(0, 1fr) 48px 32px;
+  }
+  .trackList :global(.ic-track-album),
+  .trackList :global(.ic-track-badge),
+  .trackList :global(.ic-track-like) {
+    display: none;
+  }
+}
