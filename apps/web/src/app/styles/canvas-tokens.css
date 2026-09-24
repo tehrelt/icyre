@@ -1,0 +1,19 @@
+/*
+ * Tokens taken from the ICYRE product canvas (shell components) that the
+ * Design System does not name yet. They derive from DS primitives (ink
+ * #141821 = --ice-900, holo stops) and live here — the only place outside
+ * tokens.css with literal colour values. Propose upstreaming them to the DS.
+ */
+:root {
+  /* Player bar lifts above content (CPlayerBar). */
+  --shadow-player-bar: 0 -8px 24px -12px rgba(20, 24, 33, 0.1);
+  /* 1px ink hairline around artwork (CPlayerBar, CQuickTile, CGenreTile). */
+  --ring-artwork: 0 0 0 1px rgba(20, 24, 33, 0.06);
+  /* Soft cool glow behind page heroes (Album page). */
+  --hero-glow: radial-gradient(70% 100% at 18% 0%, rgba(141, 154, 214, 0.16) 0%, rgba(207, 233, 243, 0.1) 40%, rgba(245, 247, 250, 0) 75%);
+
+  /* Shell geometry (Design System → Responsive). */
+  --sidebar-rail-width: 72px;
+  --mini-player-height: 64px;
+  --toolbar-height: 64px;
+}

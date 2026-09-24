@@ -1,0 +1,29 @@
+# Go
+/bin/
+*.test
+*.out
+coverage.*
+go.work.sum.bak
+
+# Frontend (Bun)
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+coverage/
+playwright-report/
+test-results/
+
+# Foreign lockfiles — the repo uses Bun only
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Env / editors / OS
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store

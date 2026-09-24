@@ -1,0 +1,54 @@
+/* Shell / Page toolbar (canvas CToolbar). Sticks to the top of the scrolling page. */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--toolbar-height);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--gutter-desktop);
+  background: var(--background);
+  border-bottom: var(--border-hairline) solid var(--border-subtle);
+}
+
+.history {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.flip {
+  display: flex;
+  transform: rotate(180deg);
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.profile {
+  display: flex;
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
+.profile:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (max-width: 1199px) {
+  .toolbar {
+    padding: 0 var(--gutter-tablet);
+  }
+}
+
+@media (max-width: 767px) {
+  .toolbar {
+    padding: 0 var(--gutter-mobile);
+    gap: var(--space-2);
+  }
+  .whatsNew {
+    display: none;
+  }
+}

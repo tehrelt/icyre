@@ -1,0 +1,56 @@
+# ICYRE
+
+Масштабируемый музыкальный стриминг-сервис: monorepo с Go-backend и React/Bun-frontend.
+
+| Источник правды | Где |
+|---|---|
+| Архитектура и спецификации | [`specs/`](specs/README.md) |
+| План и статусы | [`backlog/`](backlog/README.md), текущий фокус — [`backlog/CURRENT.md`](backlog/CURRENT.md) |
+| Design System | https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT |
+| Продуктовые экраны | https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM |
+
+## Структура
+
+```text
+apps/web/            React + TypeScript + Vite (Bun workspace)
+services/catalog/    Catalog Service — эталонная vertical slice (Go module)
+libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, kafka, telemetry
+libs/contracts/      межсервисные контракты: Kafka envelope, event payloads
+api/proto/           protobuf (gRPC, позже)
+deploy/              Prometheus, Grafana, Kafka topics
+go.work              Go workspace
+package.json         Bun workspace
+```
+
+Модули и сервисы появляются по мере backlog — пустые каталоги заранее не создаются.
+
+## Требования
+
+- Go 1.26 (`go.work` указывает `toolchain go1.26.8`; с `GOTOOLCHAIN=auto` он скачается сам)
+- Bun ≥ 1.3
+- Docker + Docker Compose
+
+## Быстрый старт
+
+```bash
+docker compose up -d --build      # Postgres, Kafka, Catalog, Jaeger, Prometheus, Grafana
+bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
+```
+
+| Что | URL |
+|---|---|
+| Web | http://localhost:5173 |
+| Catalog API | http://localhost:8081/api/v1 · `/health/ready` · `/metrics` |
+| Jaeger | http://localhost:16686 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin / admin) → ICYRE → «ICYRE — services» |
+
+## Команды
+
+```bash
+make help              # все цели
+make sync fmt vet test # Go
+make test-integration  # нужен `make up-core`
+make web-build web-test web-lint
+make check             # всё вместе
+```

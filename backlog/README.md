@@ -34,6 +34,8 @@ P3 — развитие / исследовательская часть
 
 После этого Catalog Service используется как эталонная реализация для остальных Go-сервисов.
 
+Frontend (EPIC-041+) развивается параллельно: Foundation → Tokens → Core UI → Shell → Global Player → Home → Album → Search.
+
 ## Все эпики
 
 - [EPIC-001 — Bootstrap монорепозитория](001-bootstrap-монорепозитория.md)
@@ -76,3 +78,19 @@ P3 — развитие / исследовательская часть
 - [EPIC-038 — Load testing](038-load-testing.md)
 - [EPIC-039 — Kubernetes](039-kubernetes.md)
 - [EPIC-040 — Исследовательская часть](040-исследовательская-часть.md)
+
+## Frontend
+
+- [EPIC-041 — Frontend Foundation](041-frontend-foundation.md)
+- [EPIC-042 — Design Tokens](042-design-tokens.md)
+- [EPIC-043 — Core UI Components](043-core-ui-components.md)
+- [EPIC-044 — Application Shell](044-application-shell.md)
+- [EPIC-045 — Global Player](045-global-player.md)
+- [EPIC-046 — Home](046-home.md)
+- [EPIC-047 — Catalog Screens (Album)](047-catalog-screens.md)
+- [EPIC-048 — Search](048-search.md)
+- [EPIC-049 — Library](049-library.md)
+- [EPIC-050 — Playlist](050-playlist.md)
+- [EPIC-051 — Auth UI](051-auth-ui.md)
+- [EPIC-052 — Responsive / Mobile](052-responsive-mobile.md)
+- [EPIC-053 — Frontend testing](053-frontend-testing.md)

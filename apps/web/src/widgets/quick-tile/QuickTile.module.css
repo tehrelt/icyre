@@ -1,0 +1,87 @@
+/* Media / Quick tile (canvas CQuickTile). */
+.tile {
+  position: relative;
+  min-width: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-right: var(--space-3);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition:
+    background-color var(--duration-fast) var(--easing-standard),
+    border-color var(--duration-fast) var(--easing-standard);
+}
+.tile:hover {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+}
+.current,
+.current:hover {
+  background: var(--iridescent-selected);
+}
+
+.art {
+  display: block;
+  width: 62px;
+  height: 62px;
+  flex: none;
+}
+.art :global(.ic-art) {
+  height: 100%;
+  border-radius: 0;
+}
+
+.text {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-xs);
+}
+.text:hover {
+  color: inherit;
+}
+.text:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.title,
+.subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.title {
+  font-size: var(--type-body-size);
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.current .title {
+  color: var(--text-brand);
+}
+.subtitle {
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  color: var(--text-secondary);
+}
+
+/* Play appears on hover/focus; the playing tile shows its bars instead. */
+.play {
+  display: none;
+}
+.tile:hover .play,
+.play:focus-within {
+  display: inline-flex;
+}
+.tile:hover .eq {
+  display: none;
+}
