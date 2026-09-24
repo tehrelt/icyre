@@ -2,7 +2,7 @@
 
 > Проект: **Исследование архитектурных подходов и реализация масштабируемого музыкального стриминг-сервиса**
 
-**Status:** [ ] TODO
+**Status:** [x] DONE
 
 **Priority:** P1
 
@@ -14,15 +14,17 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 ## Задачи
 
-- [ ] TASK-047.1 Hero: обложка в рамке, overline+serial, display-заголовок, артист, мета, теги.
+- [x] TASK-047.1 Hero: обложка в рамке, overline+serial, display-заголовок, артист, мета, теги.
 
-- [ ] TASK-047.2 Действия: Play/Pause (iridescent), Shuffle, Save, More, переключатель вида списка.
+- [x] TASK-047.2 Действия: Play/Pause (iridescent), Shuffle, Save, More, переключатель вида списка.
 
-- [ ] TASK-047.3 Tracklist (TrackListHeader, TrackRow без обложки, unavailable-состояние), подвал релиза.
+- [x] TASK-047.3 Tracklist (TrackListHeader, TrackRow без обложки, unavailable-состояние), подвал релиза.
 
-- [ ] TASK-047.4 More by artist.
+- [x] TASK-047.4 More by artist.
 
-- [ ] TASK-047.5 Данные: `GET /api/v1/pages/albums/{id}` (BFF) / Catalog API.
+- [x] TASK-047.5 Контракт `GET /api/v1/pages/albums/{id}` (zod) + mock fixtures из canvas; состояния loading / not found / error.
+
+- [ ] TASK-047.6 Реальные данные — BFF album page aggregation (EPIC-033, TASK-033.3).
 
 ## Definition of Done
 

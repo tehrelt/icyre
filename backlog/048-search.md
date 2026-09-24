@@ -2,7 +2,7 @@
 
 > Проект: **Исследование архитектурных подходов и реализация масштабируемого музыкального стриминг-сервиса**
 
-**Status:** [ ] TODO
+**Status:** [x] DONE
 
 **Priority:** P1
 
@@ -14,15 +14,15 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 ## Задачи
 
-- [ ] TASK-048.1 SearchInput, Tabs (EPIC-043.7), GenreTile.
+- [x] TASK-048.1 SearchInput, Tabs (EPIC-043.7), GenreTile.
 
-- [ ] TASK-048.2 Search — before query (жанры, недавние запросы).
+- [x] TASK-048.2 Search — before query: недавние запросы (Zustand + localStorage, client state), жанры, настроения, подборки (`GET /api/v1/pages/search`).
 
-- [ ] TASK-048.3 Results (All): top result, треки, альбомы, артисты, плейлисты.
+- [x] TASK-048.3 Results (All): top result, треки, артисты, альбомы, плейлисты; табы по типу; URL `?q=&type=`, debounce, шорткат `/`.
 
-- [ ] TASK-048.4 Состояния: loading, no results, error.
+- [x] TASK-048.4 Состояния: loading (skeleton), no results (+ «did you mean»), error (+ retry, недавние запросы).
 
-- [ ] TASK-048.5 Интеграция с Search Service (EPIC-025).
+- [ ] TASK-048.5 Интеграция с Search Service (EPIC-025): контракт `GET /api/v1/search?q=&type=&limit=` уже зафиксирован zod-схемой и mock.
 
 ## Definition of Done
 

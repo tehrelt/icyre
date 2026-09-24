@@ -7,6 +7,7 @@ import { routes } from '@/shared/config/routes';
 import { formatDuration } from '@/shared/lib/formatTime';
 import { Chip, FeaturedCard, MediaCard, Skeleton, TrackRow } from '@/shared/ui';
 import { InlineAlert } from '@/shared/ui/patterns/InlineAlert';
+import { CollectionCard } from '@/widgets/collection-card/CollectionCard';
 import { PageToolbar } from '@/widgets/page-toolbar/PageToolbar';
 import { QuickTile } from '@/widgets/quick-tile/QuickTile';
 import { SectionHeader } from '@/widgets/section-header/SectionHeader';
@@ -15,7 +16,6 @@ import { useHomeFeed, type Collection, type DailyMix, type HomeFeed } from '../a
 import { greeting } from '../lib/greeting';
 
 import { AlbumOfTheWeek } from './AlbumOfTheWeek';
-import { CollectionCard } from './CollectionCard';
 import styles from './HomePage.module.css';
 import { TrendingSection } from './TrendingSection';
 

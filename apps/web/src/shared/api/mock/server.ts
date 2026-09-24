@@ -2,14 +2,33 @@
  * In-process mock of the public API (/api/v1) for development and tests.
  * It returns the same status codes and error envelope as the real gateway.
  */
-import { currentUser, generatedTracks, homeFeed, librarySummary, prismHoursTracks } from './fixtures';
+import { search, searchAlbums, searchArtists, searchBrowsePage, searchPlaylists, type SearchType } from './searchIndex';
+import { currentUser, generatedAlbumPage, generatedTracks, homeFeed, librarySummary, prismHoursPage, prismHoursTracks } from './fixtures';
 
 interface MockResponse {
   status: number;
   json: unknown;
 }
 
-type Handler = (params: Record<string, string>) => MockResponse;
+type Handler = (params: Record<string, string>, query: URLSearchParams) => MockResponse;
+
+/**
+ * Route patterns that fail with 503 — lets tests and local demos exercise
+ * error states (e.g. `mockFaults.add('/search')`).
+ */
+export const mockFaults = new Set<string>();
+
+const SEARCH_TYPES: SearchType[] = ['all', 'tracks', 'artists', 'albums', 'playlists'];
+
+function searchRoute(q: URLSearchParams): MockResponse {
+  const query = (q.get('q') ?? '').trim();
+  if (!query) {
+    return { status: 422, json: { error: { code: 'VALIDATION_FAILED', message: 'Query must not be empty', details: { fields: { q: 'must not be empty' } } } } };
+  }
+  const type = (SEARCH_TYPES as string[]).includes(q.get('type') ?? '') ? (q.get('type') as SearchType) : 'all';
+  const limit = Math.min(50, Math.max(1, Number(q.get('limit') ?? 20) || 20));
+  return ok(search(query, type, limit));
+}
 
 const ok = (json: unknown): MockResponse => ({ status: 200, json });
 const notFound = (code: string, message: string): MockResponse => ({
@@ -32,6 +51,10 @@ function collectionIndex(): Map<string, CollectionInfo> {
   [...homeFeed.recentlyPlayed, ...homeFeed.recommended.items, ...homeFeed.newReleases.items, ...homeFeed.followedArtists].forEach(add);
   [...homeFeed.madeForYou.playlists, homeFeed.madeForYou.featured, ...librarySummary.playlists].forEach(add);
   add(homeFeed.albumOfTheWeek.album);
+  prismHoursPage.moreByArtist.forEach(add);
+  [...searchArtists, ...searchAlbums, ...searchPlaylists, ...searchBrowsePage.collections.items].forEach((c) => {
+    if (!index.has(c.id)) add(c);
+  });
   return index;
 }
 
@@ -47,10 +70,24 @@ function tracksOf(kind: string, id: string): MockResponse {
   return ok({ data: generatedTracks(id, info.title, info.artistName, info.art, kind === 'artist' ? 5 : 8) });
 }
 
+interface IndexedAlbum extends CollectionInfo {
+  year?: number;
+}
+
+function albumPage(id: string): MockResponse {
+  if (id === prismHoursPage.album.id) return ok(prismHoursPage);
+  const info: IndexedAlbum | undefined = prismHoursPage.moreByArtist.find((a) => a.id === id) ?? collections.get(id);
+  if (!info || !id.startsWith('alb-')) return notFound('ALBUM_NOT_FOUND', 'Album not found');
+  return ok(generatedAlbumPage(id, info.title, info.artistName, info.art, info.year));
+}
+
 const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   ['GET', '/me', () => ok(currentUser)],
   ['GET', '/library/summary', () => ok(librarySummary)],
   ['GET', '/pages/home', () => ok(homeFeed)],
+  ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],
+  ['GET', '/pages/search', () => ok(searchBrowsePage)],
+  ['GET', '/search', (_p, q) => searchRoute(q)],
   ['GET', '/albums/:id/tracks', (p) => tracksOf('album', p.id ?? '')],
   ['GET', '/playlists/:id/tracks', (p) => tracksOf('playlist', p.id ?? '')],
   ['GET', '/artists/:id/top-tracks', (p) => tracksOf('artist', p.id ?? '')],
@@ -84,10 +121,15 @@ export async function mockRequest(method: string, path: string, _body: unknown, 
       });
     });
   }
+  const query = new URLSearchParams(path.split('?')[1] ?? '');
   for (const [m, pattern, handler] of routes) {
     if (m !== method) continue;
     const params = match(pattern, path);
-    if (params) return structuredClone(handler(params));
+    if (!params) continue;
+    if (mockFaults.has(pattern)) {
+      return { status: 503, json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'Service is temporarily unavailable', requestId: 'mock-fault' } } };
+    }
+    return structuredClone(handler(params, query));
   }
   return notFound('NOT_FOUND', `No mock for ${method} ${path}`);
 }

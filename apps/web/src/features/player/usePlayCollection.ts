@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { collectionTracksQuery, type CollectionKind } from '@/entities/track/api';
 import type { Track } from '@/entities/track/model';
 
-import { isSourceActive, usePlayerStore } from './model/playerStore';
+import { isSourceActive, usePlayerStore, type PlaybackSource } from './model/playerStore';
 
 /**
  * Play/pause for a collection card: toggles when the collection is already
@@ -41,4 +41,39 @@ export function usePlayTrackList() {
     }
     state.playQueue(tracks, Math.max(0, tracks.findIndex((t) => t.id === track.id)), null);
   }, []);
+}
+
+/**
+ * Playback for a page that already holds its tracks (album, playlist):
+ * play/pause the whole collection, shuffle it, or start at a given track.
+ */
+export function useSourcePlayback(source: PlaybackSource, tracks: Track[]) {
+  const active = usePlayerStore((s) => isSourceActive(s, source.kind, source.id));
+  const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const state: 'playing' | 'paused' | null = active ? (isPlaying ? 'playing' : 'paused') : null;
+
+  const playAll = useCallback(() => {
+    const s = usePlayerStore.getState();
+    if (isSourceActive(s, source.kind, source.id)) s.togglePlay();
+    else s.playQueue(tracks, 0, source);
+  }, [source, tracks]);
+
+  const shuffleAll = useCallback(() => {
+    const s = usePlayerStore.getState();
+    if (!s.shuffle) s.toggleShuffle();
+    const playable = tracks.map((t, i) => (t.available ? i : -1)).filter((i) => i >= 0);
+    const start = playable[Math.floor(Math.random() * playable.length)] ?? 0;
+    usePlayerStore.getState().playQueue(tracks, start, source);
+  }, [source, tracks]);
+
+  const playTrack = useCallback(
+    (track: Track) => {
+      const s = usePlayerStore.getState();
+      if (s.currentTrack?.id === track.id) s.togglePlay();
+      else s.playQueue(tracks, Math.max(0, tracks.findIndex((t) => t.id === track.id)), source);
+    },
+    [source, tracks],
+  );
+
+  return { state, playAll, shuffleAll, playTrack };
 }

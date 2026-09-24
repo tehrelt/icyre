@@ -3,13 +3,12 @@ import { z } from 'zod';
 
 import { AlbumSummarySchema } from '@/entities/album/model';
 import { ArtistSummarySchema } from '@/entities/artist/model';
+import { CollectionSchema, type Collection } from '@/entities/collection/model';
 import { PlaylistSummarySchema } from '@/entities/playlist/model';
 import { TrackSchema } from '@/entities/track/model';
 import { apiGet } from '@/shared/api/client';
 
-const CollectionSchema = z.discriminatedUnion('kind', [AlbumSummarySchema, PlaylistSummarySchema, ArtistSummarySchema]);
-export type Collection = z.infer<typeof CollectionSchema>;
-
+export type { Collection };
 /**
  * GET /api/v1/pages/home — page-oriented BFF contract (specs/services/bff.md)
  * for the Home screen of the product canvas.

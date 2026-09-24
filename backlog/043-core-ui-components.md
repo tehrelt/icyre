@@ -24,9 +24,11 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-043.5 PlayerButton, ProgressBar, VolumeSlider, TimeLabel, PlaybackState.
 
-- [x] TASK-043.6 Pattern InlineAlert (canvas: Search results — error).
+- [x] TASK-043.6 Patterns из canvas: InlineAlert (Search results — error), EmptyState (Search results — no results).
 
-- [ ] TASK-043.7 SearchInput, Tabs, Input, Textarea — нужны экрану Search (EPIC-048).
+- [x] TASK-043.7 SearchInput (forwardRef, Enter/Escape), Tabs (roving focus, счётчики), TrackListHeader — для Search и Album.
+
+- [ ] TASK-043.10 Input, Textarea — вместе с первой формой (Auth UI / Create playlist).
 
 - [ ] TASK-043.8 Tooltip, Menu/Dropdown/ContextMenu, Popover, Modal, Drawer, Toast, QueueItem.
 

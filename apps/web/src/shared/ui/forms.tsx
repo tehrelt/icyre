@@ -1,9 +1,12 @@
 // Ported from the ICYRE Design System (components/src/forms.tsx) — the
 // controls needed so far. Input, Checkbox, Switch… arrive with their screens.
-import type { CSSProperties } from 'react';
+
+import { forwardRef, useImperativeHandle, useRef, type CSSProperties, type KeyboardEvent } from 'react';
 
 import { useControlled } from '@/shared/hooks/useControlled';
 import { cx } from '@/shared/lib/cx';
+
+import { Icon, IconButton } from './core';
 
 /* ---------- Slider ---------- */
 export interface SliderProps {
@@ -65,3 +68,64 @@ export function Slider({
     </div>
   );
 }
+
+/* ---------- SearchInput ---------- */
+export interface SearchInputProps {
+  value?: string;
+  defaultValue?: string;
+  onChange?: (v: string) => void;
+  /** Enter pressed. */
+  onSubmit?: (v: string) => void;
+  placeholder?: string;
+  shortcut?: string;
+  size?: 'md' | 'lg';
+  forceState?: 'hover' | 'focus';
+  label?: string;
+  autoFocus?: boolean;
+}
+
+export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(function SearchInput(
+  { value, defaultValue = '', onChange, onSubmit, placeholder = 'Artists, albums, tracks', shortcut = '⌘K', size = 'md', forceState, label = 'Search', autoFocus },
+  forwarded,
+) {
+  const [v, setV] = useControlled<string>(value, defaultValue, onChange);
+  const ref = useRef<HTMLInputElement>(null);
+  useImperativeHandle(forwarded, () => ref.current as HTMLInputElement);
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') onSubmit?.(v);
+    if (e.key === 'Escape' && v) {
+      e.preventDefault();
+      setV('');
+    }
+  };
+  return (
+    <div role="search" className={cx('ic-search', `ic-search-${size}`, v && 'is-filled', forceState && `is-${forceState}`)}>
+      <Icon name="search" size={18} className="ic-search-icon" />
+      <input
+        ref={ref}
+        className="ic-search-input"
+        type="search"
+        aria-label={label}
+        placeholder={placeholder}
+        value={v}
+        autoFocus={autoFocus}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+      {v ? (
+        <IconButton
+          icon="close"
+          label="Clear search"
+          size="sm"
+          className="ic-search-clear"
+          onClick={() => {
+            setV('');
+            ref.current?.focus();
+          }}
+        />
+      ) : shortcut ? (
+        <kbd className="ic-kbd">{shortcut}</kbd>
+      ) : null}
+    </div>
+  );
+});

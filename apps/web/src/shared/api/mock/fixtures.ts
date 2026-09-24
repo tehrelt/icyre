@@ -68,17 +68,17 @@ export const librarySummary = {
 
 /** Album "Prism Hours" by Nova Hale — the album from the canvas. */
 export const prismHoursTracks = [
-  track('trk-frozen-choir', 'Frozen Choir', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 240, 0),
-  track('trk-glass-tides', 'Glass Tides', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 227, 0, { liked: true }),
-  track('trk-mirror-weather', 'Mirror Weather', 'Nova Hale · Kai Frost', 'alb-prism-hours', 'Prism Hours', 198, 0, { explicit: true }),
-  track('trk-pearl-static', 'Pearl Static', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 254, 0),
-  track('trk-slow-aurora', 'Slow Aurora', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 311, 0, { liked: true }),
-  track('trk-thin-film', 'Thin Film', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 182, 0),
-  track('trk-harbour-lights', 'Harbour Lights', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 266, 0),
-  track('trk-vapour-trail', 'Vapour Trail', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 174, 0),
-  track('trk-northern-index', 'Northern Index', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 219, 0, { available: false }),
-  track('trk-rime', 'Rime', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 108, 0),
-  track('trk-prism-hours', 'Prism Hours', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 387, 0),
+  track('trk-frozen-choir', 'Frozen Choir', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 240, 0, { plays: 1904210 }),
+  track('trk-glass-tides', 'Glass Tides', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 227, 0, { liked: true, plays: 4431118 }),
+  track('trk-mirror-weather', 'Mirror Weather', 'Nova Hale · Kai Frost', 'alb-prism-hours', 'Prism Hours', 198, 0, { explicit: true, plays: 2076554 }),
+  track('trk-pearl-static', 'Pearl Static', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 254, 0, { plays: 988402 }),
+  track('trk-slow-aurora', 'Slow Aurora', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 311, 0, { liked: true, plays: 1310776 }),
+  track('trk-thin-film', 'Thin Film', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 182, 0, { plays: 742090 }),
+  track('trk-harbour-lights', 'Harbour Lights', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 266, 0, { plays: 655318 }),
+  track('trk-vapour-trail', 'Vapour Trail', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 174, 0, { plays: 512907 }),
+  track('trk-northern-index', 'Northern Index', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 219, 0, { available: false, plays: 0 }),
+  track('trk-rime', 'Rime', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 108, 0, { plays: 403261 }),
+  track('trk-prism-hours', 'Prism Hours', 'Nova Hale', 'alb-prism-hours', 'Prism Hours', 387, 0, { plays: 1127843 }),
 ];
 
 const trendingToday = [
@@ -179,4 +179,58 @@ export function generatedTracks(collectionId: string, title: string, artistName:
     const w2 = TITLE_WORDS[(seed + i * 7 + 3) % TITLE_WORDS.length];
     return track(`${collectionId}-t${i + 1}`, `${w1} ${w2}`, artistName, collectionId, title, 150 + ((seed * (i + 3)) % 180), art);
   });
+}
+
+/** Album page (canvas Album.dc.html): "Prism Hours" by Nova Hale. */
+export const prismHoursPage = {
+  album: {
+    id: 'alb-prism-hours',
+    title: 'Prism Hours',
+    albumType: 'ALBUM',
+    serial: 'No. 014',
+    year: 2026,
+    releaseDate: '2026-03-06',
+    trackCount: 11,
+    durationSec: 42 * 60,
+    tags: ['Ambient pop', 'Downtempo'],
+    hiRes: true,
+    copyright: '© ℗ 2026 Coldframe Records',
+    coverUrl: null,
+    art: 0,
+  },
+  artist: { id: 'art-nova-hale', name: 'Nova Hale', avatarUrl: null, art: 3 },
+  tracks: prismHoursTracks,
+  moreByArtist: [
+    album('alb-winter-index', 'Winter Index', 'Nova Hale', 2024, 3, { albumType: 'ALBUM' }),
+    album('alb-close-weather', 'Close Weather', 'Nova Hale', 2023, 5, { albumType: 'EP' }),
+    album('alb-glass-tides-remix', 'Glass Tides (Aster Vale remix)', 'Nova Hale', 2026, 2, { albumType: 'SINGLE', badge: 'new' }),
+    album('alb-salt-and-static', 'Salt & Static', 'Nova Hale', 2021, 6, { albumType: 'ALBUM' }),
+    album('alb-first-frost', 'First Frost', 'Nova Hale', 2019, 1, { albumType: 'EP' }),
+    album('alb-rime-live', 'Rime (Live at Hallgrím)', 'Nova Hale', 2025, 7, { albumType: 'SINGLE' }),
+  ],
+};
+
+/** Album page for any other fixture album, generated deterministically. */
+export function generatedAlbumPage(id: string, title: string, artistName: string, art: number, year = 2025) {
+  const tracks = generatedTracks(id, title, artistName, art, 9).map((t, i) => ({ ...t, plays: 900_000 - i * 73_417 }));
+  const durationSec = tracks.reduce((a, t) => a + t.durationSec, 0);
+  return {
+    album: {
+      id,
+      title,
+      albumType: 'ALBUM',
+      year,
+      releaseDate: `${year}-01-17`,
+      trackCount: tracks.length,
+      durationSec,
+      tags: [],
+      hiRes: false,
+      copyright: `© ℗ ${year} ${artistName}`,
+      coverUrl: null,
+      art,
+    },
+    artist: { id: `art-${id.replace(/^alb-/, '')}`, name: artistName, avatarUrl: null, art: (art + 3) % 8 },
+    tracks,
+    moreByArtist: [],
+  };
 }

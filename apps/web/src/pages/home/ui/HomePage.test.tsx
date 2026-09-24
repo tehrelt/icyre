@@ -61,7 +61,7 @@ describe('App shell', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Play album' }));
     await waitFor(() => expect(usePlayerStore.getState().isPlaying).toBe(true));
 
-    await router.navigate('/search');
+    await router.navigate('/library');
     expect(await screen.findByRole('heading', { name: "This screen isn't built yet" })).toBeInTheDocument();
     const player = screen.getByRole('region', { name: 'Player' });
     expect(within(player).getByText('Mira Solen')).toBeInTheDocument();

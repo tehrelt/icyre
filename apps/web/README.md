@@ -15,9 +15,9 @@ bun run tokens       # design/icyre-tokens.json → src/app/styles/tokens.css
 
 ```text
 src/app/        App, providers (Query, Player), router, AppShell layout, global styles (tokens.css, canvas-tokens.css, base.css)
-src/pages/      home (canvas Main), not-built (заглушка для экранов следующих эпиков)
-src/widgets/    sidebar, page-toolbar, player-bar, section-header, quick-tile, mobile-nav (shell-компоненты canvas)
-src/features/   player: store (Zustand) → controller → AudioEngine → HTMLAudioElement
+src/pages/      home (Main), album (Album), search (SearchEmpty/Results/Loading/NoResults/Error), not-built (заглушка)
+src/widgets/    sidebar, page-toolbar, player-bar, section-header, quick-tile, genre-tile, collection-card, mobile-nav
+src/features/   player: store (Zustand) → controller → AudioEngine → HTMLAudioElement; search-history (recent searches)
 src/entities/   track, album, artist, playlist, user, library — zod-схемы и queries
 src/shared/     ui (компоненты DS), api (клиент /api/v1 + mock), config, lib, hooks
 ```

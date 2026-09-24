@@ -22,12 +22,17 @@ Catalog Service — эталон для остальных сервисов (`se
 - [x] EPIC-044 — Application Shell
 - [-] EPIC-045 — Global Player
 - [x] EPIC-046 — Home
+- [x] EPIC-047 — Catalog Screens (Album)
+- [x] EPIC-048 — Search
 - [-] EPIC-052 — Responsive / Mobile
 - [-] EPIC-053 — Frontend testing
 
 ## Next
 
-1. EPIC-047 — Album screen (canvas `Album.dc.html`) + TASK-043.7 (SearchInput, Tabs).
-2. EPIC-048 — Search (5 состояний canvas).
-3. Backend: EPIC-004 Redis foundation → EPIC-011 Auth Service; EPIC-033 Web BFF (`/api/v1/pages/home`) чтобы заменить mock Home.
+Все экраны canvas (Home, Album, Search + состояния) реализованы. Дальше — реальные данные вместо mock:
+
+1. EPIC-033 — Web BFF: `/api/v1/pages/home`, `/api/v1/pages/albums/{id}` поверх Catalog Service.
+2. EPIC-004 Redis → EPIC-011 Auth Service (нужен для персональных данных BFF).
+3. EPIC-023…025 — OpenSearch, Search Indexer, Search Service (контракт `/api/v1/search` уже задан фронтендом).
 4. Transactional outbox для catalog events (at-least-once end to end).
+5. Новые frontend-экраны (Library, Playlist, Auth, Artist) — после макетов в canvas.
