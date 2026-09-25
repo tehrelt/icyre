@@ -25,6 +25,12 @@
 
 Catalog Service — эталон для остальных сервисов (`services/catalog/README.md`).
 
+## Backend — Search
+
+- [x] EPIC-023 — OpenSearch foundation
+- [x] EPIC-024 — Search Indexer (catalog.events → OpenSearch, reindex с переключением алиасов)
+- [x] EPIC-025 — Search Service (`/search`, `/search/suggest`)
+
 ## Edge и агрегация
 
 - [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)
@@ -47,11 +53,11 @@ Catalog Service — эталон для остальных сервисов (`se
 
 Home и Album работают на реальных данных: Postgres → Catalog → BFF → Gateway → UI (`make seed`);
 сессия восстанавливается из refresh cookie, профиль — из User Profile; плеер играет реальный звук
-(`make seed-media`) по signed URL. Экранов входа/регистрации в canvas нет
+(`make seed-media`) по signed URL; поиск идёт через OpenSearch (`search-indexer reindex`). Экранов входа/регистрации в canvas нет
 (EPIC-051 BLOCKED) — войти можно через API (`POST /api/v1/auth/register|login`).
 Недостающие источники данных, по порядку ценности для экранов canvas:
 
-1. EPIC-023…025 — OpenSearch, Search Indexer, Search Service (контракт `/api/v1/search` уже задан фронтендом).
-2. EPIC-014 Library (sidebar: счётчики, плейлисты), EPIC-026 Listening History (Recently played).
-3. Transactional outbox для catalog events (at-least-once end to end).
-4. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
+1. EPIC-014 Library (sidebar: счётчики, плейлисты), EPIC-026 Listening History (Recently played).
+2. Transactional outbox для catalog events (at-least-once end to end).
+3. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
+4. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.

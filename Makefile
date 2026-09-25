@@ -4,6 +4,7 @@
 GO_MODULES := $(shell go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1/p')
 PG_TEST_DSN ?= postgres://icyre:icyre@localhost:5432/icyre?sslmode=disable
 KAFKA_TEST_BROKERS ?= localhost:9094
+OPENSEARCH_TEST_URL ?= http://localhost:9200
 
 .PHONY: help
 help: ## Show available targets
@@ -40,6 +41,8 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/catalog && CATALOG_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
+	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
 		S3_ENDPOINT=localhost:9000 S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret \
 		go test -tags integration -count=1 ./kafka/... ./redis/... ./objectstore/...
@@ -56,6 +59,8 @@ build: ## Build service binaries into ./bin
 	cd services/auth && go build -o ../../bin/auth ./cmd/auth
 	cd services/user-profile && go build -o ../../bin/user-profile ./cmd/user-profile
 	cd services/stream-auth && go build -o ../../bin/stream-auth ./cmd/stream-auth
+	cd services/search && go build -o ../../bin/search ./cmd/search
+	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -91,6 +96,14 @@ run-user-profile: ## Run User Profile locally on :8084 against Auth on :8083
 run-stream-auth: ## Run Stream Authorization locally on :8085 (Catalog :8081, Auth :8083)
 	cd services/stream-auth && S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8085 LOG_FORMAT=text go run ./cmd/stream-auth
 
+.PHONY: run-search-indexer reindex run-search
+run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)
+	cd workers/search-indexer && HTTP_ADDR=:8087 LOG_FORMAT=text go run ./cmd/search-indexer
+reindex: ## Rebuild the search indices from Catalog (new versioned indices, alias swap)
+	cd workers/search-indexer && LOG_FORMAT=text go run ./cmd/search-indexer reindex
+run-search: ## Run the Search Service locally on :8086
+	cd services/search && HTTP_ADDR=:8086 LOG_FORMAT=text go run ./cmd/search
+
 # --- Frontend (Bun) ---------------------------------------------------------
 
 .PHONY: web-install web-dev web-build web-test web-lint scripts-typecheck
@@ -112,8 +125,8 @@ scripts-typecheck: ## Typecheck scripts/*.ts
 .PHONY: up up-core down logs
 up: ## docker compose up -d (everything)
 	docker compose up -d --build
-up-core: ## Only PostgreSQL + Redis + Kafka + MinIO (for local go run / integration tests)
-	docker compose up -d postgres redis kafka kafka-init minio minio-init
+up-core: ## Infrastructure only: PostgreSQL, Redis, Kafka, MinIO, OpenSearch (for go run / integration tests)
+	docker compose up -d postgres redis kafka kafka-init minio minio-init opensearch
 down: ## Stop the stand
 	docker compose down
 logs: ## Follow logs

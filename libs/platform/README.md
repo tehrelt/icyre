@@ -12,6 +12,7 @@
 | `postgres` | `pgxpool`, таймауты, метрики/трейсинг запросов, миграции (goose) в schema домена |
 | `redis` | go-redis клиент с таймаутами и pool, `Key(...)` (`<ns>:<entity>:<id>`), generic TTL `Cache[T]` с fallback на источник |
 | `objectstore` | S3-совместимое хранилище (minio-go): presigned download (Range, `Cache-Control`) и upload с `x-amz-checksum-sha256`, `Stat`, `VerifySHA256`, readiness по bucket. Подпись идёт на публичный endpoint (CDN/origin) |
+| `opensearch` | Тонкий клиент OpenSearch на net/http: JSON-запросы, bulk с external versioning (`external_gte`), шаблоны, индексы, атомарная смена алиасов, readiness |
 | `authn` | Проверка access token (EdDSA JWT, `iss`/`aud`/`exp`), JWKS cache, denylist отозванных сессий в Redis, middleware `Required`/`Optional` |
 | `kafka` | Producer и consumer helper (franz-go): retries, DLQ `<topic>.dlq`, trace propagation, метрики |
 | `telemetry` | OpenTelemetry (OTLP → Jaeger), Prometheus registry и `/metrics` |

@@ -8,6 +8,8 @@ use (
 	./services/auth
 	./services/bff
 	./services/catalog
+	./services/search
 	./services/stream-auth
 	./services/user-profile
+	./workers/search-indexer
 )
