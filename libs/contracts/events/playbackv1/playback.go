@@ -17,9 +17,9 @@ const (
 // Playback is the payload of every playback event. PlaybackID identifies one
 // play of one track (client-generated): started, then finished or skipped.
 type Playback struct {
-	PlaybackID string    `json:"playbackId"`
-	UserID     string    `json:"userId"`
-	TrackID    string    `json:"trackId"`
+	PlaybackID string `json:"playbackId"`
+	UserID     string `json:"userId"`
+	TrackID    string `json:"trackId"`
 	// Source is what the track was played from, e.g. "album:<id>" (optional).
 	Source string `json:"source,omitempty"`
 	// DurationMs is the track length; ListenedMs the time actually played

@@ -26,7 +26,9 @@ type Publisher struct {
 }
 
 // NewPublisher returns a Publisher.
-func NewPublisher(p Producer, source string) *Publisher { return &Publisher{producer: p, source: source} }
+func NewPublisher(p Producer, source string) *Publisher {
+	return &Publisher{producer: p, source: source}
+}
 
 var types = map[domain.Kind]string{
 	domain.Started:  playbackv1.TypeStarted,
