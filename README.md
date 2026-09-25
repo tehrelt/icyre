@@ -52,7 +52,7 @@ make seed                         # контент из product canvas → Catal
 make seed-media                   # аудио-варианты 64/128/256 kbps → MinIO (нужен ffmpeg, ~3 мин)
 docker compose run --rm search-indexer reindex   # поисковый индекс из каталога (дальше — по событиям)
 bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
-VITE_API_MOCKS=false bun run dev  # тот же UI на реальных данных через gateway
+bun run dev:real                  # тот же UI на реальных данных через gateway (любая ОС)
 ```
 
 | Что | URL |
