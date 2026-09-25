@@ -28,6 +28,10 @@ mod-check: ## Fail if any go.mod/go.sum is not tidy on its own (Docker builds us
 fmt: ## gofmt every module
 	@for m in $(GO_MODULES); do echo "==> fmt $$m"; (cd $$m && go fmt ./...) || exit 1; done
 
+.PHONY: fmt-check
+fmt-check: ## Fail on Go files that gofmt would change (make fmt fixes them)
+	@out=$$(gofmt -l $(GO_MODULES)); if [ -n "$$out" ]; then echo "not gofmt-ed (run make fmt):"; echo "$$out"; exit 1; fi
+
 .PHONY: vet
 vet: ## go vet every module
 	@for m in $(GO_MODULES); do echo "==> vet $$m"; (cd $$m && go vet ./...) || exit 1; done
@@ -150,4 +154,4 @@ logs: ## Follow logs
 # --- Everything -------------------------------------------------------------
 
 .PHONY: check
-check: sync mod-check fmt vet test web-lint web-build web-test scripts-typecheck ## Full local verification
+check: sync mod-check fmt-check vet test web-lint web-build web-test scripts-typecheck ## Full local verification
