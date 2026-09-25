@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/tehrelt/icyre/services/bff/internal/ports"
+	"github.com/tehrelt/icyre/services/bff/internal/views"
 )
 
 type fakeCatalog struct {
@@ -93,7 +94,7 @@ func fixture() *fakeCatalog {
 }
 
 func newPages(c ports.Catalog) *Pages {
-	return New(c, nil, Config{PageBudget: 200 * time.Millisecond}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return New(c, Personal{}, Config{PageBudget: 200 * time.Millisecond}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 type fakeLibrary struct {
@@ -111,7 +112,7 @@ func (f fakeLibrary) SavedTracks(ctx context.Context, ids []string) (map[string]
 func TestAlbumPageMarksLikedTracks(t *testing.T) {
 	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
 	lib := fakeLibrary{saved: map[string]bool{"t2": true}}
-	p := New(fixture(), lib, Config{PageBudget: 200 * time.Millisecond}, quiet)
+	p := New(fixture(), Personal{Library: lib}, Config{PageBudget: 200 * time.Millisecond}, quiet)
 
 	page, err := p.Album(ports.WithUserToken(context.Background(), "tok"), "prism")
 	if err != nil {
@@ -125,7 +126,7 @@ func TestAlbumPageMarksLikedTracks(t *testing.T) {
 		t.Fatal("anonymous page has likes")
 	}
 	// Library down: the page still renders, marks degrade.
-	p = New(fixture(), fakeLibrary{err: errors.New("library 503")}, Config{PageBudget: 200 * time.Millisecond}, quiet)
+	p = New(fixture(), Personal{Library: fakeLibrary{err: errors.New("library 503")}}, Config{PageBudget: 200 * time.Millisecond}, quiet)
 	page, err = p.Album(ports.WithUserToken(context.Background(), "tok"), "prism")
 	if err != nil || page.Tracks[1].Liked || !slices.Contains(page.Unavailable, "liked") {
 		t.Fatalf("degraded: %v %+v", err, page.Unavailable)
@@ -249,5 +250,41 @@ func TestArtIndexIsStable(t *testing.T) {
 		if n := artIndex(id); n < 0 || n > 7 {
 			t.Fatalf("artIndex(%q) = %d, want 0..7", id, n)
 		}
+	}
+}
+
+type fakeHistory struct {
+	sources []string
+	err     error
+}
+
+func (f fakeHistory) RecentSources(context.Context, int) ([]string, error) { return f.sources, f.err }
+
+func TestHomeRecentlyPlayed(t *testing.T) {
+	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := Config{PageBudget: 200 * time.Millisecond}
+	hist := fakeHistory{sources: []string{"playlist:p1", "album:prism", "album:gone"}}
+	p := New(fixture(), Personal{History: hist}, cfg, quiet)
+	user := ports.WithUserToken(context.Background(), "tok")
+
+	page, err := p.Home(user)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.RecentlyPlayed) != 1 || slices.Contains(page.Unavailable, "recentlyPlayed") {
+		t.Fatalf("recent %+v unavailable %v", page.RecentlyPlayed, page.Unavailable)
+	}
+	card := page.RecentlyPlayed[0].(views.AlbumCard)
+	if card.ID != "prism" || card.ArtistName != "Nova Hale" || card.Kind != "album" {
+		t.Fatalf("card %+v", card)
+	}
+	// Anonymous: empty, not degraded.
+	if page, _ := p.Home(context.Background()); len(page.RecentlyPlayed) != 0 || slices.Contains(page.Unavailable, "recentlyPlayed") {
+		t.Fatalf("anonymous %+v", page)
+	}
+	// History down: degraded, page still served.
+	p = New(fixture(), Personal{History: fakeHistory{err: errors.New("503")}}, cfg, quiet)
+	if page, err := p.Home(user); err != nil || !slices.Contains(page.Unavailable, "recentlyPlayed") {
+		t.Fatalf("degraded: %v %v", err, page.Unavailable)
 	}
 }
