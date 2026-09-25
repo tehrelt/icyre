@@ -1,0 +1,12 @@
+# Normalize line endings in the repository.
+* text=auto
+
+# Files executed or read inside Linux containers must keep LF even on a
+# Windows checkout (core.autocrlf=true): with CRLF, bash/sh fail on "\r"
+# (e.g. "set: pipefail: invalid option name", exit 2 in kafka-init).
+*.sh      text eol=lf
+*.conf    text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.sql     text eol=lf
+Dockerfile text eol=lf

@@ -81,6 +81,12 @@ await fetch('/api/v1/auth/register', { method: 'POST', headers: { 'Content-Type'
   body: JSON.stringify({ email: 'rin@example.com', password: 'correct horse battery' }) });
 ```
 
+### Windows
+
+Скрипты стенда (`deploy/**/*.sh`) выполняются в Linux-контейнерах, поэтому `.gitattributes` держит их в LF
+при любом `core.autocrlf`. Если репозиторий был склонирован до появления `.gitattributes` и `kafka-init`
+падает с `exit 2`, перевыпишите файлы: `git rm -r --cached -q deploy && git reset -q --hard`.
+
 ## Команды
 
 ```bash
