@@ -52,7 +52,19 @@ const track = (id: string, title: string, artistName: string, albumId: string, a
   ...extra,
 });
 
-export const currentUser = { id: 'usr-rin', displayName: 'Rin Aoki', avatarUrl: null, art: 7 };
+/** GET /users/me. `art` picks the avatar placeholder until media delivery exists. */
+export const currentUser = {
+  id: 'usr-rin',
+  username: 'rin.aoki',
+  displayName: 'Rin Aoki',
+  avatarUrl: null,
+  bio: '',
+  country: 'JP',
+  language: 'en',
+  createdAt: '2026-01-12T09:00:00Z',
+  updatedAt: '2026-09-01T18:30:00Z',
+  art: 7,
+};
 
 export const librarySummary = {
   savedCount: 128,

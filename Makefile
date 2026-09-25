@@ -38,7 +38,9 @@ test-race: ## Unit tests with the race detector
 .PHONY: test-integration
 test-integration: ## Integration tests (needs `make up-core`)
 	cd services/catalog && CATALOG_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
-	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" go test -tags integration -count=1 ./kafka/...
+	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 go test -tags integration -count=1 ./kafka/... ./redis/...
 
 .PHONY: lint
 lint: ## golangci-lint every module
@@ -49,10 +51,14 @@ build: ## Build service binaries into ./bin
 	@mkdir -p bin
 	cd services/catalog && go build -o ../../bin/catalog ./cmd/catalog
 	cd services/bff && go build -o ../../bin/bff ./cmd/bff
+	cd services/auth && go build -o ../../bin/auth ./cmd/auth
+	cd services/user-profile && go build -o ../../bin/user-profile ./cmd/user-profile
 
 .PHONY: migrate
-migrate: ## Apply Catalog migrations to the local database
+migrate: ## Apply all service migrations to the local database
 	cd services/catalog && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/catalog migrate
+	cd services/auth && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/auth migrate
+	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/user-profile migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -65,6 +71,14 @@ run-bff: ## Run the Web BFF locally against Catalog on :8081
 .PHONY: run-catalog
 run-catalog: ## Run Catalog locally against `make up-core`
 	cd services/catalog && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" LOG_FORMAT=text go run ./cmd/catalog
+
+.PHONY: run-auth
+run-auth: ## Run Auth locally on :8083 (ephemeral signing key)
+	cd services/auth && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8083 LOG_FORMAT=text go run ./cmd/auth
+
+.PHONY: run-user-profile
+run-user-profile: ## Run User Profile locally on :8084 against Auth on :8083
+	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8084 LOG_FORMAT=text go run ./cmd/user-profile
 
 # --- Frontend (Bun) ---------------------------------------------------------
 
@@ -85,8 +99,8 @@ web-lint: ## ESLint
 .PHONY: up up-core down logs
 up: ## docker compose up -d (everything)
 	docker compose up -d --build
-up-core: ## Only PostgreSQL + Kafka (for local go run / integration tests)
-	docker compose up -d postgres kafka kafka-init
+up-core: ## Only PostgreSQL + Redis + Kafka (for local go run / integration tests)
+	docker compose up -d postgres redis kafka kafka-init
 down: ## Stop the stand
 	docker compose down
 logs: ## Follow logs

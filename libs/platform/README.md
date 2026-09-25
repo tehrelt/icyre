@@ -10,6 +10,8 @@
 | `health` | `GET /health/live`, `GET /health/ready` с readiness-проверками |
 | `shutdown` | SIGINT/SIGTERM и упорядоченное (LIFO) закрытие ресурсов |
 | `postgres` | `pgxpool`, таймауты, метрики/трейсинг запросов, миграции (goose) в schema домена |
+| `redis` | go-redis клиент с таймаутами и pool, `Key(...)` (`<ns>:<entity>:<id>`), generic TTL `Cache[T]` с fallback на источник |
+| `authn` | Проверка access token (EdDSA JWT, `iss`/`aud`/`exp`), JWKS cache, denylist отозванных сессий в Redis, middleware `Required`/`Optional` |
 | `kafka` | Producer и consumer helper (franz-go): retries, DLQ `<topic>.dlq`, trace propagation, метрики |
 | `telemetry` | OpenTelemetry (OTLP → Jaeger), Prometheus registry и `/metrics` |
 | `httpclient` | Клиент межсервисных вызовов: trace propagation, `X-Request-ID`, таймаут |

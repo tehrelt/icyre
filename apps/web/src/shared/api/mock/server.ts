@@ -10,7 +10,39 @@ interface MockResponse {
   json: unknown;
 }
 
-type Handler = (params: Record<string, string>, query: URLSearchParams) => MockResponse;
+interface RequestContext {
+  token: string | null;
+  body: unknown;
+}
+
+type Handler = (params: Record<string, string>, query: URLSearchParams, ctx: RequestContext) => MockResponse;
+
+/**
+ * Mock session: `signedIn` stands for the HttpOnly refresh cookie, `tokens`
+ * for access tokens the mock Auth still accepts. Tests flip these to model
+ * anonymous visitors and expired access tokens.
+ */
+export const mockAuth = { signedIn: true, tokens: new Set<string>(), issued: 0 };
+
+const unauthorized = (code: string, message: string): MockResponse => ({ status: 401, json: { error: { code, message, requestId: 'mock-auth' } } });
+
+function mockRefresh(): MockResponse {
+  if (!mockAuth.signedIn) return unauthorized('SESSION_EXPIRED', 'Session expired, sign in again');
+  const accessToken = `mock-access-${++mockAuth.issued}`;
+  mockAuth.tokens.add(accessToken);
+  return ok({
+    accessToken,
+    tokenType: 'Bearer',
+    expiresIn: 900,
+    expiresAt: new Date(Date.now() + 900_000).toISOString(),
+    user: { id: currentUser.id, email: 'rin@example.com', roles: ['USER'] },
+  });
+}
+
+function authed(handler: Handler): Handler {
+  return (params, query, ctx) =>
+    ctx.token && mockAuth.tokens.has(ctx.token) ? handler(params, query, ctx) : unauthorized('UNAUTHENTICATED', 'Authentication required');
+}
 
 /**
  * Route patterns that fail with 503 — lets tests and local demos exercise
@@ -84,7 +116,17 @@ function albumPage(id: string): MockResponse {
 }
 
 const routes: Array<[method: string, pattern: string, handler: Handler]> = [
-  ['GET', '/me', () => ok(currentUser)],
+  ['POST', '/auth/refresh', () => mockRefresh()],
+  [
+    'POST',
+    '/auth/logout',
+    () => {
+      mockAuth.signedIn = false;
+      mockAuth.tokens.clear();
+      return { status: 204, json: null };
+    },
+  ],
+  ['GET', '/users/me', authed(() => ok(currentUser))],
   ['GET', '/library/summary', () => ok(librarySummary)],
   ['GET', '/pages/home', () => ok(homeFeed)],
   ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],
@@ -112,7 +154,7 @@ function match(pattern: string, path: string): Record<string, string> | null {
 /** Simulated network latency; zero under test. */
 const latencyMs = import.meta.env.MODE === 'test' ? 0 : 250;
 
-export async function mockRequest(method: string, path: string, _body: unknown, signal?: AbortSignal): Promise<MockResponse> {
+export async function mockRequest(method: string, path: string, body: unknown, signal?: AbortSignal, token: string | null = null): Promise<MockResponse> {
   if (latencyMs > 0) {
     await new Promise<void>((resolve, reject) => {
       const t = setTimeout(resolve, latencyMs);
@@ -132,7 +174,7 @@ export async function mockRequest(method: string, path: string, _body: unknown, 
     if (mockFaults.has(pattern)) {
       return { status: 503, json: { error: { code: 'SERVICE_UNAVAILABLE', message: 'Service is temporarily unavailable', requestId: 'mock-fault' } } };
     }
-    return structuredClone(handler(params, query));
+    return structuredClone(handler(params, query, { token, body }));
   }
   return notFound('NOT_FOUND', `No mock for ${method} ${path}`);
 }

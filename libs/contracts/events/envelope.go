@@ -13,6 +13,8 @@ import (
 // Topics (specs/data/kafka.md). The DLQ of a topic is <topic>.dlq.
 const (
 	TopicCatalogEvents = "catalog.events"
+	TopicAuthEvents    = "auth.events"
+	TopicProfileEvents = "profile.events"
 )
 
 // Envelope wraps every event published to Kafka.
