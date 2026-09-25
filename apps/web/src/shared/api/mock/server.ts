@@ -154,6 +154,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
       return { status: 204, json: null };
     }),
   ],
+  ['POST', '/playback/events', authed(() => ({ status: 202, json: null }))],
   ['GET', '/me/playlists', authed(() => ok({ data: librarySummary.playlists }))],
   ['GET', '/pages/home', () => ok(homeFeed)],
   ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],

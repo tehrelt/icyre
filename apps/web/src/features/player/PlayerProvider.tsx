@@ -2,7 +2,9 @@ import { useEffect, type ReactNode } from 'react';
 
 import { env } from '@/shared/config/env';
 
+import { reportPlayback } from './api/playbackEvents';
 import { resolveStreamUrl } from './api/streamSource';
+import { bindPlaybackReporter } from './controller/playbackReporter';
 import { bindPlayer } from './controller/playerController';
 import { HtmlAudioEngine } from './engine/HtmlAudioEngine';
 import { SimulatedAudioEngine } from './engine/SimulatedAudioEngine';
@@ -15,7 +17,12 @@ import { usePlayerStore } from './model/playerStore';
 export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const engine = env.useMocks ? new SimulatedAudioEngine() : new HtmlAudioEngine();
-    return bindPlayer(usePlayerStore, engine, resolveStreamUrl);
+    const unbindReporter = bindPlaybackReporter(usePlayerStore, engine, reportPlayback);
+    const unbindPlayer = bindPlayer(usePlayerStore, engine, resolveStreamUrl);
+    return () => {
+      unbindReporter();
+      unbindPlayer();
+    };
   }, []);
 
   return children;
