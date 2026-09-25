@@ -24,6 +24,10 @@ type Handler = (params: Record<string, string>, query: URLSearchParams, ctx: Req
  */
 export const mockAuth = { signedIn: true, tokens: new Set<string>(), issued: 0 };
 
+/** Saved tracks of the mock listener (Library Service), seeded from the fixtures' liked flags. */
+const likedFixtures = [...prismHoursPage.tracks, ...homeFeed.trending.today, ...homeFeed.trending.week].flatMap((t) => (t?.liked ? [t.id] : []));
+export const mockLibrary = { tracks: new Set<string>(likedFixtures), initial: new Set(likedFixtures).size };
+
 const unauthorized = (code: string, message: string): MockResponse => ({ status: 401, json: { error: { code, message, requestId: 'mock-auth' } } });
 
 function mockRefresh(): MockResponse {
@@ -127,7 +131,30 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
     },
   ],
   ['GET', '/users/me', authed(() => ok(currentUser))],
-  ['GET', '/library/summary', () => ok(librarySummary)],
+  [
+    'GET',
+    '/me/library/summary',
+    // Canvas counters, moved by likes made during the session.
+    authed(() => ok({ tracks: librarySummary.likedTracksCount + mockLibrary.tracks.size - mockLibrary.initial, albums: librarySummary.savedCount })),
+  ],
+  ['GET', '/me/library/tracks/contains', authed((_p, q) => ok({ data: (q.get('ids') ?? '').split(',').filter((id) => mockLibrary.tracks.has(id)) }))],
+  [
+    'PUT',
+    '/me/library/tracks/:id',
+    authed((p) => {
+      mockLibrary.tracks.add(p.id ?? '');
+      return { status: 204, json: null };
+    }),
+  ],
+  [
+    'DELETE',
+    '/me/library/tracks/:id',
+    authed((p) => {
+      mockLibrary.tracks.delete(p.id ?? '');
+      return { status: 204, json: null };
+    }),
+  ],
+  ['GET', '/me/playlists', authed(() => ok({ data: librarySummary.playlists }))],
   ['GET', '/pages/home', () => ok(homeFeed)],
   ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],
   ['GET', '/pages/search', () => ok(searchBrowsePage)],

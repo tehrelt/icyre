@@ -93,7 +93,43 @@ func fixture() *fakeCatalog {
 }
 
 func newPages(c ports.Catalog) *Pages {
-	return New(c, Config{PageBudget: 200 * time.Millisecond}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return New(c, nil, Config{PageBudget: 200 * time.Millisecond}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+type fakeLibrary struct {
+	saved map[string]bool
+	err   error
+}
+
+func (f fakeLibrary) SavedTracks(ctx context.Context, ids []string) (map[string]bool, error) {
+	if ports.UserToken(ctx) == "" {
+		panic("library called without a user")
+	}
+	return f.saved, f.err
+}
+
+func TestAlbumPageMarksLikedTracks(t *testing.T) {
+	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
+	lib := fakeLibrary{saved: map[string]bool{"t2": true}}
+	p := New(fixture(), lib, Config{PageBudget: 200 * time.Millisecond}, quiet)
+
+	page, err := p.Album(ports.WithUserToken(context.Background(), "tok"), "prism")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Tracks[0].Liked || !page.Tracks[1].Liked {
+		t.Fatalf("liked marks: %+v", page.Tracks)
+	}
+	// Anonymous: Library is not called (fakeLibrary would panic).
+	if page, _ := p.Album(context.Background(), "prism"); page.Tracks[1].Liked {
+		t.Fatal("anonymous page has likes")
+	}
+	// Library down: the page still renders, marks degrade.
+	p = New(fixture(), fakeLibrary{err: errors.New("library 503")}, Config{PageBudget: 200 * time.Millisecond}, quiet)
+	page, err = p.Album(ports.WithUserToken(context.Background(), "tok"), "prism")
+	if err != nil || page.Tracks[1].Liked || !slices.Contains(page.Unavailable, "liked") {
+		t.Fatalf("degraded: %v %+v", err, page.Unavailable)
+	}
 }
 
 func TestAlbumPageAggregates(t *testing.T) {

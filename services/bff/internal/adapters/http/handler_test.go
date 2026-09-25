@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/tehrelt/icyre/services/bff/internal/application"
+	"github.com/tehrelt/icyre/services/bff/internal/ports"
 	"github.com/tehrelt/icyre/services/bff/internal/views"
 )
 
@@ -51,5 +52,36 @@ func TestPagesStatusMapping(t *testing.T) {
 		if rec.Code != c.status || !strings.Contains(rec.Body.String(), c.want) {
 			t.Errorf("%s (%v): status %d body %s", c.path, c.err, rec.Code, rec.Body)
 		}
+	}
+}
+
+// userSeen records the token the application layer received.
+type userSeen struct {
+	stubPages
+	token *string
+}
+
+func (u userSeen) Album(ctx context.Context, id string) (views.AlbumPage, error) {
+	*u.token = ports.UserToken(ctx)
+	return u.stubPages.Album(ctx, id)
+}
+
+func TestUserContextAndCaching(t *testing.T) {
+	var token string
+	mux := http.NewServeMux()
+	NewHandler(userSeen{token: &token}, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/pages/albums/x", nil)
+	req.Header.Set("Authorization", "Bearer abc")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if token != "abc" || rec.Header().Get("Cache-Control") != "private, no-cache" || rec.Header().Get("Vary") != "Authorization" {
+		t.Fatalf("signed in: token %q, cache %q, vary %q", token, rec.Header().Get("Cache-Control"), rec.Header().Get("Vary"))
+	}
+
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/pages/albums/x", nil))
+	if token != "" || rec.Header().Get("Cache-Control") != "private, max-age=30" {
+		t.Fatalf("anonymous: token %q, cache %q", token, rec.Header().Get("Cache-Control"))
 	}
 }

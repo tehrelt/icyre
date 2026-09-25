@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router';
 
 import { useLibrarySummary } from '@/entities/library/api';
+import { useMyPlaylists } from '@/entities/playlist/api';
 import { routes } from '@/shared/config/routes';
 import { Artwork, Logo, SidebarItem, Skeleton } from '@/shared/ui';
 
@@ -10,6 +11,7 @@ import styles from './Sidebar.module.css';
 export function Sidebar() {
   const { pathname } = useLocation();
   const library = useLibrarySummary();
+  const playlists = useMyPlaylists();
   const isActive = (to: string) => (to === routes.home ? pathname === to : pathname.startsWith(to));
 
   return (
@@ -32,18 +34,18 @@ export function Sidebar() {
 
       <div className={styles.playlistsHead}>
         <span className="ic-overline">Playlists</span>
-        {library.data && <span className="ic-meta">{library.data.playlists.length}</span>}
+        {playlists.data && <span className="ic-meta">{playlists.data.length}</span>}
       </div>
       <nav aria-label="Playlists" className={`${styles.group} ${styles.playlists}`}>
         <SidebarItem icon="plus" label="Create playlist" disabled />
-        {library.isPending
+        {playlists.isPending
           ? Array.from({ length: 4 }, (_, i) => (
               <div key={i} className={styles.skeletonRow}>
                 <Skeleton shape="rect" width={28} height={28} radius="xs" />
                 <Skeleton width="60%" />
               </div>
             ))
-          : library.data?.playlists.map((p) => {
+          : playlists.data?.map((p) => {
               const to = routes.playlist(p.id);
               return <SidebarItem key={p.id} label={p.title} to={to} art={<Artwork art={p.art} src={p.coverUrl} />} active={pathname === to} />;
             })}

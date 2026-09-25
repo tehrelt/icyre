@@ -55,3 +55,10 @@ scrape_configs:
       - targets: ["search-indexer:8080"]
         labels:
           service: search-indexer
+
+  - job_name: library-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["library:8080"]
+        labels:
+          service: library-service

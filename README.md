@@ -18,6 +18,7 @@ services/bff/        Web BFF — page-oriented API для веб-клиента 
 services/auth/       Auth Service — аккаунты, сессии, JWT (EdDSA) + JWKS, refresh cookie
 services/user-profile/ User Profile Service — публичный профиль, создаётся из user.registered
 services/stream-auth/ Stream Authorization — проверка трека и short-lived signed URL на аудио
+services/library/    Library Service — сохранённые треки и альбомы слушателя
 services/search/     Search Service — полнотекстовый поиск и autocomplete (OpenSearch)
 workers/search-indexer/ Search Indexer — catalog.events → OpenSearch, reindex с переключением алиасов
 libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, redis, kafka,
@@ -64,6 +65,7 @@ VITE_API_MOCKS=false bun run dev  # тот же UI на реальных дан�
 | User Profile | http://localhost:8084/health/ready |
 | Stream Authorization | http://localhost:8085/health/ready |
 | Search | http://localhost:8080/api/v1/search?q=nova · напрямую :8086 |
+| Library | http://localhost:8088/health/ready (API — через gateway, `/api/v1/me/library/*`) |
 | OpenSearch | http://localhost:9200 |
 | MinIO console | http://localhost:9001 (icyre / icyre-secret) |
 | Jaeger | http://localhost:16686 |

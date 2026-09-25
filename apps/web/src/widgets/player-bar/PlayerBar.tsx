@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 
+import { useTrackLike } from '@/features/like-track';
 import { usePlayerStore } from '@/features/player';
 import { routes } from '@/shared/config/routes';
 import { cx } from '@/shared/lib/cx';
@@ -63,6 +64,7 @@ export function PlayerBar() {
     })),
   );
 
+  const like = useTrackLike(p.track);
   const idle = !p.track;
   const progress = p.duration > 0 ? Math.min(100, (p.position / p.duration) * 100) : 0;
 
@@ -82,11 +84,10 @@ export function PlayerBar() {
               <IconButton
                 icon="heart"
                 size="sm"
-                variant={p.track.liked ? 'active' : 'neutral'}
-                pressed={p.track.liked}
-                label={p.track.liked ? 'Remove from Liked tracks' : 'Save to Liked tracks'}
-                disabled
-                title={LATER}
+                variant={like.liked ? 'active' : 'neutral'}
+                pressed={like.liked}
+                label={like.liked ? 'Remove from Liked tracks' : 'Save to Liked tracks'}
+                onClick={() => void like.toggle()}
               />
             </span>
           </>
