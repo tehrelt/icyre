@@ -1,0 +1,136 @@
+package application
+
+import (
+	"context"
+	"errors"
+	"io"
+	"log/slog"
+	"testing"
+	"time"
+
+	"github.com/tehrelt/icyre/libs/contracts/events/catalogv1"
+	"github.com/tehrelt/icyre/libs/contracts/search"
+)
+
+type fakeCatalog struct {
+	albums  []Album
+	artists map[string]Artist
+	tracks  map[string][]Track
+}
+
+func (f fakeCatalog) Album(_ context.Context, id string) (Album, error) {
+	for _, a := range f.albums {
+		if a.ID == id {
+			return a, nil
+		}
+	}
+	return Album{}, ErrNotFound
+}
+func (f fakeCatalog) Artists(_ context.Context, ids []string) (map[string]Artist, error) {
+	out := map[string]Artist{}
+	for _, id := range ids {
+		if a, ok := f.artists[id]; ok {
+			out[id] = a
+		}
+	}
+	return out, nil
+}
+func (f fakeCatalog) EachAlbum(_ context.Context, fn func(Album) error) error {
+	for _, a := range f.albums {
+		if err := fn(a); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (f fakeCatalog) AlbumTracks(_ context.Context, id string) ([]Track, error) {
+	return f.tracks[id], nil
+}
+
+type recorder struct {
+	writes []Write
+	calls  int
+}
+
+func (r *recorder) Apply(_ context.Context, w []Write) error {
+	r.calls++
+	r.writes = append(r.writes, w...)
+	return nil
+}
+
+var (
+	t0      = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+	catalog = fakeCatalog{
+		albums:  []Album{{ID: "al1", Title: "Prism Hours", AlbumType: "ALBUM", ReleaseDate: "2026-03-06", ArtistIDs: []string{"ar1"}, UpdatedAt: t0}},
+		artists: map[string]Artist{"ar1": {ID: "ar1", Name: "Nova Hale", UpdatedAt: t0}, "ar2": {ID: "ar2", Name: "Kai Frost", UpdatedAt: t0}},
+		tracks: map[string][]Track{"al1": {
+			{ID: "t1", Title: "Glass Tides", AlbumID: "al1", ArtistIDs: []string{"ar1"}, Status: "READY", UpdatedAt: t0},
+			{ID: "t2", Title: "Mirror Weather", AlbumID: "al1", ArtistIDs: []string{"ar1", "ar2"}, Status: "BLOCKED", UpdatedAt: t0},
+			{ID: "t3", Title: "Draft", AlbumID: "al1", ArtistIDs: []string{"ar1"}, Status: "DRAFT", UpdatedAt: t0},
+		}},
+	}
+	quiet = slog.New(slog.NewTextHandler(io.Discard, nil))
+)
+
+func TestTrackChanged(t *testing.T) {
+	rec := &recorder{}
+	x := New(catalog, rec, quiet)
+	ctx := context.Background()
+	at := t0.Add(time.Minute)
+
+	err := x.TrackChanged(ctx, catalogv1.Track{TrackID: "t2", AlbumID: "al1", ArtistIDs: []string{"ar1", "ar2"}, Title: "Mirror Weather", Status: "BLOCKED", Explicit: true, DurationMs: 198000, UpdatedAt: at}, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := rec.writes[0]
+	doc := w.Doc.(search.Track)
+	if w.Index != search.AliasTracks || w.Version != at.UnixMilli() || doc.Available || doc.AlbumTitle != "Prism Hours" ||
+		len(doc.ArtistNames) != 2 || doc.ArtistNames[1] != "Kai Frost" || doc.ReleaseDate != "2026-03-06" {
+		t.Fatalf("write %+v doc %+v", w, doc)
+	}
+
+	if err := x.TrackChanged(ctx, catalogv1.Track{TrackID: "t9", AlbumID: "al1", Status: "DELETED"}, at); err != nil {
+		t.Fatal(err)
+	}
+	if last := rec.writes[len(rec.writes)-1]; !last.Delete || last.ID != "t9" || last.Version != at.UnixMilli() {
+		t.Fatalf("delete %+v", last)
+	}
+
+	if err := x.TrackChanged(ctx, catalogv1.Track{TrackID: "t8", AlbumID: "missing", Status: "READY"}, at); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing album: %v", err)
+	}
+}
+
+func TestCreatedEvents(t *testing.T) {
+	rec := &recorder{}
+	x := New(catalog, rec, quiet)
+	ctx := context.Background()
+	_ = x.AlbumCreated(ctx, catalogv1.Album{AlbumID: "al2", Title: "Hollow Signal", AlbumType: "ALBUM", ArtistIDs: []string{"ar2"}}, t0)
+	_ = x.ArtistCreated(ctx, catalogv1.Artist{ArtistID: "ar3", Name: "Mira Solen"}, t0)
+	if a := rec.writes[0].Doc.(search.Album); a.ArtistNames[0] != "Kai Frost" || rec.writes[0].Index != search.AliasAlbums {
+		t.Fatalf("album %+v", a)
+	}
+	if a := rec.writes[1].Doc.(search.Artist); a.Name != "Mira Solen" || rec.writes[1].Version != t0.UnixMilli() {
+		t.Fatalf("artist %+v", a)
+	}
+}
+
+func TestRebuild(t *testing.T) {
+	rec := &recorder{}
+	x := New(catalog, rec, quiet)
+	target := map[string]string{search.AliasTracks: "tracks-v2", search.AliasAlbums: "albums-v2", search.AliasArtists: "artists-v2"}
+	st, err := x.Rebuild(context.Background(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st != (Stats{Albums: 1, Tracks: 2, Artists: 2}) {
+		t.Fatalf("stats %+v", st)
+	}
+	byIndex := map[string]int{}
+	for _, w := range rec.writes {
+		byIndex[w.Index]++
+	}
+	if byIndex["tracks-v2"] != 2 || byIndex["albums-v2"] != 1 || byIndex["artists-v2"] != 2 || byIndex[search.AliasTracks] != 0 {
+		t.Fatalf("writes %v", byIndex)
+	}
+}

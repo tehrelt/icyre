@@ -18,9 +18,12 @@ services/bff/        Web BFF — page-oriented API для веб-клиента 
 services/auth/       Auth Service — аккаунты, сессии, JWT (EdDSA) + JWKS, refresh cookie
 services/user-profile/ User Profile Service — публичный профиль, создаётся из user.registered
 services/stream-auth/ Stream Authorization — проверка трека и short-lived signed URL на аудио
+services/search/     Search Service — полнотекстовый поиск и autocomplete (OpenSearch)
+workers/search-indexer/ Search Indexer — catalog.events → OpenSearch, reindex с переключением алиасов
 libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, redis, kafka,
-                     objectstore (S3/MinIO), telemetry, authn
-libs/contracts/      межсервисные контракты: Kafka envelope, event payloads, media object keys
+                     objectstore (S3/MinIO), opensearch, telemetry, authn
+libs/contracts/      межсервисные контракты: Kafka envelope, event payloads, media object keys,
+                     поисковые документы и маппинги
 api/proto/           protobuf (gRPC, позже)
 deploy/              API gateway (nginx), Prometheus, Grafana, Kafka topics, MinIO bucket bootstrap
 scripts/             seed-скрипты (Bun): каталог из canvas, аудио-варианты
@@ -46,6 +49,7 @@ Chromium (в том числе из Playwright) — нет, там плеер п
 docker compose up -d --build      # Postgres, Redis, Kafka, MinIO, сервисы, Gateway, Jaeger, Prometheus, Grafana
 make seed                         # контент из product canvas → Catalog
 make seed-media                   # аудио-варианты 64/128/256 kbps → MinIO (нужен ffmpeg, ~3 мин)
+docker compose run --rm search-indexer reindex   # поисковый индекс из каталога (дальше — по событиям)
 bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
 VITE_API_MOCKS=false bun run dev  # тот же UI на реальных данных через gateway
 ```
@@ -59,6 +63,8 @@ VITE_API_MOCKS=false bun run dev  # тот же UI на реальных дан�
 | Auth | http://localhost:8083/api/v1/auth/.well-known/jwks.json |
 | User Profile | http://localhost:8084/health/ready |
 | Stream Authorization | http://localhost:8085/health/ready |
+| Search | http://localhost:8080/api/v1/search?q=nova · напрямую :8086 |
+| OpenSearch | http://localhost:9200 |
 | MinIO console | http://localhost:9001 (icyre / icyre-secret) |
 | Jaeger | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
