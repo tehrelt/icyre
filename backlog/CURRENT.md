@@ -33,6 +33,10 @@ Catalog Service — эталон для остальных сервисов (`se
 
 - [-] EPIC-016 — Playback Service (срез 1: телеметрия плеера → `playback.events`)
 
+## Backend — Playlists
+
+- [-] EPIC-013 — Playlist Service (срез 1: создание, свои плейлисты, add/remove track)
+
 ## Backend — Listening History
 
 - [x] EPIC-026 — Listening History (playback.events → история, `/me/history`)
@@ -69,7 +73,7 @@ Home и Album работают на реальных данных: Postgres → 
 (EPIC-051 BLOCKED) — войти можно через API (`POST /api/v1/auth/register|login`).
 Недостающие источники данных, по порядку ценности для экранов canvas:
 
-1. EPIC-013 Playlist Service (плейлисты сайдбара `/me/playlists`, плейлисты в «Recently played»).
+1. EPIC-013 срез 2: PATCH/DELETE, reorder, события `playlist.*` → Search Indexer; плейлисты в «Recently played».
 2. Transactional outbox для catalog events (at-least-once end to end).
 3. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
 4. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.

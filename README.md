@@ -19,6 +19,7 @@ services/auth/       Auth Service — аккаунты, сессии, JWT (EdDSA
 services/user-profile/ User Profile Service — публичный профиль, создаётся из user.registered
 services/stream-auth/ Stream Authorization — проверка трека и short-lived signed URL на аудио
 services/library/    Library Service — сохранённые треки и альбомы слушателя
+services/playlist/   Playlist Service — плейлисты слушателя (срез 1)
 services/playback/   Playback Service — телеметрия плеера → playback.events (сессии и очередь — позже)
 services/history/    Listening History — playback.events → история прослушиваний, /me/history
 services/search/     Search Service — полнотекстовый поиск и autocomplete (OpenSearch)
