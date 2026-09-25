@@ -46,6 +46,7 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/library && LIBRARY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/history && HISTORY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
@@ -67,6 +68,7 @@ build: ## Build service binaries into ./bin
 	cd services/search && go build -o ../../bin/search ./cmd/search
 	cd services/library && go build -o ../../bin/library ./cmd/library
 	cd services/playback && go build -o ../../bin/playback ./cmd/playback
+	cd services/history && go build -o ../../bin/history ./cmd/history
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
 
 .PHONY: migrate
@@ -75,6 +77,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/auth && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/auth migrate
 	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/user-profile migrate
 	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/library migrate
+	cd services/history && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/history migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
