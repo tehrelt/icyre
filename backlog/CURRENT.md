@@ -29,6 +29,10 @@ Catalog Service — эталон для остальных сервисов (`se
 
 - [x] EPIC-014 — Library Service (сохранённые треки и альбомы, `library.events`; лайки в UI)
 
+## Backend — Playback
+
+- [-] EPIC-016 — Playback Service (срез 1: телеметрия плеера → `playback.events`)
+
 ## Backend — Search
 
 - [x] EPIC-023 — OpenSearch foundation

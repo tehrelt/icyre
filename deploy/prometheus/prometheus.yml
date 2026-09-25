@@ -62,3 +62,10 @@ scrape_configs:
       - targets: ["library:8080"]
         labels:
           service: library-service
+
+  - job_name: playback-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["playback:8080"]
+        labels:
+          service: playback-service

@@ -9,6 +9,7 @@ use (
 	./services/bff
 	./services/catalog
 	./services/library
+	./services/playback
 	./services/search
 	./services/stream-auth
 	./services/user-profile

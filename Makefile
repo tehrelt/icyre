@@ -66,6 +66,7 @@ build: ## Build service binaries into ./bin
 	cd services/stream-auth && go build -o ../../bin/stream-auth ./cmd/stream-auth
 	cd services/search && go build -o ../../bin/search ./cmd/search
 	cd services/library && go build -o ../../bin/library ./cmd/library
+	cd services/playback && go build -o ../../bin/playback ./cmd/playback
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
 
 .PHONY: migrate
