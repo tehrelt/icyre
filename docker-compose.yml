@@ -156,6 +156,7 @@ services:
   catalog-migrate:
     build: { context: ., dockerfile: services/catalog/Dockerfile }
     image: icyre/catalog:local
+    pull_policy: build
     command: ["migrate"]
     environment:
       <<: *catalog-env
@@ -167,6 +168,8 @@ services:
 
   catalog:
     image: icyre/catalog:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
     environment: *catalog-env
     ports: ["8081:8080"]
     depends_on:
@@ -177,6 +180,7 @@ services:
   bff:
     build: { context: ., dockerfile: services/bff/Dockerfile }
     image: icyre/bff:local
+    pull_policy: build
     environment:
       APP_ENV: local
       CATALOG_URL: http://catalog:8080
@@ -190,6 +194,7 @@ services:
   auth-migrate:
     build: { context: ., dockerfile: services/auth/Dockerfile }
     image: icyre/auth:local
+    pull_policy: build
     command: ["migrate"]
     environment:
       <<: *auth-env
@@ -201,6 +206,8 @@ services:
 
   auth:
     image: icyre/auth:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
     environment: *auth-env
     ports: ["8083:8080"]
     depends_on:
@@ -212,6 +219,7 @@ services:
   user-profile-migrate:
     build: { context: ., dockerfile: services/user-profile/Dockerfile }
     image: icyre/user-profile:local
+    pull_policy: build
     command: ["migrate"]
     environment:
       <<: *profile-env
@@ -223,6 +231,8 @@ services:
 
   user-profile:
     image: icyre/user-profile:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
     environment: *profile-env
     ports: ["8084:8080"]
     depends_on:
@@ -235,6 +245,7 @@ services:
   library-migrate:
     build: { context: ., dockerfile: services/library/Dockerfile }
     image: icyre/library:local
+    pull_policy: build
     command: ["migrate"]
     environment:
       <<: *library-env
@@ -246,6 +257,8 @@ services:
 
   library:
     image: icyre/library:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
     environment: *library-env
     ports: ["8088:8080"]
     depends_on:
@@ -259,6 +272,7 @@ services:
   stream-auth:
     build: { context: ., dockerfile: services/stream-auth/Dockerfile }
     image: icyre/stream-auth:local
+    pull_policy: build
     environment:
       APP_ENV: local
       REDIS_ADDR: redis:6379
@@ -283,6 +297,7 @@ services:
   search-indexer:
     build: { context: ., dockerfile: workers/search-indexer/Dockerfile }
     image: icyre/search-indexer:local
+    pull_policy: build
     # Rebuild the indices from Catalog: docker compose run --rm search-indexer reindex
     environment:
       APP_ENV: local
@@ -300,6 +315,7 @@ services:
   search:
     build: { context: ., dockerfile: services/search/Dockerfile }
     image: icyre/search:local
+    pull_policy: build
     environment:
       APP_ENV: local
       OPENSEARCH_URL: http://opensearch:9200

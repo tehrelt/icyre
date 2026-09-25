@@ -52,7 +52,7 @@ make seed                         # контент из product canvas → Catal
 make seed-media                   # аудио-варианты 64/128/256 kbps → MinIO (нужен ffmpeg, ~3 мин)
 docker compose run --rm search-indexer reindex   # поисковый индекс из каталога (дальше — по событиям)
 bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
-VITE_API_MOCKS=false bun run dev  # тот же UI на реальных данных через gateway
+bun run dev:real                  # тот же UI на реальных данных через gateway (любая ОС)
 ```
 
 | Что | URL |
@@ -80,6 +80,12 @@ origin, что и у веб-клиента:
 await fetch('/api/v1/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ email: 'rin@example.com', password: 'correct horse battery' }) });
 ```
+
+### Windows
+
+Скрипты стенда (`deploy/**/*.sh`) выполняются в Linux-контейнерах, поэтому `.gitattributes` держит их в LF
+при любом `core.autocrlf`. Если репозиторий был склонирован до появления `.gitattributes` и `kafka-init`
+падает с `exit 2`, перевыпишите файлы: `git rm -r --cached -q deploy && git reset -q --hard`.
 
 ## Команды
 
