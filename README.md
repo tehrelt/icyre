@@ -14,10 +14,16 @@
 ```text
 apps/web/            React + TypeScript + Vite (Bun workspace)
 services/catalog/    Catalog Service — эталонная vertical slice (Go module)
-libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, kafka, telemetry
-libs/contracts/      межсервисные контракты: Kafka envelope, event payloads
+services/bff/        Web BFF — page-oriented API для веб-клиента (агрегация сервисов)
+services/auth/       Auth Service — аккаунты, сессии, JWT (EdDSA) + JWKS, refresh cookie
+services/user-profile/ User Profile Service — публичный профиль, создаётся из user.registered
+services/stream-auth/ Stream Authorization — проверка трека и short-lived signed URL на аудио
+libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, redis, kafka,
+                     objectstore (S3/MinIO), telemetry, authn
+libs/contracts/      межсервисные контракты: Kafka envelope, event payloads, media object keys
 api/proto/           protobuf (gRPC, позже)
-deploy/              Prometheus, Grafana, Kafka topics
+deploy/              API gateway (nginx), Prometheus, Grafana, Kafka topics, MinIO bucket bootstrap
+scripts/             seed-скрипты (Bun): каталог из canvas, аудио-варианты
 go.work              Go workspace
 package.json         Bun workspace
 ```
@@ -29,21 +35,43 @@ package.json         Bun workspace
 - Go 1.26 (`go.work` указывает `toolchain go1.26.8`; с `GOTOOLCHAIN=auto` он скачается сам)
 - Bun ≥ 1.3
 - Docker + Docker Compose
+- ffmpeg — только для `make seed-media`
+
+Аудио — AAC (как в `specs/data/object-storage.md`): Chrome, Edge, Safari и Firefox его играют; open-source сборки
+Chromium (в том числе из Playwright) — нет, там плеер покажет «This track could not be played».
 
 ## Быстрый старт
 
 ```bash
-docker compose up -d --build      # Postgres, Kafka, Catalog, Jaeger, Prometheus, Grafana
+docker compose up -d --build      # Postgres, Redis, Kafka, MinIO, сервисы, Gateway, Jaeger, Prometheus, Grafana
+make seed                         # контент из product canvas → Catalog
+make seed-media                   # аудио-варианты 64/128/256 kbps → MinIO (нужен ffmpeg, ~3 мин)
 bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
+VITE_API_MOCKS=false bun run dev  # тот же UI на реальных данных через gateway
 ```
 
 | Что | URL |
 |---|---|
 | Web | http://localhost:5173 |
-| Catalog API | http://localhost:8081/api/v1 · `/health/ready` · `/metrics` |
+| API Gateway (публичный `/api/v1`) | http://localhost:8080/api/v1 |
+| Catalog API (напрямую, включая запись) | http://localhost:8081/api/v1 · `/health/ready` · `/metrics` |
+| Web BFF | http://localhost:8082/api/v1/pages/home |
+| Auth | http://localhost:8083/api/v1/auth/.well-known/jwks.json |
+| User Profile | http://localhost:8084/health/ready |
+| Stream Authorization | http://localhost:8085/health/ready |
+| MinIO console | http://localhost:9001 (icyre / icyre-secret) |
 | Jaeger | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin / admin) → ICYRE → «ICYRE — services» |
+
+Экранов входа в canvas пока нет (EPIC-051), поэтому аккаунт создаётся через API — cookie сессии ставится на тот же
+origin, что и у веб-клиента:
+
+```js
+// в DevTools на http://localhost:5173 (VITE_API_MOCKS=false), затем перезагрузить страницу
+await fetch('/api/v1/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ email: 'rin@example.com', password: 'correct horse battery' }) });
+```
 
 ## Команды
 

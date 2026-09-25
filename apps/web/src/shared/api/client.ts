@@ -3,11 +3,35 @@ import type { z } from 'zod';
 import { env } from '@/shared/config/env';
 
 import { ApiError, ErrorBodySchema } from './errors';
+import { ensureSession, getAccessToken, refreshSession, TokenResponseSchema, type TokenResponse } from './session';
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   signal?: AbortSignal;
+}
+
+interface RawResponse {
+  status: number;
+  json: unknown;
+}
+
+// Auth endpoints manage the session themselves: no bearer, no refresh loop.
+const isAuthPath = (path: string) => path.startsWith('/auth/');
+
+async function send(method: string, path: string, opts: RequestOptions, token: string | null): Promise<RawResponse> {
+  return env.useMocks
+    ? // Loaded lazily so fixtures never ship in a production bundle that talks to the real API.
+      (await import('./mock/server')).mockRequest(method, path, opts.body, opts.signal, token)
+    : httpRequest(method, path, opts, token);
+}
+
+/** POST /auth/refresh with the HttpOnly cookie; null when there is no session. */
+async function refreshCall(): Promise<TokenResponse | null> {
+  const { status, json } = await send('POST', '/auth/refresh', {}, null);
+  if (status !== 200) return null;
+  const parsed = TokenResponseSchema.safeParse(json);
+  return parsed.success ? parsed.data : null;
 }
 
 /**
@@ -16,10 +40,16 @@ export interface RequestOptions {
  */
 export async function apiRequest<S extends z.ZodType>(path: string, schema: S, opts: RequestOptions = {}): Promise<z.output<S>> {
   const method = opts.method ?? 'GET';
-  const { status, json } = env.useMocks
-    ? // Loaded lazily so fixtures never ship in a production bundle that talks to the real API.
-      await (await import('./mock/server')).mockRequest(method, path, opts.body, opts.signal)
-    : await httpRequest(method, path, opts);
+  const auth = !isAuthPath(path);
+  const token = auth ? await ensureSession(refreshCall) : null;
+  let { status, json } = await send(method, path, opts, token);
+  // Expired or revoked access token: rotate once and retry.
+  if (status === 401 && auth && token) {
+    // Another request may have rotated the session meanwhile: reuse its token.
+    const current = getAccessToken();
+    const next = current && current !== token ? current : await refreshSession(refreshCall);
+    if (next) ({ status, json } = await send(method, path, opts, next));
+  }
 
   if (status >= 400) {
     const parsed = ErrorBodySchema.safeParse(json);
@@ -39,13 +69,14 @@ export async function apiRequest<S extends z.ZodType>(path: string, schema: S, o
 
 export const apiGet = <S extends z.ZodType>(path: string, schema: S, signal?: AbortSignal) => apiRequest(path, schema, { signal });
 
-async function httpRequest(method: string, path: string, opts: RequestOptions): Promise<{ status: number; json: unknown }> {
+async function httpRequest(method: string, path: string, opts: RequestOptions, token: string | null): Promise<RawResponse> {
   const res = await fetch(env.apiBaseUrl + path, {
     method,
     signal: opts.signal,
     credentials: 'include',
     headers: {
       Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,

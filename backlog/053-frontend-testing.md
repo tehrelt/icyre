@@ -20,7 +20,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-053.3 Компоненты DS: поведение и a11y-роли.
 
-- [x] TASK-053.4 Интеграция: Home + shell через memory router.
+- [x] TASK-053.4 Интеграция через memory router: Home, shell, Album, Search (все состояния, recent searches, шорткат).
 
 - [ ] TASK-053.5 Playwright e2e (сценарий: открыть Home → Play album → перейти на другую страницу).
 

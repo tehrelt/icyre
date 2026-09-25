@@ -46,7 +46,7 @@ beforeEach(() => usePlayerStore.setState(initialPlayerState));
 describe('bindPlayer', () => {
   it('loads a signed URL for the current track and plays it', async () => {
     const engine = new FakeEngine();
-    const dispose = bindPlayer(usePlayerStore, engine, async (t) => `https://cdn/${t.id}`);
+    const dispose = bindPlayer(usePlayerStore, engine, async (t) => ({ url: `https://cdn/${t.id}`, expiresAt: null }));
 
     usePlayerStore.getState().playQueue([track('a')]);
     await flush();
@@ -62,7 +62,7 @@ describe('bindPlayer', () => {
   it('drops a stale stream grant when the track changed meanwhile', async () => {
     const engine = new FakeEngine();
     const pending: Array<() => void> = [];
-    const dispose = bindPlayer(usePlayerStore, engine, (t) => new Promise((r) => pending.push(() => r(t.id))));
+    const dispose = bindPlayer(usePlayerStore, engine, (t) => new Promise((r) => pending.push(() => r({ url: t.id, expiresAt: null }))));
 
     usePlayerStore.getState().playQueue([track('a'), track('b')]);
     usePlayerStore.getState().next();
@@ -74,7 +74,7 @@ describe('bindPlayer', () => {
 
   it('feeds engine events back into the store', async () => {
     const engine = new FakeEngine();
-    const dispose = bindPlayer(usePlayerStore, engine, async () => 'u');
+    const dispose = bindPlayer(usePlayerStore, engine, async () => ({ url: 'u', expiresAt: null }));
     usePlayerStore.getState().playQueue([track('a'), track('b')]);
     await flush();
 
@@ -94,6 +94,28 @@ describe('bindPlayer', () => {
     await flush();
     expect(usePlayerStore.getState().error).toBe('Could not authorize the stream');
     expect(engine.calls.some((c) => c.startsWith('load'))).toBe(false);
+    dispose();
+  });
+
+  it('re-authorizes an expired URL and resumes where playback was', async () => {
+    const engine = new FakeEngine();
+    let n = 0;
+    const resolver = vi.fn(async () => ({ url: `https://cdn/a?v=${++n}`, expiresAt: n === 1 ? Date.now() - 1 : Date.now() + 300_000 }));
+    const dispose = bindPlayer(usePlayerStore, engine, resolver);
+    usePlayerStore.getState().playQueue([track('a')]);
+    await flush();
+    engine.fire({ type: 'time', position: 75 });
+
+    engine.fire({ type: 'error', message: 'network' });
+    await flush();
+    expect(usePlayerStore.getState().error).toBeNull();
+    expect(engine.calls.slice(-3)).toEqual(['load:https://cdn/a?v=2:120', 'seek:75', 'play']);
+
+    // A fresh URL that fails is a real error: no renewal loop.
+    engine.fire({ type: 'error', message: 'This track could not be played' });
+    await flush();
+    expect(resolver).toHaveBeenCalledTimes(2);
+    expect(usePlayerStore.getState().error).toBe('This track could not be played');
     dispose();
   });
 });

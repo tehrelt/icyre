@@ -338,3 +338,33 @@ export function TrackRow({
     </div>
   );
 }
+
+/* ---------- TrackListHeader ---------- */
+export interface TrackListHeaderProps {
+  showCover?: boolean;
+  /** Label of the third column ("Album", or "Plays" on album pages). */
+  albumLabel?: string;
+}
+
+export function TrackListHeader({ showCover = true, albumLabel = 'Album' }: TrackListHeaderProps) {
+  return (
+    <div className={cx('ic-track', 'ic-track-header', !showCover && 'no-cover')} role="row">
+      <span className="ic-track-index" role="columnheader">
+        #
+      </span>
+      {showCover && <span />}
+      <span className="ic-track-main" role="columnheader">
+        Title
+      </span>
+      <span className="ic-track-album" role="columnheader">
+        {albumLabel}
+      </span>
+      <span />
+      <span />
+      <span className="ic-track-dur" role="columnheader">
+        <Icon name="clock" size={16} label="Duration" />
+      </span>
+      <span />
+    </div>
+  );
+}

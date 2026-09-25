@@ -25,6 +25,8 @@ import (
 type Catalog interface {
 	CreateArtist(ctx context.Context, cmd application.CreateArtist) (domain.Artist, error)
 	GetArtist(ctx context.Context, id uuid.UUID) (domain.Artist, error)
+	ListArtists(ctx context.Context, ids []uuid.UUID) ([]domain.Artist, error)
+	ListAlbums(ctx context.Context, q application.ListAlbums) (application.AlbumPage, error)
 	ListArtistAlbums(ctx context.Context, q application.ListArtistAlbums) (application.AlbumPage, error)
 	CreateAlbum(ctx context.Context, cmd application.CreateAlbum) (domain.Album, error)
 	GetAlbum(ctx context.Context, id uuid.UUID) (domain.Album, error)
@@ -49,9 +51,11 @@ func NewHandler(app Catalog, log *slog.Logger) *Handler {
 // Register mounts the routes on mux.
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/artists", h.createArtist)
+	mux.HandleFunc("GET /api/v1/artists", h.listArtists)
 	mux.HandleFunc("GET /api/v1/artists/{id}", h.getArtist)
 	mux.HandleFunc("GET /api/v1/artists/{id}/albums", h.listArtistAlbums)
 	mux.HandleFunc("POST /api/v1/albums", h.createAlbum)
+	mux.HandleFunc("GET /api/v1/albums", h.listAlbums)
 	mux.HandleFunc("GET /api/v1/albums/{id}", h.getAlbum)
 	mux.HandleFunc("GET /api/v1/albums/{id}/tracks", h.listAlbumTracks)
 	mux.HandleFunc("POST /api/v1/tracks", h.createTrack)
@@ -93,6 +97,27 @@ func (h *Handler) getArtist(w http.ResponseWriter, r *http.Request) {
 	httpserver.WriteJSON(w, http.StatusOK, toArtist(a))
 }
 
+// listArtists: GET /api/v1/artists?ids=<uuid>,<uuid> — batch lookup; unknown IDs are omitted.
+func (h *Handler) listArtists(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("ids")
+	if raw == "" {
+		h.fail(w, r, invalidFields(map[string]string{"ids": "comma-separated artist IDs are required"}))
+		return
+	}
+	fields := map[string]string{}
+	ids := parseIDs(strings.Split(raw, ","), "ids", fields)
+	if len(fields) > 0 {
+		h.fail(w, r, invalidFields(fields))
+		return
+	}
+	artists, err := h.app.ListArtists(r.Context(), ids)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, listResponse[artistResponse]{Data: mapSlice(artists, toArtist)})
+}
+
 func (h *Handler) listArtistAlbums(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
@@ -109,6 +134,25 @@ func (h *Handler) listArtistAlbums(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err)
 		return
 	}
+	writeAlbumPage(w, page)
+}
+
+// listAlbums: GET /api/v1/albums — the whole catalogue, newest releases first.
+func (h *Handler) listAlbums(w http.ResponseWriter, r *http.Request) {
+	limit, after, err := pageParams(r)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	page, err := h.app.ListAlbums(r.Context(), application.ListAlbums{After: after, Limit: limit})
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	writeAlbumPage(w, page)
+}
+
+func writeAlbumPage(w http.ResponseWriter, page application.AlbumPage) {
 	p := &pagination{HasMore: page.Next != nil}
 	if page.Next != nil {
 		c := encodeCursor(*page.Next)

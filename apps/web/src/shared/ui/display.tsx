@@ -73,14 +73,16 @@ export function ExplicitMark() {
 export interface TagProps {
   children: ReactNode;
   onRemove?: () => void;
+  /** Accessible name of the remove button; defaults to "Remove <children>". */
+  removeLabel?: string;
 }
 
-export function Tag({ children, onRemove }: TagProps) {
+export function Tag({ children, onRemove, removeLabel }: TagProps) {
   return (
     <span className="ic-tag">
       {children}
       {onRemove && (
-        <button type="button" className="ic-tag-remove" aria-label={`Remove ${String(children)}`} onClick={onRemove}>
+        <button type="button" className="ic-tag-remove" aria-label={removeLabel ?? `Remove ${String(children)}`} onClick={onRemove}>
           <Icon name="close" size={12} />
         </button>
       )}

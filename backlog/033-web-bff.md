@@ -2,22 +2,35 @@
 
 > Проект: **Исследование архитектурных подходов и реализация масштабируемого музыкального стриминг-сервиса**
 
+**Status:** [-] IN PROGRESS
+
 **Priority:** P2
 
 ## Задачи
 
-- [ ] TASK-033.1 Создать BFF module.
+- [x] TASK-033.1 Создать BFF module.
 
-- [ ] TASK-033.2 Реализовать home page aggregation.
+- [x] TASK-033.2 Реализовать home page aggregation.
 
-- [ ] TASK-033.3 Реализовать album page aggregation.
+- [x] TASK-033.3 Реализовать album page aggregation.
 
 - [ ] TASK-033.4 Реализовать artist page aggregation.
 
-- [ ] TASK-033.5 Добавить параллельные internal calls.
+- [x] TASK-033.5 Добавить параллельные internal calls.
 
-- [ ] TASK-033.6 Добавить timeout budget.
+- [x] TASK-033.6 Добавить timeout budget.
 
-- [ ] TASK-033.7 Добавить graceful degradation.
+- [x] TASK-033.7 Добавить graceful degradation.
+
+## Итог реализации
+
+- `services/bff` (Go module, эталонная структура: ports → application → adapters, composition root в `cmd/bff`).
+- `GET /api/v1/pages/home`, `GET /api/v1/pages/albums/{id}` — контракты совпадают с zod-схемами фронтенда.
+- Параллельные вызовы (`errgroup`), batch-резолв артистов, page budget + upstream timeout,
+  деградация необязательных секций с полем `unavailable`, in-memory кеш жанров.
+- Catalog дополнен `GET /api/v1/albums` (новые релизы) и `GET /api/v1/artists?ids=` (batch).
+- Проверено в compose: реальные данные через gateway, 503 при недоступном Catalog, деградация Home, трейс BFF → Catalog → DB.
+
+Осталось: TASK-033.4 — artist page (нет макета в canvas). Внутренний транспорт — REST до EPIC-034 (gRPC).
 
 ---

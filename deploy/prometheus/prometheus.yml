@@ -13,3 +13,31 @@ scrape_configs:
       - targets: ["catalog:8080"]
         labels:
           service: catalog-service
+
+  - job_name: web-bff
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["bff:8080"]
+        labels:
+          service: web-bff
+
+  - job_name: auth-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["auth:8080"]
+        labels:
+          service: auth-service
+
+  - job_name: user-profile-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["user-profile:8080"]
+        labels:
+          service: user-profile-service
+
+  - job_name: stream-auth-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["stream-auth:8080"]
+        labels:
+          service: stream-auth-service

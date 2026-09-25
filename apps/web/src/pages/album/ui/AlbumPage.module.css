@@ -1,0 +1,191 @@
+/* Album (canvas Album.dc.html). */
+.page {
+  position: relative;
+  min-height: 100%;
+}
+
+/* Cool glow behind the hero; sits under the sticky toolbar. */
+.glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 420px;
+  background: var(--hero-glow);
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  padding: var(--space-10) var(--gutter-desktop) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: var(--container-max);
+}
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-10);
+}
+
+/* Collectible-style frame: space-1 gutter, nested radii (card = md + space-1). */
+.cover {
+  width: 240px;
+  flex: none;
+  padding: var(--space-1);
+  background: var(--surface-raised);
+  border: var(--border-hairline) solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-floating);
+}
+.coverInner {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.heroText {
+  flex-grow: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
+}
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.title {
+  overflow-wrap: anywhere;
+}
+.byline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.artistLink {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: var(--radius-xs);
+}
+.artistLink:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.artistLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.spacer {
+  flex-grow: 1;
+}
+
+.tracks {
+  display: flex;
+  flex-direction: column;
+}
+.tracks > :global(.ic-track-header) {
+  margin-bottom: var(--space-1);
+}
+.release {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  padding: var(--space-4) var(--space-2) 0;
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  color: var(--text-tertiary);
+}
+
+/* Compact view: denser rows, artist line folded (same track grid). */
+.compact :global(.ic-track:not(.ic-track-header)) {
+  min-height: 40px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.compact :global(.ic-track-artist) {
+  display: none;
+}
+
+.more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns-desktop), minmax(0, 1fr));
+  gap: var(--gap-grid);
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+@media (max-width: 1199px) {
+  .content {
+    padding: var(--space-8) var(--gutter-tablet) var(--space-12);
+  }
+  .hero {
+    gap: var(--space-6);
+  }
+  .cover {
+    width: 200px;
+  }
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-tablet), minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .content {
+    padding: var(--space-5) var(--gutter-mobile) var(--space-10);
+    gap: var(--space-6);
+  }
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .cover {
+    width: min(240px, 70%);
+    align-self: center;
+  }
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-mobile), minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .tracks :global(.ic-track.no-cover) {
+    grid-template-columns: 32px minmax(0, 1fr) 48px 32px;
+  }
+  /* The header's column labels do not fit the folded grid. */
+  .tracks :global(.ic-track-header) {
+    display: none;
+  }
+  .tracks :global(.ic-track-album),
+  .tracks :global(.ic-track-badge),
+  .tracks :global(.ic-track-like) {
+    display: none;
+  }
+}

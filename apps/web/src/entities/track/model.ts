@@ -15,6 +15,8 @@ export const TrackSchema = z.object({
   liked: z.boolean().default(false),
   badge: z.enum(['new', 'trending']).optional(),
   available: z.boolean().default(true),
+  /** Lifetime play count (album pages). */
+  plays: z.number().int().nonnegative().optional(),
 });
 
 export type Track = z.infer<typeof TrackSchema>;

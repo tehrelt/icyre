@@ -24,7 +24,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-044.5 Роуты экранов следующих эпиков ведут на «not built» страницу внутри shell.
 
-- [ ] TASK-044.6 Genre tile (CGenreTile) — вместе с Search (EPIC-048).
+- [x] TASK-044.6 Genre tile (CGenreTile).
 
 ## Definition of Done
 

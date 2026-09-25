@@ -1,0 +1,210 @@
+/* Search (canvas SearchEmpty · SearchResults · SearchLoading · SearchNoResults · SearchError). */
+.pageBrowse,
+.pageResults {
+  padding: var(--space-8) var(--gutter-desktop) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  max-width: var(--container-max);
+}
+.pageBrowse {
+  gap: var(--gap-section);
+}
+.pageResults {
+  gap: var(--space-10);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.field {
+  width: 640px;
+  max-width: 100%;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.sectionTight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.results .sectionTight {
+  gap: var(--space-4);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  transition: opacity var(--duration-fast) var(--easing-standard);
+}
+/* Previous results stay visible, muted, while the next query loads. */
+.stale {
+  opacity: var(--opacity-muted);
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tagButton {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+.tagButton:hover {
+  color: var(--text-primary);
+}
+.tagButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.genreGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns-desktop), minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns-desktop), minmax(0, 1fr));
+  gap: var(--gap-grid);
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--gap-grid);
+  align-items: start;
+}
+.topCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: var(--border-hairline) solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+.topArt {
+  width: 112px;
+  height: 112px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--ring-artwork);
+}
+.topArtCircle {
+  border-radius: 50%;
+}
+.topArt :global(.ic-art) {
+  height: 100%;
+}
+.topFoot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.topText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.topName {
+  color: var(--text-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: var(--radius-xs);
+}
+.topName:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+.topName:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+.topMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.trackTable {
+  display: flex;
+  flex-direction: column;
+}
+
+.skeletonHead {
+  height: 48px;
+  display: flex;
+  align-items: flex-end;
+}
+.skeletonLines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 1199px) {
+  .pageBrowse,
+  .pageResults {
+    padding: var(--space-6) var(--gutter-tablet) var(--space-12);
+  }
+  .genreGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-tablet), minmax(0, 1fr));
+    gap: 20px;
+  }
+  .topRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .pageBrowse,
+  .pageResults {
+    padding: var(--space-5) var(--gutter-mobile) var(--space-10);
+  }
+  .pageBrowse {
+    gap: var(--space-10);
+  }
+  .genreGrid,
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-mobile), minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .trackTable :global(.ic-track) {
+    grid-template-columns: 32px 40px minmax(0, 1fr) 48px 32px;
+  }
+  .trackTable :global(.ic-track-album),
+  .trackTable :global(.ic-track-badge),
+  .trackTable :global(.ic-track-like) {
+    display: none;
+  }
+}

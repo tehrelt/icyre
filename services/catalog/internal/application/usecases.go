@@ -38,6 +38,25 @@ func (s *Service) GetArtist(ctx context.Context, id uuid.UUID) (domain.Artist, e
 	return s.d.Artists.Get(ctx, id)
 }
 
+// MaxBatchIDs bounds batch lookups.
+const MaxBatchIDs = 100
+
+// ListArtists returns the existing artists among ids (batch lookup for
+// aggregators such as the Web BFF). Unknown IDs are skipped.
+func (s *Service) ListArtists(ctx context.Context, ids []uuid.UUID) ([]domain.Artist, error) {
+	if len(ids) > MaxBatchIDs {
+		return nil, &domain.ValidationError{Fields: map[string]string{"ids": "at most 100 IDs per request"}}
+	}
+	if len(ids) == 0 {
+		return []domain.Artist{}, nil
+	}
+	artists, err := s.d.Artists.ListByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list artists: %w", err)
+	}
+	return artists, nil
+}
+
 // ListArtistAlbums is the input of Service.ListArtistAlbums.
 type ListArtistAlbums struct {
 	ArtistID uuid.UUID
@@ -63,16 +82,34 @@ func (s *Service) ListArtistAlbums(ctx context.Context, q ListArtistAlbums) (Alb
 	if _, err := s.d.Artists.Get(ctx, q.ArtistID); err != nil {
 		return AlbumPage{}, err
 	}
-	limit := q.Limit
+	return pageAlbums(q.Limit, func(limit int) ([]domain.Album, error) {
+		return s.d.Albums.ListByArtist(ctx, q.ArtistID, q.After, limit)
+	})
+}
+
+// ListAlbums is the input of Service.ListAlbums.
+type ListAlbums struct {
+	After *ports.AlbumCursor
+	Limit int
+}
+
+// ListAlbums pages through the whole catalogue, newest releases first.
+func (s *Service) ListAlbums(ctx context.Context, q ListAlbums) (AlbumPage, error) {
+	return pageAlbums(q.Limit, func(limit int) ([]domain.Album, error) {
+		return s.d.Albums.List(ctx, q.After, limit)
+	})
+}
+
+// pageAlbums applies page-size limits and computes the next cursor by
+// fetching one extra row.
+func pageAlbums(limit int, fetch func(limit int) ([]domain.Album, error)) (AlbumPage, error) {
 	if limit <= 0 {
 		limit = DefaultPageSize
 	}
 	if limit > MaxPageSize {
 		limit = MaxPageSize
 	}
-
-	// Fetch one extra row to know whether another page exists.
-	albums, err := s.d.Albums.ListByArtist(ctx, q.ArtistID, q.After, limit+1)
+	albums, err := fetch(limit + 1)
 	if err != nil {
 		return AlbumPage{}, fmt.Errorf("list albums: %w", err)
 	}

@@ -1,6 +1,6 @@
 // Ported from the ICYRE Design System (components/src/nav.tsx).
 // Navigation items render router links (`to`) so the SPA never reloads.
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { useControlled } from '@/shared/hooks/useControlled';
@@ -8,6 +8,56 @@ import { cx } from '@/shared/lib/cx';
 
 import { Icon } from './core';
 import type { IconName } from './icons';
+
+/* ---------- Tabs ---------- */
+export interface TabItem<V extends string = string> {
+  id: V;
+  label: string;
+  count?: number;
+  disabled?: boolean;
+}
+
+export interface TabsProps<V extends string = string> {
+  items: TabItem<V>[];
+  value?: V;
+  defaultValue?: V;
+  onChange?: (id: V) => void;
+  size?: 'md' | 'lg';
+  label?: string;
+}
+
+export function Tabs<V extends string = string>({ items, value, defaultValue, onChange, size = 'md', label = 'Sections' }: TabsProps<V>) {
+  const [v, setV] = useControlled<V>(value, defaultValue ?? (items[0]?.id as V), onChange);
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const enabled = items.filter((i) => !i.disabled);
+    const idx = enabled.findIndex((i) => i.id === v);
+    const next = e.key === 'ArrowRight' ? enabled[(idx + 1) % enabled.length] : e.key === 'ArrowLeft' ? enabled[(idx - 1 + enabled.length) % enabled.length] : undefined;
+    if (!next) return;
+    e.preventDefault();
+    setV(next.id);
+    (e.currentTarget.querySelector(`[data-tab-id="${CSS.escape(next.id)}"]`) as HTMLElement | null)?.focus();
+  };
+  return (
+    <div className={cx('ic-tabs', `ic-tabs-${size}`)} role="tablist" aria-label={label} onKeyDown={onKey}>
+      {items.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          data-tab-id={t.id}
+          aria-selected={v === t.id}
+          tabIndex={v === t.id ? 0 : -1}
+          disabled={t.disabled}
+          className={cx('ic-tab', v === t.id && 'is-active')}
+          onClick={() => setV(t.id)}
+        >
+          {t.label}
+          {t.count != null && <span className="ic-tab-count">{t.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /* ---------- SegmentedControl ---------- */
 export interface SegmentOption<V extends string = string> {

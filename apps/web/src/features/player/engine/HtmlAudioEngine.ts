@@ -45,10 +45,13 @@ export class HtmlAudioEngine extends BaseEngine {
     try {
       await this.audio.play();
     } catch (err) {
+      const name = err instanceof DOMException ? err.name : '';
       // AbortError: a newer load() interrupted this play() — not a failure.
-      if (!(err instanceof DOMException && err.name === 'AbortError')) {
-        this.emit({ type: 'error', message: 'Playback was blocked by the browser' });
-      }
+      if (name === 'AbortError') return;
+      // NotAllowedError is the autoplay policy; anything else (e.g.
+      // NotSupportedError: the browser cannot decode the format) is a
+      // media failure, reported by the element's own error event too.
+      this.emit({ type: 'error', message: name === 'NotAllowedError' ? 'Playback was blocked by the browser' : 'This track could not be played' });
     }
   }
 
