@@ -8,7 +8,10 @@ use (
 	./services/auth
 	./services/bff
 	./services/catalog
+	./services/history
 	./services/library
+	./services/playback
+	./services/playlist
 	./services/search
 	./services/stream-auth
 	./services/user-profile

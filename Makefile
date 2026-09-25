@@ -28,6 +28,10 @@ mod-check: ## Fail if any go.mod/go.sum is not tidy on its own (Docker builds us
 fmt: ## gofmt every module
 	@for m in $(GO_MODULES); do echo "==> fmt $$m"; (cd $$m && go fmt ./...) || exit 1; done
 
+.PHONY: fmt-check
+fmt-check: ## Fail on Go files that gofmt would change (make fmt fixes them)
+	@out=$$(gofmt -l $(GO_MODULES)); if [ -n "$$out" ]; then echo "not gofmt-ed (run make fmt):"; echo "$$out"; exit 1; fi
+
 .PHONY: vet
 vet: ## go vet every module
 	@for m in $(GO_MODULES); do echo "==> vet $$m"; (cd $$m && go vet ./...) || exit 1; done
@@ -46,6 +50,8 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/library && LIBRARY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/history && HISTORY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/playlist && PLAYLIST_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
@@ -66,6 +72,9 @@ build: ## Build service binaries into ./bin
 	cd services/stream-auth && go build -o ../../bin/stream-auth ./cmd/stream-auth
 	cd services/search && go build -o ../../bin/search ./cmd/search
 	cd services/library && go build -o ../../bin/library ./cmd/library
+	cd services/playback && go build -o ../../bin/playback ./cmd/playback
+	cd services/history && go build -o ../../bin/history ./cmd/history
+	cd services/playlist && go build -o ../../bin/playlist ./cmd/playlist
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
 
 .PHONY: migrate
@@ -74,6 +83,8 @@ migrate: ## Apply all service migrations to the local database
 	cd services/auth && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/auth migrate
 	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/user-profile migrate
 	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/library migrate
+	cd services/history && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/history migrate
+	cd services/playlist && DATABASE_URL="$(PG_TEST_DSN)" go run ./cmd/playlist migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -146,4 +157,4 @@ logs: ## Follow logs
 # --- Everything -------------------------------------------------------------
 
 .PHONY: check
-check: sync mod-check fmt vet test web-lint web-build web-test scripts-typecheck ## Full local verification
+check: sync mod-check fmt-check vet test web-lint web-build web-test scripts-typecheck ## Full local verification

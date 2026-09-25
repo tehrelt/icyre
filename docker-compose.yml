@@ -2,7 +2,7 @@ name: icyre
 
 # Local development stand: `docker compose up -d` starts everything.
 # Host ports: API Gateway 8080 (/api/v1) · Catalog 8081 · BFF 8082 · Auth 8083 · User Profile 8084
-#             Stream Auth 8085 · Search 8086 · Library 8088 · PostgreSQL 5432 · Redis 6379 · Kafka 9094 · MinIO 9000 (console 9001, icyre / icyre-secret) · OpenSearch 9200 · Jaeger UI 16686 · Prometheus 9090 · Grafana 3000 (admin / admin)
+#             Stream Auth 8085 · Search 8086 · Library 8088 · Playback 8089 · History 8090 · Playlist 8091 · PostgreSQL 5432 · Redis 6379 · Kafka 9094 · MinIO 9000 (console 9001, icyre / icyre-secret) · OpenSearch 9200 · Jaeger UI 16686 · Prometheus 9090 · Grafana 3000 (admin / admin)
 
 x-catalog-env: &catalog-env
   APP_ENV: local
@@ -29,6 +29,26 @@ x-profile-env: &profile-env
   DATABASE_URL: postgres://icyre:icyre@postgres:5432/icyre?sslmode=disable
   REDIS_ADDR: redis:6379
   KAFKA_BROKERS: kafka:9092
+  AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+
+x-history-env: &history-env
+  APP_ENV: local
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://icyre:icyre@postgres:5432/icyre?sslmode=disable
+  REDIS_ADDR: redis:6379
+  KAFKA_BROKERS: kafka:9092
+  AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+
+x-playlist-env: &playlist-env
+  APP_ENV: local
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://icyre:icyre@postgres:5432/icyre?sslmode=disable
+  REDIS_ADDR: redis:6379
+  CATALOG_URL: http://catalog:8080
   AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
   OTEL_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
@@ -185,10 +205,11 @@ services:
       APP_ENV: local
       CATALOG_URL: http://catalog:8080
       LIBRARY_URL: http://library:8080
+      HISTORY_URL: http://history:8080
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     ports: ["8082:8080"]
-    depends_on: [catalog, library]
+    depends_on: [catalog, library, history]
     restart: unless-stopped
 
   auth-migrate:
@@ -269,6 +290,75 @@ services:
       auth: { condition: service_started }
     restart: unless-stopped
 
+  history-migrate:
+    build: { context: ., dockerfile: services/history/Dockerfile }
+    image: icyre/history:local
+    pull_policy: build
+    command: ["migrate"]
+    environment:
+      <<: *history-env
+      KAFKA_ENABLED: "false"
+      OTEL_ENABLED: "false"
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  history:
+    image: icyre/history:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
+    environment: *history-env
+    ports: ["8090:8080"]
+    depends_on:
+      history-migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      auth: { condition: service_started }
+    restart: unless-stopped
+
+  playlist-migrate:
+    build: { context: ., dockerfile: services/playlist/Dockerfile }
+    image: icyre/playlist:local
+    pull_policy: build
+    command: ["migrate"]
+    environment:
+      <<: *playlist-env
+      OTEL_ENABLED: "false"
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  playlist:
+    image: icyre/playlist:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
+    environment: *playlist-env
+    ports: ["8091:8080"]
+    depends_on:
+      playlist-migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      catalog: { condition: service_started }
+      auth: { condition: service_started }
+    restart: unless-stopped
+
+  playback:
+    build: { context: ., dockerfile: services/playback/Dockerfile }
+    image: icyre/playback:local
+    pull_policy: build
+    environment:
+      APP_ENV: local
+      REDIS_ADDR: redis:6379
+      KAFKA_BROKERS: kafka:9092
+      AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+      OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+    ports: ["8089:8080"]
+    depends_on:
+      redis: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      auth: { condition: service_started }
+    restart: unless-stopped
+
   stream-auth:
     build: { context: ., dockerfile: services/stream-auth/Dockerfile }
     image: icyre/stream-auth:local
@@ -330,7 +420,7 @@ services:
     image: nginx:1.29-alpine
     volumes: ["./deploy/gateway/nginx.conf:/etc/nginx/nginx.conf:ro"]
     ports: ["8080:8080"]
-    depends_on: [bff, catalog, auth, user-profile, stream-auth, search, library]
+    depends_on: [bff, catalog, auth, user-profile, stream-auth, search, library, playback, history, playlist]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s

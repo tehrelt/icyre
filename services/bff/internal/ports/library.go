@@ -21,3 +21,9 @@ func UserToken(ctx context.Context) string {
 	t, _ := ctx.Value(userTokenKey{}).(string)
 	return t
 }
+
+// History returns what the current listener played recently: sources such
+// as "album:<id>", newest first. It acts as the user in the context.
+type History interface {
+	RecentSources(ctx context.Context, limit int) ([]string, error)
+}

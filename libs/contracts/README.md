@@ -3,7 +3,7 @@
 Межсервисные контракты ICYRE:
 
 - `events` — единый `Envelope` Kafka-событий, имена topics и DLQ convention;
-- `events/catalogv1`, `events/authv1`, `events/profilev1`, `events/libraryv1` — payload-схемы событий (версия 1);
+- `events/catalogv1`, `events/authv1`, `events/profilev1`, `events/libraryv1`, `events/playbackv1` — payload-схемы событий (версия 1);
 - `media` — bucket `icyre-media`, ключи объектов (`tracks/{trackId}/audio/{64|128|256}.aac`, `original/`, `cover/`)
   и варианты качества — общий контракт media pipeline и выдачи;
 - `search` — алиасы (`tracks`, `albums`, `artists`, `playlists`), документы OpenSearch и шаблоны индексов

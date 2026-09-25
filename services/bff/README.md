@@ -52,4 +52,6 @@ make run-bff       # :8082
 BFF пересылает `Authorization: Bearer …` клиента в сервисы, действующие от имени пользователя (Library), и сам
 токен не проверяет — это делает каждый сервис. Персонализированные страницы (с токеном) отдаются с
 `Cache-Control: private, no-cache` и `Vary: Authorization`, анонимные — `private, max-age=30`.
-`LIBRARY_URL` пустой — страницы без отметок `liked`.
+`LIBRARY_URL` пустой — страницы без отметок `liked`; `HISTORY_URL` пустой — без «Recently played» на Home
+(блок тогда в `unavailable`). «Recently played»: до 6 последних источников из Listening History, альбомы
+резолвятся в Catalog параллельно с «New releases»; плейлисты и артисты — когда появятся их сервисы.
