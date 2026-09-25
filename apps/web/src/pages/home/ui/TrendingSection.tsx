@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
 import type { Track } from '@/entities/track/model';
+import { LikeableTrackRow } from '@/features/like-track';
 import { usePlayerStore, usePlayTrackList } from '@/features/player';
-import { SegmentedControl, TrackRow, type TrackRowState } from '@/shared/ui';
+import { SegmentedControl, type TrackRowState } from '@/shared/ui';
 import { SectionHeader } from '@/widgets/section-header/SectionHeader';
 
 import styles from './HomePage.module.css';
@@ -38,8 +39,9 @@ export function TrendingSection({ today, week }: { today: Track[]; week: Track[]
       />
       <div role="table" aria-label="Trending tracks" className={styles.trackList}>
         {tracks.map((t, i) => (
-          <TrackRow
+          <LikeableTrackRow
             key={t.id}
+            track={t}
             index={i + 1}
             title={t.title}
             artist={t.artistName}
@@ -48,7 +50,6 @@ export function TrendingSection({ today, week }: { today: Track[]; week: Track[]
             art={t.art}
             cover={t.coverUrl}
             explicit={t.explicit}
-            liked={t.liked}
             badge={t.badge}
             state={rowState(t)}
             onPlay={() => playList(tracks, t)}

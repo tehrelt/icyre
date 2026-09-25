@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 
 import { albumTypeLabel } from '@/entities/album/model';
 import type { Track } from '@/entities/track/model';
+import { LikeableTrackRow } from '@/features/like-track';
 import { usePlayerStore, useSourcePlayback, type PlaybackSource } from '@/features/player';
 import { ApiError } from '@/shared/api/errors';
 import { routes } from '@/shared/config/routes';
@@ -162,7 +163,8 @@ function AlbumTrackRow({ track, index, onPlay }: { track: Track; index: number; 
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const state: TrackRowState = !track.available ? 'unavailable' : isCurrent ? (isPlaying ? 'playing' : 'paused') : 'default';
   return (
-    <TrackRow
+    <LikeableTrackRow
+      track={track}
       showCover={false}
       index={index}
       title={track.title}
@@ -170,7 +172,6 @@ function AlbumTrackRow({ track, index, onPlay }: { track: Track; index: number; 
       album={track.available ? (track.plays != null ? plays.format(track.plays) : '') : 'Not available in your region'}
       duration={track.durationSec}
       explicit={track.explicit}
-      liked={track.liked}
       state={state}
       onPlay={onPlay}
     />

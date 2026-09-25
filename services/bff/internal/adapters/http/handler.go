@@ -6,9 +6,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	"github.com/tehrelt/icyre/services/bff/internal/application"
+	"github.com/tehrelt/icyre/services/bff/internal/ports"
 	"github.com/tehrelt/icyre/services/bff/internal/views"
 )
 
@@ -29,8 +31,19 @@ func NewHandler(pages Pages, log *slog.Logger) *Handler { return &Handler{pages:
 
 // Register mounts the routes.
 func (h *Handler) Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/pages/home", h.home)
-	mux.HandleFunc("GET /api/v1/pages/albums/{id}", h.album)
+	mux.Handle("GET /api/v1/pages/home", withUser(h.home))
+	mux.Handle("GET /api/v1/pages/albums/{id}", withUser(h.album))
+}
+
+// withUser forwards the caller's bearer token to upstream calls. The BFF
+// does not validate it: each upstream service verifies it on its own.
+func withUser(next http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok && token != "" {
+			r = r.WithContext(ports.WithUserToken(r.Context(), token))
+		}
+		next(w, r)
+	})
 }
 
 func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +52,7 @@ func (h *Handler) home(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err, "")
 		return
 	}
-	writePage(w, page)
+	writePage(w, r, page)
 }
 
 func (h *Handler) album(w http.ResponseWriter, r *http.Request) {
@@ -48,12 +61,19 @@ func (h *Handler) album(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, r, err, "ALBUM_NOT_FOUND")
 		return
 	}
-	writePage(w, page)
+	writePage(w, r, page)
 }
 
-// writePage sends a page with a short private cache hint.
-func writePage(w http.ResponseWriter, page any) {
-	w.Header().Set("Cache-Control", "private, max-age=30")
+// writePage sends a page. Anonymous pages may be reused for a short while;
+// a signed-in listener's page carries their own state (liked tracks), so the
+// browser must revalidate it — otherwise a like would vanish on reload.
+func writePage(w http.ResponseWriter, r *http.Request, page any) {
+	w.Header().Set("Vary", "Authorization")
+	if ports.UserToken(r.Context()) != "" {
+		w.Header().Set("Cache-Control", "private, no-cache")
+	} else {
+		w.Header().Set("Cache-Control", "private, max-age=30")
+	}
 	httpserver.WriteJSON(w, http.StatusOK, page)
 }
 

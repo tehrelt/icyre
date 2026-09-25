@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 
 import { albumTypeLabel } from '@/entities/album/model';
 import type { Track } from '@/entities/track/model';
+import { LikeableTrackRow, useSavedTracks } from '@/features/like-track';
 import { useCollectionPlayState, usePlayCollection, usePlayerStore, usePlayTrackList } from '@/features/player';
 import { routes } from '@/shared/config/routes';
 import { cx } from '@/shared/lib/cx';
@@ -94,12 +95,16 @@ function TrackTable({ tracks, label, showAlbum }: { tracks: Track[]; label: stri
   const currentId = usePlayerStore((s) => s.currentTrack?.id);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const state = (t: Track): TrackRowState => (!t.available ? 'unavailable' : t.id === currentId ? (isPlaying ? 'playing' : 'paused') : 'default');
+  // Search results come from the Search Service, not the BFF: ask Library which are liked.
+  const saved = useSavedTracks(tracks.map((t) => t.id));
 
   return (
     <div role="table" aria-label={label} className={styles.trackTable}>
       {tracks.map((t, i) => (
-        <TrackRow
+        <LikeableTrackRow
           key={t.id}
+          track={t}
+          known={saved.data?.has(t.id)}
           index={i + 1}
           title={t.title}
           artist={t.artistName}
@@ -108,7 +113,6 @@ function TrackTable({ tracks, label, showAlbum }: { tracks: Track[]; label: stri
           art={t.art}
           cover={t.coverUrl}
           explicit={t.explicit}
-          liked={t.liked}
           state={state(t)}
           onPlay={() => playList(tracks, t)}
         />

@@ -22,6 +22,8 @@ type Config struct {
 	HTTP            httpserver.Config
 	ShutdownTimeout time.Duration
 	CatalogURL      string
+	// LibraryURL enables per-listener marks (liked tracks); empty disables them.
+	LibraryURL string
 	// UpstreamTimeout bounds one call to an upstream service.
 	UpstreamTimeout time.Duration
 	Pages           application.Config
@@ -42,6 +44,7 @@ func Load() (Config, error) {
 		},
 		ShutdownTimeout: env.Duration("SHUTDOWN_TIMEOUT", 15*time.Second),
 		CatalogURL:      env.RequiredString("CATALOG_URL"),
+		LibraryURL:      env.String("LIBRARY_URL", ""),
 		UpstreamTimeout: env.Duration("UPSTREAM_TIMEOUT", 800*time.Millisecond),
 		Pages: application.Config{
 			PageBudget:    env.Duration("PAGE_BUDGET", 1500*time.Millisecond),

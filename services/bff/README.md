@@ -46,3 +46,10 @@ handler → application.Pages ──(port)──► ports.Catalog ◄── adap
 make run-catalog   # :8081
 make run-bff       # :8082
 ```
+
+## Контекст пользователя
+
+BFF пересылает `Authorization: Bearer …` клиента в сервисы, действующие от имени пользователя (Library), и сам
+токен не проверяет — это делает каждый сервис. Персонализированные страницы (с токеном) отдаются с
+`Cache-Control: private, no-cache` и `Vary: Authorization`, анонимные — `private, max-age=30`.
+`LIBRARY_URL` пустой — страницы без отметок `liked`.

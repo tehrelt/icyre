@@ -17,8 +17,10 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
 	catalogadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/catalog"
 	httpadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/http"
+	libraryadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/library"
 	"github.com/tehrelt/icyre/services/bff/internal/application"
 	"github.com/tehrelt/icyre/services/bff/internal/config"
+	"github.com/tehrelt/icyre/services/bff/internal/ports"
 )
 
 func main() {
@@ -62,7 +64,11 @@ func run() error {
 	catalog := catalogadapter.New(cfg.CatalogURL, httpclient.New(httpclient.Config{Timeout: cfg.UpstreamTimeout}), reg)
 
 	// 5. Application.
-	pages := application.New(catalog, cfg.Pages, log)
+	var library ports.Library
+	if cfg.LibraryURL != "" {
+		library = libraryadapter.New(cfg.LibraryURL, httpclient.New(httpclient.Config{Timeout: cfg.UpstreamTimeout}))
+	}
+	pages := application.New(catalog, library, cfg.Pages, log)
 
 	// 6. Handlers. Readiness does not probe upstreams: pages degrade on
 	// their own, and coupling readiness to Catalog would cascade outages.

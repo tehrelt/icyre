@@ -41,6 +41,7 @@ type Config struct {
 // Pages builds page view models.
 type Pages struct {
 	catalog ports.Catalog
+	library ports.Library // nil: no personalization
 	cfg     Config
 	log     *slog.Logger
 	now     func() time.Time
@@ -50,8 +51,9 @@ type Pages struct {
 	genresExpire time.Time
 }
 
-// New returns a Pages service.
-func New(catalog ports.Catalog, cfg Config, log *slog.Logger) *Pages {
+// New returns a Pages service. library may be nil (pages are then not
+// personalized).
+func New(catalog ports.Catalog, library ports.Library, cfg Config, log *slog.Logger) *Pages {
 	if cfg.PageBudget <= 0 {
 		cfg.PageBudget = time.Second
 	}
@@ -64,7 +66,7 @@ func New(catalog ports.Catalog, cfg Config, log *slog.Logger) *Pages {
 	if cfg.MoreByArtist <= 0 {
 		cfg.MoreByArtist = 6
 	}
-	return &Pages{catalog: catalog, cfg: cfg, log: log, now: time.Now}
+	return &Pages{catalog: catalog, library: library, cfg: cfg, log: log, now: time.Now}
 }
 
 // Album aggregates GET /api/v1/pages/albums/{id}:
@@ -119,6 +121,7 @@ func (p *Pages) Album(ctx context.Context, id string) (views.AlbumPage, error) {
 	}
 
 	names := p.artistNames(ctx, append(append([]string{}, album.ArtistIDs...), trackArtistIDs(tracks)...), degraded)
+	liked := p.savedTracks(ctx, tracks, degraded)
 
 	page := views.AlbumPage{
 		Album:        p.albumHeader(album, tracks, genres),
@@ -127,7 +130,9 @@ func (p *Pages) Album(ctx context.Context, id string) (views.AlbumPage, error) {
 		MoreByArtist: []views.AlbumCard{},
 	}
 	for _, t := range tracks {
-		page.Tracks = append(page.Tracks, trackView(t, album, names))
+		v := trackView(t, album, names)
+		v.Liked = liked[t.ID]
+		page.Tracks = append(page.Tracks, v)
 	}
 	for _, a := range more {
 		if a.ID == album.ID || len(page.MoreByArtist) == p.cfg.MoreByArtist {
@@ -200,6 +205,24 @@ func (p *Pages) artistNames(ctx context.Context, ids []string, degraded *degrade
 		names[a.ID] = a.Name
 	}
 	return names
+}
+
+// savedTracks marks the listener's liked tracks. Anonymous visitors have
+// none; a Library failure degrades to "not liked" instead of failing the page.
+func (p *Pages) savedTracks(ctx context.Context, tracks []ports.Track, degraded *degradedSet) map[string]bool {
+	if p.library == nil || ports.UserToken(ctx) == "" || len(tracks) == 0 {
+		return nil
+	}
+	ids := make([]string, len(tracks))
+	for i, t := range tracks {
+		ids[i] = t.ID
+	}
+	saved, err := p.library.SavedTracks(ctx, ids)
+	if err != nil {
+		degraded.add(ctx, p.log, "liked", err)
+		return nil
+	}
+	return saved
 }
 
 func (p *Pages) genreIndex(ctx context.Context) (map[string]ports.Genre, error) {

@@ -2,7 +2,7 @@
 # Creates the initial topics and their DLQs (specs/data/kafka.md).
 set -euo pipefail
 BOOTSTRAP="${KAFKA_BOOTSTRAP:-kafka:9092}"
-TOPICS=(catalog.events auth.events profile.events)
+TOPICS=(catalog.events auth.events profile.events library.events)
 
 for topic in "${TOPICS[@]}"; do
   for name in "$topic" "$topic.dlq"; do

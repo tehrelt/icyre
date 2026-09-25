@@ -2,7 +2,7 @@ name: icyre
 
 # Local development stand: `docker compose up -d` starts everything.
 # Host ports: API Gateway 8080 (/api/v1) · Catalog 8081 · BFF 8082 · Auth 8083 · User Profile 8084
-#             Stream Auth 8085 · Search 8086 · PostgreSQL 5432 · Redis 6379 · Kafka 9094 · MinIO 9000 (console 9001, icyre / icyre-secret) · OpenSearch 9200 · Jaeger UI 16686 · Prometheus 9090 · Grafana 3000 (admin / admin)
+#             Stream Auth 8085 · Search 8086 · Library 8088 · PostgreSQL 5432 · Redis 6379 · Kafka 9094 · MinIO 9000 (console 9001, icyre / icyre-secret) · OpenSearch 9200 · Jaeger UI 16686 · Prometheus 9090 · Grafana 3000 (admin / admin)
 
 x-catalog-env: &catalog-env
   APP_ENV: local
@@ -29,6 +29,17 @@ x-profile-env: &profile-env
   DATABASE_URL: postgres://icyre:icyre@postgres:5432/icyre?sslmode=disable
   REDIS_ADDR: redis:6379
   KAFKA_BROKERS: kafka:9092
+  AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+
+x-library-env: &library-env
+  APP_ENV: local
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://icyre:icyre@postgres:5432/icyre?sslmode=disable
+  REDIS_ADDR: redis:6379
+  KAFKA_BROKERS: kafka:9092
+  CATALOG_URL: http://catalog:8080
   AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
   OTEL_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
@@ -169,10 +180,11 @@ services:
     environment:
       APP_ENV: local
       CATALOG_URL: http://catalog:8080
+      LIBRARY_URL: http://library:8080
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     ports: ["8082:8080"]
-    depends_on: [catalog]
+    depends_on: [catalog, library]
     restart: unless-stopped
 
   auth-migrate:
@@ -217,6 +229,30 @@ services:
       user-profile-migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
+      auth: { condition: service_started }
+    restart: unless-stopped
+
+  library-migrate:
+    build: { context: ., dockerfile: services/library/Dockerfile }
+    image: icyre/library:local
+    command: ["migrate"]
+    environment:
+      <<: *library-env
+      KAFKA_ENABLED: "false"
+      OTEL_ENABLED: "false"
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  library:
+    image: icyre/library:local
+    environment: *library-env
+    ports: ["8088:8080"]
+    depends_on:
+      library-migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      catalog: { condition: service_started }
       auth: { condition: service_started }
     restart: unless-stopped
 
@@ -278,7 +314,7 @@ services:
     image: nginx:1.29-alpine
     volumes: ["./deploy/gateway/nginx.conf:/etc/nginx/nginx.conf:ro"]
     ports: ["8080:8080"]
-    depends_on: [bff, catalog, auth, user-profile, stream-auth, search]
+    depends_on: [bff, catalog, auth, user-profile, stream-auth, search, library]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s

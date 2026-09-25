@@ -17,8 +17,12 @@ sync: ## go work sync
 	go work sync
 
 .PHONY: tidy
-tidy: ## go mod tidy in every module
-	@for m in $(GO_MODULES); do echo "==> tidy $$m"; (cd $$m && go mod tidy) || exit 1; done
+tidy: ## go mod tidy in every module (standalone, as Docker builds them)
+	@for m in $(GO_MODULES); do echo "==> tidy $$m"; (cd $$m && GOWORK=off go mod tidy) || exit 1; done
+
+.PHONY: mod-check
+mod-check: ## Fail if any go.mod/go.sum is not tidy on its own (Docker builds use GOWORK=off)
+	@for m in $(GO_MODULES); do (cd $$m && GOWORK=off go mod tidy -diff > /dev/null) || { echo "go.mod/go.sum of $$m is not tidy: run make tidy"; exit 1; }; done
 
 .PHONY: fmt
 fmt: ## gofmt every module
@@ -41,6 +45,7 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/catalog && CATALOG_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/library && LIBRARY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
@@ -60,6 +65,7 @@ build: ## Build service binaries into ./bin
 	cd services/user-profile && go build -o ../../bin/user-profile ./cmd/user-profile
 	cd services/stream-auth && go build -o ../../bin/stream-auth ./cmd/stream-auth
 	cd services/search && go build -o ../../bin/search ./cmd/search
+	cd services/library && go build -o ../../bin/library ./cmd/library
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
 
 .PHONY: migrate
@@ -67,6 +73,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/catalog && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/catalog migrate
 	cd services/auth && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/auth migrate
 	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/user-profile migrate
+	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/library migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -95,6 +102,10 @@ run-user-profile: ## Run User Profile locally on :8084 against Auth on :8083
 .PHONY: run-stream-auth
 run-stream-auth: ## Run Stream Authorization locally on :8085 (Catalog :8081, Auth :8083)
 	cd services/stream-auth && S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8085 LOG_FORMAT=text go run ./cmd/stream-auth
+
+.PHONY: run-library
+run-library: ## Run Library locally on :8088 (Catalog :8081, Auth :8083)
+	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8088 LOG_FORMAT=text go run ./cmd/library
 
 .PHONY: run-search-indexer reindex run-search
 run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)
@@ -135,4 +146,4 @@ logs: ## Follow logs
 # --- Everything -------------------------------------------------------------
 
 .PHONY: check
-check: sync fmt vet test web-lint web-build web-test scripts-typecheck ## Full local verification
+check: sync mod-check fmt vet test web-lint web-build web-test scripts-typecheck ## Full local verification
