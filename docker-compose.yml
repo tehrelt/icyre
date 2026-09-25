@@ -2,7 +2,7 @@ name: icyre
 
 # Local development stand: `docker compose up -d` starts everything.
 # Host ports: API Gateway 8080 (/api/v1) · Catalog 8081 · BFF 8082 · Auth 8083 · User Profile 8084
-#             PostgreSQL 5432 · Redis 6379 · Kafka 9094 · Jaeger UI 16686 · Prometheus 9090 · Grafana 3000 (admin / admin)
+#             Stream Auth 8085 · PostgreSQL 5432 · Redis 6379 · Kafka 9094 · MinIO 9000 (console 9001, icyre / icyre-secret) · Jaeger UI 16686 · Prometheus 9090 · Grafana 3000 (admin / admin)
 
 x-catalog-env: &catalog-env
   APP_ENV: local
@@ -83,6 +83,33 @@ services:
       timeout: 10s
       retries: 20
       start_period: 15s
+
+  # MinIO Inc. no longer publishes community images; pgsty/minio rebuilds the
+  # upstream AGPL sources (minio + mc) and is pinned here.
+  minio:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: ["minio", "server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: icyre
+      MINIO_ROOT_PASSWORD: icyre-secret
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["minio-data:/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio-init:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    entrypoint: ["/bin/sh", "/scripts/init.sh"]
+    environment:
+      MINIO_ROOT_USER: icyre
+      MINIO_ROOT_PASSWORD: icyre-secret
+    volumes: ["./deploy/minio/init.sh:/scripts/init.sh:ro"]
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
 
   kafka-init:
     image: apache/kafka:3.9.1
@@ -171,11 +198,35 @@ services:
       auth: { condition: service_started }
     restart: unless-stopped
 
+  stream-auth:
+    build: { context: ., dockerfile: services/stream-auth/Dockerfile }
+    image: icyre/stream-auth:local
+    environment:
+      APP_ENV: local
+      REDIS_ADDR: redis:6379
+      CATALOG_URL: http://catalog:8080
+      AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+      S3_ENDPOINT: minio:9000
+      # Signed URLs must be reachable from the browser: MinIO acts as the
+      # media origin locally (a CDN in front of object storage in production).
+      S3_PUBLIC_ENDPOINT: localhost:9000
+      S3_ACCESS_KEY: icyre
+      S3_SECRET_KEY: icyre-secret
+      OTEL_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+    ports: ["8085:8080"]
+    depends_on:
+      redis: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+      catalog: { condition: service_started }
+      auth: { condition: service_started }
+    restart: unless-stopped
+
   gateway:
     image: nginx:1.29-alpine
     volumes: ["./deploy/gateway/nginx.conf:/etc/nginx/nginx.conf:ro"]
     ports: ["8080:8080"]
-    depends_on: [bff, catalog, auth, user-profile]
+    depends_on: [bff, catalog, auth, user-profile, stream-auth]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 10s
@@ -227,6 +278,7 @@ services:
       retries: 10
 
 volumes:
+  minio-data:
   postgres-data:
   kafka-data:
   prometheus-data:

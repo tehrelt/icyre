@@ -3,7 +3,9 @@
 Межсервисные контракты ICYRE:
 
 - `events` — единый `Envelope` Kafka-событий, имена topics и DLQ convention;
-- `events/catalogv1` — payload-схемы событий Catalog Service (версия 1);
+- `events/catalogv1`, `events/authv1`, `events/profilev1` — payload-схемы событий (версия 1);
+- `media` — bucket `icyre-media`, ключи объектов (`tracks/{trackId}/audio/{64|128|256}.aac`, `original/`, `cover/`)
+  и варианты качества — общий контракт media pipeline и выдачи;
 - далее здесь появится код, сгенерированный из `api/proto` (gRPC, EPIC-034).
 
 Это **не** склад DTO: сюда попадает только то, что пересекает границу сервиса

@@ -134,8 +134,16 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   ['GET', '/search', (_p, q) => searchRoute(q)],
   ['GET', '/playlists/:id/tracks', (p) => tracksOf('playlist', p.id ?? '')],
   ['GET', '/artists/:id/top-tracks', (p) => tracksOf('artist', p.id ?? '')],
-  // Stream authorization: no media origin locally, so no signed URL.
-  ['GET', '/playback/tracks/:id/stream', (p) => ok({ trackId: p.id, url: null, expiresAt: null })],
+  // Stream authorization. Mock mode plays through the simulated engine, so
+  // the URL is never fetched.
+  [
+    'POST',
+    '/stream/authorize',
+    authed((_p, _q, { body }) => {
+      const trackId = (body as { trackId?: string } | undefined)?.trackId ?? '';
+      return ok({ trackId, quality: '256', url: `mock-media://tracks/${trackId}/audio/256.aac`, expiresAt: new Date(Date.now() + 300_000).toISOString() });
+    }),
+  ],
 ];
 
 function match(pattern: string, path: string): Record<string, string> | null {

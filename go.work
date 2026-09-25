@@ -8,5 +8,6 @@ use (
 	./services/auth
 	./services/bff
 	./services/catalog
+	./services/stream-auth
 	./services/user-profile
 )
