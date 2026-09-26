@@ -38,13 +38,27 @@ type Service struct {
 	repo    Repository
 	catalog Catalog
 	pub     Publisher
+	tx      Transactor
 	log     *slog.Logger
 	now     func() time.Time
 }
 
+// Transactor runs fn as one unit of work: the library change and its event
+// (transactional outbox) commit or roll back together.
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+type noTx struct{}
+
+func (noTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error { return fn(ctx) }
+
 // New returns a Service.
-func New(repo Repository, catalog Catalog, pub Publisher, log *slog.Logger) *Service {
-	return &Service{repo: repo, catalog: catalog, pub: pub, log: log, now: time.Now}
+func New(repo Repository, catalog Catalog, pub Publisher, tx Transactor, log *slog.Logger) *Service {
+	if tx == nil {
+		tx = noTx{}
+	}
+	return &Service{repo: repo, catalog: catalog, pub: pub, tx: tx, log: log, now: time.Now}
 }
 
 // Save adds a track or album. Only existing catalog items can be saved;
@@ -53,30 +67,30 @@ func (s *Service) Save(ctx context.Context, userID uuid.UUID, kind domain.Kind, 
 	if err := s.catalog.Exists(ctx, kind, id); err != nil {
 		return domain.Item{}, err
 	}
-	ch, err := s.repo.Save(ctx, domain.Item{UserID: userID, Kind: kind, EntityID: id, SavedAt: s.now().UTC().Truncate(time.Microsecond)})
+	var ch domain.Change
+	err := s.tx.InTx(ctx, func(ctx context.Context) error {
+		var err error
+		ch, err = s.repo.Save(ctx, domain.Item{UserID: userID, Kind: kind, EntityID: id, SavedAt: s.now().UTC().Truncate(time.Microsecond)})
+		if err != nil || !ch.Changed {
+			return err
+		}
+		return s.pub.Saved(ctx, ch.Item)
+	})
 	if err != nil {
 		return domain.Item{}, err
-	}
-	if ch.Changed {
-		if err := s.pub.Saved(ctx, ch.Item); err != nil {
-			s.log.ErrorContext(ctx, "publish saved event failed", "kind", kind, "error", err)
-		}
 	}
 	return ch.Item, nil
 }
 
 // Remove deletes a track or album; removing a missing item is a no-op.
 func (s *Service) Remove(ctx context.Context, userID uuid.UUID, kind domain.Kind, id uuid.UUID) error {
-	ch, err := s.repo.Remove(ctx, userID, kind, id, s.now().UTC())
-	if err != nil {
-		return err
-	}
-	if ch.Changed {
-		if err := s.pub.Removed(ctx, ch.Item); err != nil {
-			s.log.ErrorContext(ctx, "publish removed event failed", "kind", kind, "error", err)
+	return s.tx.InTx(ctx, func(ctx context.Context) error {
+		ch, err := s.repo.Remove(ctx, userID, kind, id, s.now().UTC())
+		if err != nil || !ch.Changed {
+			return err
 		}
-	}
-	return nil
+		return s.pub.Removed(ctx, ch.Item)
+	})
 }
 
 // Page is a slice of a newest-first list.

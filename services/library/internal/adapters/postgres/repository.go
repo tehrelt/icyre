@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	platformpg "github.com/tehrelt/icyre/libs/platform/postgres"
 	"github.com/tehrelt/icyre/services/library/internal/domain"
 )
 
@@ -21,6 +22,9 @@ var migrationFiles embed.FS
 
 // Schema owned by Library.
 const Schema = "library"
+
+// OutboxTable holds library.events messages until the relay sends them.
+const OutboxTable = Schema + ".outbox"
 
 // Migrations returns the embedded migrations.
 func Migrations() fs.FS {
@@ -39,7 +43,7 @@ func New(pool *pgxpool.Pool) *Repository { return &Repository{pool: pool} }
 
 // Save inserts the item or returns the existing one untouched.
 func (r *Repository) Save(ctx context.Context, it domain.Item) (domain.Change, error) {
-	err := r.pool.QueryRow(ctx, `
+	err := platformpg.Conn(ctx, r.pool).QueryRow(ctx, `
 		INSERT INTO library.items (user_id, kind, entity_id, saved_at) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (user_id, kind, entity_id) DO NOTHING
 		RETURNING saved_at`, it.UserID, it.Kind, it.EntityID, it.SavedAt).Scan(&it.SavedAt)
@@ -50,7 +54,7 @@ func (r *Repository) Save(ctx context.Context, it domain.Item) (domain.Change, e
 		return domain.Change{}, fmt.Errorf("save: %w", err)
 	}
 	// Already saved: report the original time.
-	err = r.pool.QueryRow(ctx, `SELECT saved_at FROM library.items WHERE user_id = $1 AND kind = $2 AND entity_id = $3`,
+	err = platformpg.Conn(ctx, r.pool).QueryRow(ctx, `SELECT saved_at FROM library.items WHERE user_id = $1 AND kind = $2 AND entity_id = $3`,
 		it.UserID, it.Kind, it.EntityID).Scan(&it.SavedAt)
 	if err != nil {
 		return domain.Change{}, fmt.Errorf("save: read existing: %w", err)
@@ -61,7 +65,7 @@ func (r *Repository) Save(ctx context.Context, it domain.Item) (domain.Change, e
 // Remove deletes the item if present.
 func (r *Repository) Remove(ctx context.Context, userID uuid.UUID, kind domain.Kind, id uuid.UUID, at time.Time) (domain.Change, error) {
 	it := domain.Item{UserID: userID, Kind: kind, EntityID: id, SavedAt: at}
-	tag, err := r.pool.Exec(ctx, `DELETE FROM library.items WHERE user_id = $1 AND kind = $2 AND entity_id = $3`, userID, kind, id)
+	tag, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `DELETE FROM library.items WHERE user_id = $1 AND kind = $2 AND entity_id = $3`, userID, kind, id)
 	if err != nil {
 		return domain.Change{}, fmt.Errorf("remove: %w", err)
 	}
@@ -77,7 +81,7 @@ func (r *Repository) List(ctx context.Context, userID uuid.UUID, kind domain.Kin
 	if after != nil {
 		afterAt, afterID = &after.SavedAt, &after.EntityID
 	}
-	rows, err := r.pool.Query(ctx, `
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, `
 		SELECT entity_id, saved_at FROM library.items
 		WHERE user_id = $1 AND kind = $2
 		  AND ($3::timestamptz IS NULL OR (saved_at, entity_id) < ($3, $4::uuid))
@@ -95,7 +99,7 @@ func (r *Repository) List(ctx context.Context, userID uuid.UUID, kind domain.Kin
 
 // Contains returns which ids are saved.
 func (r *Repository) Contains(ctx context.Context, userID uuid.UUID, kind domain.Kind, ids []uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := r.pool.Query(ctx, `SELECT entity_id FROM library.items WHERE user_id = $1 AND kind = $2 AND entity_id = ANY($3)`, userID, kind, ids)
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, `SELECT entity_id FROM library.items WHERE user_id = $1 AND kind = $2 AND entity_id = ANY($3)`, userID, kind, ids)
 	if err != nil {
 		return nil, fmt.Errorf("contains: %w", err)
 	}
@@ -105,7 +109,7 @@ func (r *Repository) Contains(ctx context.Context, userID uuid.UUID, kind domain
 // Counts counts saved items per kind.
 func (r *Repository) Counts(ctx context.Context, userID uuid.UUID) (domain.Counts, error) {
 	var c domain.Counts
-	err := r.pool.QueryRow(ctx, `
+	err := platformpg.Conn(ctx, r.pool).QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE kind = 'track'), count(*) FILTER (WHERE kind = 'album')
 		FROM library.items WHERE user_id = $1`, userID).Scan(&c.Tracks, &c.Albums)
 	if err != nil {

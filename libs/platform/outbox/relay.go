@@ -89,6 +89,20 @@ func (r *Relay) Run(ctx context.Context) error {
 	}
 }
 
+// Start runs the relay in the background until ctx is done. wait blocks
+// until it stopped and returns its error, nil for a normal shutdown; rows
+// not yet sent stay in the outbox for the next start.
+func (r *Relay) Start(ctx context.Context) (wait func() error) {
+	done := make(chan error, 1)
+	go func() { done <- r.Run(ctx) }()
+	return func() error {
+		if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
+			return err
+		}
+		return nil
+	}
+}
+
 type row struct {
 	id      int64
 	msg     kafka.Message

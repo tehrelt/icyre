@@ -89,7 +89,7 @@ func (e *events) Removed(context.Context, domain.Item) error { e.removed++; retu
 func TestIdempotentSaveRemove(t *testing.T) {
 	track := uuid.New()
 	repo, ev := &memRepo{}, &events{}
-	svc := New(repo, fakeCatalog{track: true}, ev, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := New(repo, fakeCatalog{track: true}, ev, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	user := uuid.New()
 
@@ -110,6 +110,35 @@ func TestIdempotentSaveRemove(t *testing.T) {
 	}
 }
 
+type failingEvents struct{}
+
+func (failingEvents) Saved(context.Context, domain.Item) error {
+	return errors.New("outbox insert failed")
+}
+func (failingEvents) Removed(context.Context, domain.Item) error {
+	return errors.New("outbox insert failed")
+}
+
+// rollbackTx runs fn and counts the units of work that failed.
+type rollbackTx struct{ rolledBack int }
+
+func (r *rollbackTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	err := fn(ctx)
+	if err != nil {
+		r.rolledBack++
+	}
+	return err
+}
+
+func TestEventFailureRollsBackTheChange(t *testing.T) {
+	track := uuid.New()
+	tx := &rollbackTx{}
+	svc := New(&memRepo{}, fakeCatalog{track: true}, failingEvents{}, tx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if _, err := svc.Save(context.Background(), uuid.New(), domain.KindTrack, track); err == nil || tx.rolledBack != 1 {
+		t.Fatalf("save must fail and roll back: %v, rollbacks %d", err, tx.rolledBack)
+	}
+}
+
 func TestListPaginationAndContains(t *testing.T) {
 	repo := &memRepo{}
 	user := uuid.New()
@@ -120,7 +149,7 @@ func TestListPaginationAndContains(t *testing.T) {
 		ids = append(ids, id)
 		repo.items = append(repo.items, domain.Item{UserID: user, Kind: domain.KindTrack, EntityID: id, SavedAt: t0.Add(time.Duration(i) * time.Hour)})
 	}
-	svc := New(repo, fakeCatalog{}, &events{}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := New(repo, fakeCatalog{}, &events{}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 
 	p1, _ := svc.List(ctx, user, domain.KindTrack, nil, 2)

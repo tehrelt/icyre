@@ -19,7 +19,8 @@
 
 `library.track_saved`, `library.track_removed`, `library.album_saved`, `library.album_removed`
 (`libs/contracts/events/libraryv1`) — только при реальном изменении: повторный PUT/DELETE событий не порождает.
-Публикация после записи в БД, без outbox (как в остальных сервисах; outbox — отдельная задача в CURRENT.md).
+Transactional outbox (`libs/platform/outbox`): событие пишется в `library.outbox` в транзакции изменения, relay
+публикует его в Kafka — at-least-once; сбой записи события откатывает изменение.
 
 ## Web BFF
 
