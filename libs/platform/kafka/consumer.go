@@ -45,7 +45,7 @@ func NewConsumerMetrics(reg prometheus.Registerer) *ConsumerMetrics {
 	m := &ConsumerMetrics{
 		messages: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "kafka_consumer_messages_total",
-			Help: "Consumed messages by topic, group and result (ok, retry, dlq, error).",
+			Help: "Consumed messages by topic, group and result (ok, retry, dlq, error, skip).",
 		}, []string{"topic", "group", "result"}),
 		duration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name:    "kafka_consumer_handle_duration_seconds",
@@ -136,10 +136,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 }
 
 func (c *Consumer) process(ctx context.Context, r *kgo.Record) error {
-	rec := Record{
-		Topic: r.Topic, Partition: r.Partition, Offset: r.Offset,
-		Key: r.Key, Value: r.Value, Headers: headersToMap(r.Headers), Timestamp: r.Timestamp,
-	}
+	rec := toRecord(r)
 	hctx := extractTrace(ctx, rec.Headers)
 
 	var err error

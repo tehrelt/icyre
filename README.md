@@ -24,7 +24,7 @@ services/playback/   Playback Service — телеметрия плеера → 
 services/history/    Listening History — playback.events → история прослушиваний, /me/history
 services/search/     Search Service — полнотекстовый поиск и autocomplete (OpenSearch)
 workers/search-indexer/ Search Indexer — catalog.events → OpenSearch, reindex с переключением алиасов
-workers/analytics/   Analytics Worker — схема ClickHouse (migrate); consumer и агрегаты — EPIC-028
+workers/analytics/   Analytics Worker — playback.events → ClickHouse, дневные агрегаты, отчёт (топы, completion rate)
 libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, redis, kafka,
                      objectstore (S3/MinIO), opensearch, clickhouse, telemetry, authn
 libs/contracts/      межсервисные контракты: Kafka envelope, event payloads, media object keys,

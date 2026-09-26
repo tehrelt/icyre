@@ -138,3 +138,79 @@ func TestFailedMessageGoesToDLQ(t *testing.T) {
 		t.Fatal("timed out waiting for dlq record")
 	}
 }
+
+func TestBatchConsumerRetriesFlushAndDeadLettersUndecodable(t *testing.T) {
+	bs := brokers(t)
+	topic := fmt.Sprintf("platform.it.batch.%d", time.Now().UnixNano())
+	createTopics(t, bs, topic, DLQTopic(topic))
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	p, err := NewProducer(ProducerConfig{Brokers: bs}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close(ctx)
+	for _, v := range []string{"a", "b", "poison", "c", "d"} {
+		if err := p.Publish(ctx, Message{Topic: topic, Key: []byte("k"), Value: []byte(v)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var flushes int
+	var got []string
+	done := make(chan struct{})
+	decode := func(_ context.Context, r Record) (string, error) {
+		if string(r.Value) == "poison" {
+			return "", errors.New("undecodable")
+		}
+		return string(r.Value), nil
+	}
+	flush := func(_ context.Context, items []string) error {
+		flushes++
+		if flushes == 1 {
+			return errors.New("sink unavailable") // retried as a whole
+		}
+		got = append(got, items...)
+		if len(got) == 4 {
+			close(done)
+		}
+		return nil
+	}
+	bc, err := NewBatchConsumer(ConsumerConfig{Brokers: bs, Group: topic + ".g", Topics: []string{topic}, MaxRetries: 2, RetryBackoff: 10 * time.Millisecond, DLQ: true},
+		BatchConfig{MaxRecords: 10, Linger: 500 * time.Millisecond}, decode, flush, log, NewConsumerMetrics(prometheus.NewRegistry()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bctx, bstop := context.WithCancel(ctx)
+	defer bstop()
+	go func() { _ = bc.Run(bctx) }()
+
+	dlq := make(chan Record, 1)
+	dc, err := NewConsumer(ConsumerConfig{Brokers: bs, Group: topic + ".dlq.g", Topics: []string{DLQTopic(topic)}},
+		func(_ context.Context, r Record) error { dlq <- r; return nil }, log, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dctx, dstop := context.WithCancel(ctx)
+	defer dstop()
+	go func() { _ = dc.Run(dctx) }()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatalf("timed out; flushed %v", got)
+	}
+	if strings.Join(got, "") != "abcd" {
+		t.Fatalf("flushed %v, want a b c d in order", got)
+	}
+	select {
+	case r := <-dlq:
+		if string(r.Value) != "poison" {
+			t.Fatalf("dlq record %q", r.Value)
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for dlq record")
+	}
+}

@@ -43,6 +43,18 @@ x-history-env: &history-env
   OTEL_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
 
+x-analytics-env: &analytics-env
+  APP_ENV: local
+  LOG_LEVEL: info
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_USERNAME: icyre
+  CLICKHOUSE_PASSWORD: icyre
+  CLICKHOUSE_DATABASE: icyre
+  KAFKA_BROKERS: kafka:9092
+  CATALOG_URL: http://catalog:8080
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+
 x-playlist-env: &playlist-env
   APP_ENV: local
   LOG_LEVEL: info
@@ -156,7 +168,7 @@ services:
 
   # Analytics store (EPIC-027). HTTP interface only: the native port 9000
   # would clash with MinIO. Schema: libs/contracts/analytics, applied by
-  # `analytics migrate` (`make migrate`).
+  # the analytics-migrate job (`make migrate` locally).
   clickhouse:
     image: clickhouse/clickhouse-server:26.3
     environment:
@@ -512,6 +524,30 @@ services:
       postgres: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
       minio-init: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  # Analytics (EPIC-028): playback.events -> ClickHouse, daily aggregates.
+  # Backfill: docker compose run --rm analytics aggregate -from 2026-09-01 -to 2026-09-27
+  # Report:   docker compose run --rm analytics report -from 2026-09-21 -to 2026-09-27
+  analytics-migrate:
+    build: { context: ., dockerfile: workers/analytics/Dockerfile }
+    image: icyre/analytics:local
+    pull_policy: build
+    command: ["migrate"]
+    environment: *analytics-env
+    depends_on:
+      clickhouse: { condition: service_healthy }
+    restart: "no"
+
+  analytics:
+    image: icyre/analytics:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
+    environment: *analytics-env
+    depends_on:
+      analytics-migrate: { condition: service_completed_successfully }
+      kafka-init: { condition: service_completed_successfully }
+      catalog: { condition: service_started }
     restart: unless-stopped
 
   search-indexer:

@@ -98,6 +98,13 @@ scrape_configs:
         labels:
           service: listening-history-service
 
+  - job_name: analytics
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["analytics:8080"]
+        labels:
+          service: analytics
+
   - job_name: playlist-service
     metrics_path: /metrics
     static_configs:

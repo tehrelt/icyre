@@ -150,6 +150,12 @@ run-metadata: ## Run the Metadata Worker locally (consumes media.events; needs f
 run-audio-analysis: ## Run the Audio Analysis Worker locally (consumes media.events; needs ffmpeg, MinIO :9000)
 	cd workers/audio-analysis && DATABASE_URL="$(PG_TEST_DSN)" MIGRATE_ON_START=true KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8095 LOG_FORMAT=text go run ./cmd/audio-analysis
 
+.PHONY: run-analytics analytics-report
+run-analytics: ## Run the Analytics Worker locally (consumes playback.events into ClickHouse; Catalog :8081)
+	cd workers/analytics && HTTP_ADDR=:8096 LOG_FORMAT=text go run ./cmd/analytics
+analytics-report: ## Print today's analytics report (plays, listeners, completion rate, top tracks and artists)
+	cd workers/analytics && LOG_FORMAT=text go run ./cmd/analytics report
+
 .PHONY: run-search-indexer reindex run-search
 run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)
 	cd workers/search-indexer && HTTP_ADDR=:8087 LOG_FORMAT=text go run ./cmd/search-indexer
