@@ -26,10 +26,9 @@ func (s *Service) CreateArtist(ctx context.Context, cmd CreateArtist) (domain.Ar
 	if err != nil {
 		return domain.Artist{}, err
 	}
-	if err := s.d.Artists.Create(ctx, a); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Artists.Create(ctx, a) }, domain.ArtistCreated{Artist: a}); err != nil {
 		return domain.Artist{}, fmt.Errorf("store artist: %w", err)
 	}
-	s.publish(ctx, domain.ArtistCreated{Artist: a})
 	return a, nil
 }
 
@@ -160,10 +159,9 @@ func (s *Service) CreateAlbum(ctx context.Context, cmd CreateAlbum) (domain.Albu
 	if err != nil {
 		return domain.Album{}, err
 	}
-	if err := s.d.Albums.Create(ctx, a); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Albums.Create(ctx, a) }, domain.AlbumCreated{Album: a}); err != nil {
 		return domain.Album{}, fmt.Errorf("store album: %w", err)
 	}
-	s.publish(ctx, domain.AlbumCreated{Album: a})
 	return a, nil
 }
 
@@ -219,10 +217,9 @@ func (s *Service) CreateTrack(ctx context.Context, cmd CreateTrack) (domain.Trac
 	if err != nil {
 		return domain.Track{}, err
 	}
-	if err := s.d.Tracks.Create(ctx, t); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Tracks.Create(ctx, t) }, domain.TrackCreated{Track: t}); err != nil {
 		return domain.Track{}, fmt.Errorf("store track: %w", err)
 	}
-	s.publish(ctx, domain.TrackCreated{Track: t})
 	return t, nil
 }
 
@@ -250,10 +247,9 @@ func (s *Service) UpdateTrack(ctx context.Context, cmd UpdateTrack) (domain.Trac
 	if !changed {
 		return t, nil
 	}
-	if err := s.d.Tracks.Update(ctx, t); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Tracks.Update(ctx, t) }, domain.TrackUpdated{Track: t}); err != nil {
 		return domain.Track{}, fmt.Errorf("store track: %w", err)
 	}
-	s.publish(ctx, domain.TrackUpdated{Track: t})
 	return t, nil
 }
 

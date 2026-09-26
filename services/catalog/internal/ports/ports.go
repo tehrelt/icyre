@@ -59,7 +59,15 @@ type GenreRepository interface {
 	List(ctx context.Context) ([]domain.Genre, error)
 }
 
-// EventPublisher delivers domain events to other services.
+// EventPublisher delivers domain events to other services. Called inside
+// Transactor.InTx it records them in the same transaction as the change
+// (transactional outbox).
 type EventPublisher interface {
 	Publish(ctx context.Context, events ...domain.Event) error
+}
+
+// Transactor runs fn as one unit of work: repository writes and published
+// events inside it commit or roll back together.
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
 }

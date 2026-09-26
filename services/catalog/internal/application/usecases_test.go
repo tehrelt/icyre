@@ -232,15 +232,55 @@ func TestCreateTrackRejectsTakenPosition(t *testing.T) {
 	}
 }
 
-func TestPublishFailureDoesNotFailTheWrite(t *testing.T) {
-	f := newFixture()
-	f.pub.err = errors.New("broker down")
-	a, err := f.svc.CreateArtist(context.Background(), CreateArtist{Name: "Kai Frost"})
+// spyTx records units of work and whether they ended in an error (a
+// rollback for the real Transactor).
+type spyTx struct {
+	runs, rolledBack int
+	inside           bool
+}
+
+func (s *spyTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	s.runs++
+	s.inside = true
+	defer func() { s.inside = false }()
+	err := fn(ctx)
 	if err != nil {
-		t.Fatalf("write must succeed when publishing fails: %v", err)
+		s.rolledBack++
 	}
-	if _, ok := f.artists[a.ID]; !ok {
-		t.Fatal("artist was not stored")
+	return err
+}
+
+// insideTx fails a publish that happens outside the unit of work.
+type insideTx struct {
+	tx  *spyTx
+	err error
+}
+
+func (p insideTx) Publish(context.Context, ...domain.Event) error {
+	if !p.tx.inside {
+		return errors.New("event recorded outside the transaction")
+	}
+	return p.err
+}
+
+func TestEventsAreRecordedWithTheChange(t *testing.T) {
+	f := newFixture()
+	tx := &spyTx{}
+	svc := New(Deps{Artists: f.artists, Publisher: insideTx{tx: tx}, Tx: tx, Now: func() time.Time { return f.clock }})
+	if _, err := svc.CreateArtist(context.Background(), CreateArtist{Name: "Kai Frost"}); err != nil {
+		t.Fatal(err)
+	}
+	if tx.runs != 1 || tx.rolledBack != 0 {
+		t.Fatalf("unit of work: %+v", tx)
+	}
+
+	// The outbox write failing rolls the change back: no change without its event.
+	svc = New(Deps{Artists: f.artists, Publisher: insideTx{tx: tx, err: errors.New("outbox insert failed")}, Tx: tx, Now: func() time.Time { return f.clock }})
+	if _, err := svc.CreateArtist(context.Background(), CreateArtist{Name: "Mira Solen"}); err == nil {
+		t.Fatal("a failed event write must fail the request")
+	}
+	if tx.rolledBack != 1 {
+		t.Fatalf("expected a rollback: %+v", tx)
 	}
 }
 
