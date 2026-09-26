@@ -17,6 +17,7 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/health"
 	"github.com/tehrelt/icyre/libs/platform/httpclient"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
+	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
 	"github.com/tehrelt/icyre/libs/platform/logger"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
 	platformredis "github.com/tehrelt/icyre/libs/platform/redis"
@@ -24,6 +25,7 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
 	"github.com/tehrelt/icyre/services/playlist/internal/adapters/catalog"
 	httpadapter "github.com/tehrelt/icyre/services/playlist/internal/adapters/http"
+	kafkaadapter "github.com/tehrelt/icyre/services/playlist/internal/adapters/kafka"
 	pgadapter "github.com/tehrelt/icyre/services/playlist/internal/adapters/postgres"
 	"github.com/tehrelt/icyre/services/playlist/internal/application"
 	"github.com/tehrelt/icyre/services/playlist/internal/config"
@@ -94,9 +96,20 @@ func run(args []string) error {
 	checks.Add("postgres", postgres.Check(pool))
 	checks.Add("redis", platformredis.Check(rdb))
 
+	var publisher application.Publisher = kafkaadapter.NopPublisher{}
+	if cfg.KafkaEnabled {
+		producer, err := platformkafka.NewProducer(platformkafka.ProducerConfig{Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName}, reg)
+		if err != nil {
+			return err
+		}
+		closers.Add("kafka producer", producer.Close)
+		checks.Add("kafka", producer.Ping)
+		publisher = kafkaadapter.NewPublisher(producer, config.ServiceName)
+	}
+
 	// 5. Application. Saves are checked against Catalog.
 	cat := catalog.New(cfg.CatalogURL, httpclient.New(httpclient.Config{Timeout: cfg.CatalogTimeout}))
-	app := application.New(pgadapter.New(pool), cat)
+	app := application.New(pgadapter.New(pool), cat, publisher, log)
 
 	// 6. Handlers. Access tokens are verified against Auth's JWKS.
 	keys := authn.NewRemoteKeys(cfg.JWKSURL, httpclient.New(httpclient.Config{Timeout: 3 * time.Second}))

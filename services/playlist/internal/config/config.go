@@ -25,6 +25,8 @@ type Config struct {
 	Postgres        postgres.Config
 	MigrateOnStart  bool
 	Redis           redis.Config
+	KafkaEnabled    bool
+	KafkaBrokers    []string
 	Tracing         telemetry.TracingConfig
 	// JWKSURL is where Auth publishes its signing keys.
 	JWKSURL        string
@@ -54,6 +56,8 @@ func Load() (Config, error) {
 		},
 		MigrateOnStart: env.Bool("MIGRATE_ON_START", false),
 		Redis:          redis.Config{Addr: env.String("REDIS_ADDR", "localhost:6379"), Password: env.String("REDIS_PASSWORD", "")},
+		KafkaEnabled:   env.Bool("KAFKA_ENABLED", true),
+		KafkaBrokers:   env.Strings("KAFKA_BROKERS", []string{"localhost:9094"}),
 		JWKSURL:        env.String("AUTH_JWKS_URL", "http://localhost:8083/api/v1/auth/.well-known/jwks.json"),
 		CatalogURL:     env.String("CATALOG_URL", "http://localhost:8081"),
 		CatalogTimeout: env.Duration("CATALOG_TIMEOUT", 800*time.Millisecond),
