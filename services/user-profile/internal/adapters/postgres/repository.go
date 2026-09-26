@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	platformpg "github.com/tehrelt/icyre/libs/platform/postgres"
 	"github.com/tehrelt/icyre/services/user-profile/internal/domain"
 )
 
@@ -21,6 +22,9 @@ var migrationFiles embed.FS
 
 // Schema owned by User Profile.
 const Schema = "profile"
+
+// OutboxTable holds profile.events messages until the relay sends them.
+const OutboxTable = Schema + ".outbox"
 
 // Migrations returns the embedded migrations.
 func Migrations() fs.FS {
@@ -47,7 +51,7 @@ func mapErr(err error) error {
 
 // CreateIfAbsent inserts the profile unless the user already has one.
 func (r *Repository) CreateIfAbsent(ctx context.Context, p domain.Profile) (bool, error) {
-	tag, err := r.pool.Exec(ctx, `
+	tag, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `
 		INSERT INTO profile.profiles (user_id, username, display_name, avatar_key, bio, country, language, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (user_id) DO NOTHING`,
@@ -61,7 +65,7 @@ func (r *Repository) CreateIfAbsent(ctx context.Context, p domain.Profile) (bool
 // Get loads a profile.
 func (r *Repository) Get(ctx context.Context, id uuid.UUID) (domain.Profile, error) {
 	var p domain.Profile
-	err := r.pool.QueryRow(ctx, `
+	err := platformpg.Conn(ctx, r.pool).QueryRow(ctx, `
 		SELECT user_id, username, display_name, avatar_key, bio, country, language, created_at, updated_at
 		FROM profile.profiles WHERE user_id = $1`, id,
 	).Scan(&p.UserID, &p.Username, &p.DisplayName, &p.AvatarKey, &p.Bio, &p.Country, &p.Language, &p.CreatedAt, &p.UpdatedAt)
@@ -76,7 +80,7 @@ func (r *Repository) Get(ctx context.Context, id uuid.UUID) (domain.Profile, err
 
 // Update stores the editable fields.
 func (r *Repository) Update(ctx context.Context, p domain.Profile) error {
-	tag, err := r.pool.Exec(ctx, `
+	tag, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `
 		UPDATE profile.profiles
 		SET username = $2, display_name = $3, bio = $4, country = $5, language = $6, updated_at = $7
 		WHERE user_id = $1`,

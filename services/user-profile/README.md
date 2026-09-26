@@ -19,7 +19,10 @@ email, пароли и сессии здесь не хранятся.
 - Потребляет `auth.events` → `user.registered` (group `user-profile`, 5 retries, затем `auth.events.dlq`).
   Идемпотентно: повторная доставка находит профиль (`ON CONFLICT (user_id) DO NOTHING`) и ничего не публикует.
   Username выводится из email; при коллизии — `rin2`, `rin3`, …
-- Публикует `profile.events` → `profile.updated` (`libs/contracts/events/profilev1`) при создании и реальном изменении.
+- Публикует `profile.events` → `profile.updated` (`libs/contracts/events/profilev1`) при создании и реальном изменении
+  через transactional outbox (`profile.outbox`, миграция 00002): событие коммитится вместе с профилем, relay
+  отправляет его в Kafka. Каждая попытка подобрать username — отдельная транзакция (конфликт её обрывает); сбой
+  записи события возвращает ошибку consumer'у, и `user.registered` обрабатывается повторно.
 
 ## Конфигурация
 

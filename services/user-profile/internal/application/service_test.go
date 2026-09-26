@@ -54,7 +54,7 @@ func (p *pubRecorder) ProfileUpdated(context.Context, domain.Profile) error { p.
 
 func newSvc() (*Service, memRepo, *pubRecorder) {
 	repo, pub := memRepo{}, &pubRecorder{}
-	return New(repo, pub, slog.New(slog.NewTextHandler(io.Discard, nil))), repo, pub
+	return New(repo, pub, nil, slog.New(slog.NewTextHandler(io.Discard, nil))), repo, pub
 }
 
 func TestCreateForNewUserIsIdempotent(t *testing.T) {
@@ -79,6 +79,41 @@ func TestUsernameCollisionsGetSuffixes(t *testing.T) {
 	_ = svc.CreateForNewUser(ctx, c, "rin@three.com")
 	if repo[a].Username != "rin" || repo[b].Username != "rin2" || repo[c].Username != "rin3" {
 		t.Fatalf("usernames %s %s %s", repo[a].Username, repo[b].Username, repo[c].Username)
+	}
+}
+
+// countingTx counts units of work and the ones that failed (rolled back).
+type countingTx struct{ runs, rolledBack int }
+
+func (c *countingTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	c.runs++
+	err := fn(ctx)
+	if err != nil {
+		c.rolledBack++
+	}
+	return err
+}
+
+type failingPub struct{}
+
+func (failingPub) ProfileUpdated(context.Context, domain.Profile) error {
+	return errors.New("outbox insert failed")
+}
+
+func TestEachUsernameAttemptIsItsOwnTransaction(t *testing.T) {
+	repo, tx := memRepo{}, &countingTx{}
+	svc := New(repo, &pubRecorder{}, tx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ctx := context.Background()
+	_ = svc.CreateForNewUser(ctx, uuid.New(), "rin@example.com")
+	// The clash rolls its transaction back; the retry runs in a fresh one.
+	if err := svc.CreateForNewUser(ctx, uuid.New(), "rin@example.org"); err != nil || tx.runs != 3 || tx.rolledBack != 1 {
+		t.Fatalf("err %v, tx %+v", err, tx)
+	}
+
+	tx = &countingTx{}
+	svc = New(memRepo{}, failingPub{}, tx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err := svc.CreateForNewUser(ctx, uuid.New(), "kai@example.com"); err == nil || tx.rolledBack != 1 {
+		t.Fatalf("a failed event write must fail (and retry via Kafka): %v, %+v", err, tx)
 	}
 }
 

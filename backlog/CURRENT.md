@@ -75,7 +75,5 @@ Home и Album работают на реальных данных: Postgres → 
 
 1. Экран плейлиста и его редактирование (EPIC-050 BLOCKED — нет макета; BFF `GET /pages/playlists/{id}` уже есть,
    плеер играет плейлисты через неё, плейлисты — в поиске и в «Recently played»).
-2. Outbox для остальных продюсеров (Library, Playlist, Auth, User Profile) — `libs/platform/outbox` готов, Catalog
-   уже на нём.
-3. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
-4. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.
+2. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
+3. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.
