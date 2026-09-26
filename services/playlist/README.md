@@ -26,7 +26,9 @@ Reorder под той же блокировкой сверяет список с
 
 `playlist.events` (ключ — ID плейлиста, `libs/contracts/events/playlistv1`): `playlist.created`, `playlist.updated`,
 `playlist.deleted`, `playlist.track_added` (с позицией), `playlist.track_removed`, `playlist.tracks_reordered`
-(полный порядок). Публикуются только реальные изменения, после commit; сбой публикации логируется (outbox — позже).
+(полный порядок). Публикуются только реальные изменения, через transactional outbox: событие пишется в `playlist.outbox` в транзакции
+изменения (миграция 00003), relay (`libs/platform/outbox`) отправляет его в Kafka — at-least-once; сбой записи
+события откатывает изменение.
 
 Search Indexer индексирует плейлисты по этим событиям. Дальше: плейлисты в «Recently played», UI редактирования.
 

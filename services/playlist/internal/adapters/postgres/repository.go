@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	platformpg "github.com/tehrelt/icyre/libs/platform/postgres"
 	"github.com/tehrelt/icyre/services/playlist/internal/domain"
 )
 
@@ -21,6 +22,9 @@ var migrationFiles embed.FS
 
 // Schema owned by Playlist.
 const Schema = "playlist"
+
+// OutboxTable holds playlist.events messages until the relay sends them.
+const OutboxTable = Schema + ".outbox"
 
 // Migrations returns the embedded migrations.
 func Migrations() fs.FS {
@@ -50,7 +54,7 @@ func scan(row pgx.Row) (domain.Playlist, error) {
 
 // Create inserts a playlist.
 func (r *Repository) Create(ctx context.Context, p domain.Playlist) error {
-	_, err := r.pool.Exec(ctx, `INSERT INTO playlist.playlists (id, owner_id, title, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)`,
+	_, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `INSERT INTO playlist.playlists (id, owner_id, title, created_at, updated_at) VALUES ($1, $2, $3, $4, $5)`,
 		p.ID, p.OwnerID, p.Title, p.CreatedAt, p.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create playlist: %w", err)
@@ -60,7 +64,7 @@ func (r *Repository) Create(ctx context.Context, p domain.Playlist) error {
 
 // Get loads one playlist.
 func (r *Repository) Get(ctx context.Context, id uuid.UUID) (domain.Playlist, error) {
-	p, err := scan(r.pool.QueryRow(ctx, selectPlaylist+` WHERE p.id = $1`, id))
+	p, err := scan(platformpg.Conn(ctx, r.pool).QueryRow(ctx, selectPlaylist+` WHERE p.id = $1`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, domain.ErrNotFound
 	}
@@ -72,7 +76,7 @@ func (r *Repository) Get(ctx context.Context, id uuid.UUID) (domain.Playlist, er
 
 // ByOwner lists an owner's playlists, recently changed first.
 func (r *Repository) ByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Playlist, error) {
-	rows, err := r.pool.Query(ctx, selectPlaylist+` WHERE p.owner_id = $1 ORDER BY p.updated_at DESC, p.id DESC LIMIT 200`, ownerID)
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, selectPlaylist+` WHERE p.owner_id = $1 ORDER BY p.updated_at DESC, p.id DESC LIMIT 200`, ownerID)
 	if err != nil {
 		return nil, fmt.Errorf("list playlists: %w", err)
 	}
@@ -82,7 +86,7 @@ func (r *Repository) ByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.P
 // Page lists playlists by ID after the given one (uuid.Nil = from the
 // start) — keyset pagination for index rebuilds.
 func (r *Repository) Page(ctx context.Context, after uuid.UUID, limit int) ([]domain.Playlist, error) {
-	rows, err := r.pool.Query(ctx, selectPlaylist+` WHERE p.id > $1 ORDER BY p.id LIMIT $2`, after, limit)
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, selectPlaylist+` WHERE p.id > $1 ORDER BY p.id LIMIT $2`, after, limit)
 	if err != nil {
 		return nil, fmt.Errorf("page playlists: %w", err)
 	}
@@ -91,7 +95,7 @@ func (r *Repository) Page(ctx context.Context, after uuid.UUID, limit int) ([]do
 
 // Tracks returns a playlist's tracks by position.
 func (r *Repository) Tracks(ctx context.Context, id uuid.UUID) ([]domain.Track, error) {
-	rows, err := r.pool.Query(ctx, `SELECT track_id, position, added_by, added_at FROM playlist.playlist_tracks WHERE playlist_id = $1 ORDER BY position`, id)
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, `SELECT track_id, position, added_by, added_at FROM playlist.playlist_tracks WHERE playlist_id = $1 ORDER BY position`, id)
 	if err != nil {
 		return nil, fmt.Errorf("playlist tracks: %w", err)
 	}
@@ -104,7 +108,7 @@ func (r *Repository) Tracks(ctx context.Context, id uuid.UUID) ([]domain.Track, 
 
 // UpdateTitle renames a playlist.
 func (r *Repository) UpdateTitle(ctx context.Context, id uuid.UUID, title string, at time.Time) error {
-	tag, err := r.pool.Exec(ctx, `UPDATE playlist.playlists SET title = $2, updated_at = $3 WHERE id = $1`, id, title, at)
+	tag, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `UPDATE playlist.playlists SET title = $2, updated_at = $3 WHERE id = $1`, id, title, at)
 	if err != nil {
 		return fmt.Errorf("update playlist: %w", err)
 	}
@@ -116,7 +120,7 @@ func (r *Repository) UpdateTitle(ctx context.Context, id uuid.UUID, title string
 
 // Delete removes a playlist; its tracks go with it (ON DELETE CASCADE).
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) (bool, error) {
-	tag, err := r.pool.Exec(ctx, `DELETE FROM playlist.playlists WHERE id = $1`, id)
+	tag, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `DELETE FROM playlist.playlists WHERE id = $1`, id)
 	if err != nil {
 		return false, fmt.Errorf("delete playlist: %w", err)
 	}
@@ -142,7 +146,7 @@ func touch(ctx context.Context, tx pgx.Tx, id uuid.UUID, at time.Time) error {
 // playlist row lock serializes concurrent appends.
 func (r *Repository) AppendTrack(ctx context.Context, id uuid.UUID, t domain.Track) (domain.Track, bool, error) {
 	added := false
-	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, platformpg.Conn(ctx, r.pool), func(tx pgx.Tx) error {
 		if err := lock(ctx, tx, id); err != nil {
 			return err
 		}
@@ -166,7 +170,7 @@ func (r *Repository) AppendTrack(ctx context.Context, id uuid.UUID, t domain.Tra
 // RemoveTrack deletes a track; positions keep their order (gaps are fine).
 func (r *Repository) RemoveTrack(ctx context.Context, id, trackID uuid.UUID, at time.Time) (bool, error) {
 	removed := false
-	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, platformpg.Conn(ctx, r.pool), func(tx pgx.Tx) error {
 		if err := lock(ctx, tx, id); err != nil {
 			return err
 		}
@@ -186,7 +190,7 @@ func (r *Repository) RemoveTrack(ctx context.Context, id, trackID uuid.UUID, at 
 // lock, after checking the order against the current tracks. The position
 // uniqueness check is deferred to commit (migration 00002).
 func (r *Repository) Reorder(ctx context.Context, id uuid.UUID, order []uuid.UUID, at time.Time) error {
-	return pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+	return pgx.BeginFunc(ctx, platformpg.Conn(ctx, r.pool), func(tx pgx.Tx) error {
 		if err := lock(ctx, tx, id); err != nil {
 			return err
 		}

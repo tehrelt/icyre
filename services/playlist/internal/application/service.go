@@ -48,29 +48,35 @@ type Publisher interface {
 	TracksReordered(ctx context.Context, p domain.Playlist, order []uuid.UUID, at time.Time) error
 }
 
+// Transactor runs fn as one unit of work: a playlist change and its event
+// (transactional outbox) commit or roll back together.
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+type noTx struct{}
+
+func (noTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error { return fn(ctx) }
+
 // Service implements the use cases.
 type Service struct {
 	repo    Repository
 	catalog Catalog
 	pub     Publisher
+	tx      Transactor
 	log     *slog.Logger
 	now     func() time.Time
 }
 
-// New returns a Service.
-func New(repo Repository, catalog Catalog, pub Publisher, log *slog.Logger) *Service {
-	return &Service{repo: repo, catalog: catalog, pub: pub, log: log, now: time.Now}
+// New returns a Service; a nil tx runs without a transaction (tests).
+func New(repo Repository, catalog Catalog, pub Publisher, tx Transactor, log *slog.Logger) *Service {
+	if tx == nil {
+		tx = noTx{}
+	}
+	return &Service{repo: repo, catalog: catalog, pub: pub, tx: tx, log: log, now: time.Now}
 }
 
 func (s *Service) stamp() time.Time { return s.now().UTC().Truncate(time.Microsecond) }
-
-// published logs a failed publish: the change is already committed, and
-// events are best effort until the transactional outbox lands.
-func (s *Service) published(ctx context.Context, event string, err error) {
-	if err != nil {
-		s.log.ErrorContext(ctx, "publish playlist event failed", "event", event, "error", err)
-	}
-}
 
 // Create makes an empty playlist owned by the caller.
 func (s *Service) Create(ctx context.Context, owner uuid.UUID, title string) (domain.Playlist, error) {
@@ -80,10 +86,15 @@ func (s *Service) Create(ctx context.Context, owner uuid.UUID, title string) (do
 	}
 	now := s.stamp()
 	p := domain.Playlist{ID: uuid.Must(uuid.NewV7()), OwnerID: owner, Title: t, CreatedAt: now, UpdatedAt: now}
-	if err := s.repo.Create(ctx, p); err != nil {
+	err = s.tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.Create(ctx, p); err != nil {
+			return err
+		}
+		return s.pub.Created(ctx, p)
+	})
+	if err != nil {
 		return domain.Playlist{}, err
 	}
-	s.published(ctx, "created", s.pub.Created(ctx, p))
 	return p, nil
 }
 
@@ -135,12 +146,16 @@ func (s *Service) Rename(ctx context.Context, caller, id uuid.UUID, title string
 	if err != nil || p.Title == t {
 		return p, err
 	}
-	now := s.stamp()
-	if err := s.repo.UpdateTitle(ctx, id, t, now); err != nil {
+	p.Title, p.UpdatedAt = t, s.stamp()
+	err = s.tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.UpdateTitle(ctx, id, p.Title, p.UpdatedAt); err != nil {
+			return err
+		}
+		return s.pub.Updated(ctx, p)
+	})
+	if err != nil {
 		return domain.Playlist{}, err
 	}
-	p.Title, p.UpdatedAt = t, now
-	s.published(ctx, "updated", s.pub.Updated(ctx, p))
 	return p, nil
 }
 
@@ -150,12 +165,13 @@ func (s *Service) Delete(ctx context.Context, caller, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
-	deleted, err := s.repo.Delete(ctx, id)
-	if err != nil || !deleted {
-		return err
-	}
-	s.published(ctx, "deleted", s.pub.Deleted(ctx, p, s.stamp()))
-	return nil
+	return s.tx.InTx(ctx, func(ctx context.Context) error {
+		deleted, err := s.repo.Delete(ctx, id)
+		if err != nil || !deleted {
+			return err
+		}
+		return s.pub.Deleted(ctx, p, s.stamp())
+	})
 }
 
 // AddTrack appends an existing catalog track (idempotent).
@@ -164,15 +180,18 @@ func (s *Service) AddTrack(ctx context.Context, caller, id, trackID uuid.UUID) e
 	if err != nil {
 		return err
 	}
+	// The Catalog call stays outside the transaction: no lock is held
+	// across a network round trip.
 	if err := s.catalog.TrackExists(ctx, trackID); err != nil {
 		return err
 	}
-	t, added, err := s.repo.AppendTrack(ctx, id, domain.Track{TrackID: trackID, AddedBy: caller, AddedAt: s.stamp()})
-	if err != nil || !added {
-		return err
-	}
-	s.published(ctx, "track_added", s.pub.TrackAdded(ctx, p, t))
-	return nil
+	return s.tx.InTx(ctx, func(ctx context.Context) error {
+		t, added, err := s.repo.AppendTrack(ctx, id, domain.Track{TrackID: trackID, AddedBy: caller, AddedAt: s.stamp()})
+		if err != nil || !added {
+			return err
+		}
+		return s.pub.TrackAdded(ctx, p, t)
+	})
 }
 
 // RemoveTrack removes a track (idempotent).
@@ -182,12 +201,13 @@ func (s *Service) RemoveTrack(ctx context.Context, caller, id, trackID uuid.UUID
 		return err
 	}
 	now := s.stamp()
-	removed, err := s.repo.RemoveTrack(ctx, id, trackID, now)
-	if err != nil || !removed {
-		return err
-	}
-	s.published(ctx, "track_removed", s.pub.TrackRemoved(ctx, p, trackID, now))
-	return nil
+	return s.tx.InTx(ctx, func(ctx context.Context) error {
+		removed, err := s.repo.RemoveTrack(ctx, id, trackID, now)
+		if err != nil || !removed {
+			return err
+		}
+		return s.pub.TrackRemoved(ctx, p, trackID, now)
+	})
 }
 
 // Reorder puts the tracks in the given order (every track exactly once).
@@ -197,9 +217,10 @@ func (s *Service) Reorder(ctx context.Context, caller, id uuid.UUID, order []uui
 		return err
 	}
 	now := s.stamp()
-	if err := s.repo.Reorder(ctx, id, order, now); err != nil {
-		return err
-	}
-	s.published(ctx, "tracks_reordered", s.pub.TracksReordered(ctx, p, order, now))
-	return nil
+	return s.tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.Reorder(ctx, id, order, now); err != nil {
+			return err
+		}
+		return s.pub.TracksReordered(ctx, p, order, now)
+	})
 }

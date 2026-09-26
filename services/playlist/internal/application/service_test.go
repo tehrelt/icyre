@@ -113,7 +113,7 @@ func TestPlaylistFlow(t *testing.T) {
 	track := uuid.New()
 	repo := &memRepo{lists: map[uuid.UUID]domain.Playlist{}, tracks: map[uuid.UUID][]domain.Track{}}
 	pub := &recorder{}
-	svc := New(repo, catalog{track: true}, pub, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := New(repo, catalog{track: true}, pub, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	owner, stranger := uuid.New(), uuid.New()
 
@@ -157,7 +157,7 @@ func TestRenameReorderDelete(t *testing.T) {
 	a, b, c := uuid.New(), uuid.New(), uuid.New()
 	repo := &memRepo{lists: map[uuid.UUID]domain.Playlist{}, tracks: map[uuid.UUID][]domain.Track{}}
 	pub := &recorder{}
-	svc := New(repo, catalog{a: true, b: true, c: true}, pub, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc := New(repo, catalog{a: true, b: true, c: true}, pub, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	owner, stranger := uuid.New(), uuid.New()
 	p, _ := svc.Create(ctx, owner, "Mix")
@@ -203,5 +203,31 @@ func TestRenameReorderDelete(t *testing.T) {
 	}
 	if !slices.Equal(pub.events, []string{"updated", "tracks_reordered", "deleted"}) {
 		t.Fatalf("events %v", pub.events)
+	}
+}
+
+// failingPub fails every event write (e.g. the outbox insert).
+type failingPub struct{ recorder }
+
+func (failingPub) Created(context.Context, domain.Playlist) error {
+	return errors.New("outbox insert failed")
+}
+
+type rollbackTx struct{ rolledBack int }
+
+func (r *rollbackTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	err := fn(ctx)
+	if err != nil {
+		r.rolledBack++
+	}
+	return err
+}
+
+func TestEventFailureRollsBackTheChange(t *testing.T) {
+	repo := &memRepo{lists: map[uuid.UUID]domain.Playlist{}, tracks: map[uuid.UUID][]domain.Track{}}
+	tx := &rollbackTx{}
+	svc := New(repo, catalog{}, &failingPub{}, tx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if _, err := svc.Create(context.Background(), uuid.New(), "Mix"); err == nil || tx.rolledBack != 1 {
+		t.Fatalf("create must fail and roll back: %v, rollbacks %d", err, tx.rolledBack)
 	}
 }
