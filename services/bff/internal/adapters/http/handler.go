@@ -18,6 +18,7 @@ import (
 type Pages interface {
 	Home(ctx context.Context) (views.HomePage, error)
 	Album(ctx context.Context, id string) (views.AlbumPage, error)
+	Playlist(ctx context.Context, id string) (views.PlaylistPage, error)
 }
 
 // Handler serves page endpoints.
@@ -33,6 +34,7 @@ func NewHandler(pages Pages, log *slog.Logger) *Handler { return &Handler{pages:
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("GET /api/v1/pages/home", withUser(h.home))
 	mux.Handle("GET /api/v1/pages/albums/{id}", withUser(h.album))
+	mux.Handle("GET /api/v1/pages/playlists/{id}", withUser(h.playlist))
 }
 
 // withUser forwards the caller's bearer token to upstream calls. The BFF
@@ -59,6 +61,15 @@ func (h *Handler) album(w http.ResponseWriter, r *http.Request) {
 	page, err := h.pages.Album(r.Context(), r.PathValue("id"))
 	if err != nil {
 		h.fail(w, r, err, "ALBUM_NOT_FOUND")
+		return
+	}
+	writePage(w, r, page)
+}
+
+func (h *Handler) playlist(w http.ResponseWriter, r *http.Request) {
+	page, err := h.pages.Playlist(r.Context(), r.PathValue("id"))
+	if err != nil {
+		h.fail(w, r, err, "PLAYLIST_NOT_FOUND")
 		return
 	}
 	writePage(w, r, page)

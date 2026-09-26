@@ -50,7 +50,7 @@ Catalog Service — эталон для остальных сервисов (`se
 ## Edge и агрегация
 
 - [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)
-- [-] EPIC-033 — Web BFF (home + album pages, user context → liked и Recently played; осталось artist page — нет макета)
+- [-] EPIC-033 — Web BFF (home, album и playlist pages, user context → liked и Recently played с альбомами и плейлистами; осталось artist page — нет макета)
 
 ## Frontend
 
@@ -73,7 +73,8 @@ Home и Album работают на реальных данных: Postgres → 
 (EPIC-051 BLOCKED) — войти можно через API (`POST /api/v1/auth/register|login`).
 Недостающие источники данных, по порядку ценности для экранов canvas:
 
-1. Плейлисты в «Recently played»; UI редактирования плейлиста (плейлисты уже в поиске через `playlist.events`).
+1. Экран плейлиста и его редактирование (EPIC-050 BLOCKED — нет макета; BFF `GET /pages/playlists/{id}` уже есть,
+   плеер играет плейлисты через неё, плейлисты — в поиске и в «Recently played»).
 2. Transactional outbox для catalog events (at-least-once end to end).
 3. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
 4. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.

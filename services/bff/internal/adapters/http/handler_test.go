@@ -25,6 +25,10 @@ func (s stubPages) Album(context.Context, string) (views.AlbumPage, error) {
 	return views.AlbumPage{Album: views.AlbumHeader{Title: "Prism Hours", Tags: []string{}}}, s.err
 }
 
+func (s stubPages) Playlist(context.Context, string) (views.PlaylistPage, error) {
+	return views.PlaylistPage{Playlist: views.PlaylistHeader{Title: "Late night"}, Tracks: []views.Track{}}, s.err
+}
+
 func serve(p Pages, path string) *httptest.ResponseRecorder {
 	mux := http.NewServeMux()
 	NewHandler(p, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(mux)
@@ -46,6 +50,8 @@ func TestPagesStatusMapping(t *testing.T) {
 		{fmt.Errorf("album: %w", application.ErrNotFound), "/api/v1/pages/albums/x", 404, `"ALBUM_NOT_FOUND"`},
 		{fmt.Errorf("tracks: %w", application.ErrUpstream), "/api/v1/pages/albums/x", 503, `"SERVICE_UNAVAILABLE"`},
 		{errors.New("bug"), "/api/v1/pages/home", 500, `"INTERNAL"`},
+		{nil, "/api/v1/pages/playlists/x", 200, `"title":"Late night"`},
+		{fmt.Errorf("playlist: %w", application.ErrNotFound), "/api/v1/pages/playlists/x", 404, `"PLAYLIST_NOT_FOUND"`},
 	}
 	for _, c := range cases {
 		rec := serve(stubPages{err: c.err}, c.path)

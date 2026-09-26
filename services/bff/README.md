@@ -9,6 +9,7 @@ Backend for Frontend веб-клиента ([spec](../../specs/services/bff.md))
 |---|---|---|
 | GET | `/api/v1/pages/home` | Catalog (`GET /albums` → New releases, `GET /artists?ids=`) |
 | GET | `/api/v1/pages/albums/{id}` | Catalog: album → (tracks ∥ more-by-artist ∥ genres) → artists batch |
+| GET | `/api/v1/pages/playlists/{id}` | Playlist → (Catalog `tracks?ids=` ∥ owner) → альбомы треков ∥ → artists batch → liked; треки в порядке плейлиста, удалённые из Catalog пропускаются |
 
 Контракты ответов — `internal/views` (зеркало zod-схем `apps/web/src/pages/*/api`).
 Ошибки — error model: 404 `ALBUM_NOT_FOUND`, 503 `SERVICE_UNAVAILABLE` (обязательный upstream недоступен).
@@ -53,5 +54,7 @@ BFF пересылает `Authorization: Bearer …` клиента в серв�
 токен не проверяет — это делает каждый сервис. Персонализированные страницы (с токеном) отдаются с
 `Cache-Control: private, no-cache` и `Vary: Authorization`, анонимные — `private, max-age=30`.
 `LIBRARY_URL` пустой — страницы без отметок `liked`; `HISTORY_URL` пустой — без «Recently played» на Home
-(блок тогда в `unavailable`). «Recently played»: до 6 последних источников из Listening History, альбомы
-резолвятся в Catalog параллельно с «New releases»; плейлисты и артисты — когда появятся их сервисы.
+(блок тогда в `unavailable`). «Recently played»: до 6 последних источников из Listening History в их порядке: альбомы
+резолвятся в Catalog, плейлисты — в Playlist Service (владелец — из User Profile), параллельно с «New releases»;
+артисты — когда появится их страница. `PLAYLIST_URL` пустой — без страницы плейлиста и плейлистов в «Recently
+played»; `USER_PROFILE_URL` пустой — без имён владельцев.

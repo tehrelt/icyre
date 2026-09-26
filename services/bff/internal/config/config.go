@@ -26,6 +26,11 @@ type Config struct {
 	LibraryURL string
 	// HistoryURL enables "Recently played" on Home; empty disables it.
 	HistoryURL string
+	// PlaylistURL enables the playlist page and playlists in "Recently
+	// played"; empty disables them.
+	PlaylistURL string
+	// UserProfileURL resolves playlist owners' names; empty leaves them blank.
+	UserProfileURL string
 	// UpstreamTimeout bounds one call to an upstream service.
 	UpstreamTimeout time.Duration
 	Pages           application.Config
@@ -48,6 +53,8 @@ func Load() (Config, error) {
 		CatalogURL:      env.RequiredString("CATALOG_URL"),
 		LibraryURL:      env.String("LIBRARY_URL", ""),
 		HistoryURL:      env.String("HISTORY_URL", ""),
+		PlaylistURL:     env.String("PLAYLIST_URL", ""),
+		UserProfileURL:  env.String("USER_PROFILE_URL", ""),
 		UpstreamTimeout: env.Duration("UPSTREAM_TIMEOUT", 800*time.Millisecond),
 		Pages: application.Config{
 			PageBudget:    env.Duration("PAGE_BUDGET", 1500*time.Millisecond),

@@ -19,6 +19,7 @@ import (
 	historyadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/history"
 	httpadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/http"
 	libraryadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/library"
+	playlistadapter "github.com/tehrelt/icyre/services/bff/internal/adapters/playlist"
 	"github.com/tehrelt/icyre/services/bff/internal/application"
 	"github.com/tehrelt/icyre/services/bff/internal/config"
 )
@@ -70,6 +71,12 @@ func run() error {
 	}
 	if cfg.HistoryURL != "" {
 		personal.History = historyadapter.New(cfg.HistoryURL, httpclient.New(httpclient.Config{Timeout: cfg.UpstreamTimeout}))
+	}
+	if cfg.PlaylistURL != "" {
+		personal.Playlists = playlistadapter.New(cfg.PlaylistURL, httpclient.New(httpclient.Config{Timeout: cfg.UpstreamTimeout}))
+	}
+	if cfg.UserProfileURL != "" {
+		personal.Profiles = playlistadapter.NewProfiles(cfg.UserProfileURL, httpclient.New(httpclient.Config{Timeout: cfg.UpstreamTimeout}))
 	}
 	pages := application.New(catalog, personal, cfg.Pages, log)
 

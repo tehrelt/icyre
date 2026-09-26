@@ -55,6 +55,8 @@ type Catalog interface {
 	// LatestAlbums returns the newest releases of the catalogue.
 	LatestAlbums(ctx context.Context, limit int) ([]Album, error)
 	ArtistAlbums(ctx context.Context, artistID string, limit int) ([]Album, error)
+	// Tracks resolves track IDs; unknown and deleted tracks are skipped.
+	Tracks(ctx context.Context, ids []string) ([]Track, error)
 	// Artists resolves IDs in one batch; unknown IDs are skipped.
 	Artists(ctx context.Context, ids []string) ([]Artist, error)
 	Genres(ctx context.Context) ([]Genre, error)

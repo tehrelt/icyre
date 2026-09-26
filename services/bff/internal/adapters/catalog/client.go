@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -93,15 +94,36 @@ func (c *Client) AlbumTracks(ctx context.Context, albumID string) ([]ports.Track
 	if err := c.get(ctx, "album_tracks", "/api/v1/albums/"+url.PathEscape(albumID)+"/tracks", &res); err != nil {
 		return nil, err
 	}
-	out := make([]ports.Track, 0, len(res.Data))
-	for _, t := range res.Data {
+	return toTracks(res.Data), nil
+}
+
+// maxBatch is Catalog's limit for ?ids= lookups.
+const maxBatch = 100
+
+// Tracks implements ports.Catalog, in batches of maxBatch.
+func (c *Client) Tracks(ctx context.Context, ids []string) ([]ports.Track, error) {
+	out := make([]ports.Track, 0, len(ids))
+	for chunk := range slices.Chunk(ids, maxBatch) {
+		var res list[trackDTO]
+		q := url.Values{"ids": {strings.Join(chunk, ",")}}
+		if err := c.get(ctx, "tracks_batch", "/api/v1/tracks?"+q.Encode(), &res); err != nil {
+			return nil, err
+		}
+		out = append(out, toTracks(res.Data)...)
+	}
+	return out, nil
+}
+
+func toTracks(dtos []trackDTO) []ports.Track {
+	out := make([]ports.Track, 0, len(dtos))
+	for _, t := range dtos {
 		out = append(out, ports.Track{
 			ID: t.ID, AlbumID: t.AlbumID, ArtistIDs: t.ArtistIDs, Title: t.Title,
 			Duration: time.Duration(t.DurationMs) * time.Millisecond, TrackNumber: t.TrackNumber,
 			DiscNumber: t.DiscNumber, Explicit: t.Explicit, Status: t.Status,
 		})
 	}
-	return out, nil
+	return out
 }
 
 // LatestAlbums implements ports.Catalog.

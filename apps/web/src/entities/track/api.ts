@@ -8,12 +8,12 @@ import { TrackListSchema, TrackSchema, type Track } from './model';
 
 export type CollectionKind = 'album' | 'playlist' | 'artist';
 
-/** Album tracks come from the BFF album page, already enriched for playback. */
-const AlbumTracksSchema = z.object({ tracks: z.array(TrackSchema) });
+/** Album and playlist tracks come from their BFF pages, already enriched for playback. */
+const PageTracksSchema = z.object({ tracks: z.array(TrackSchema) });
 
 const fetchers: Record<CollectionKind, (id: string, signal: AbortSignal) => Promise<Track[]>> = {
-  album: async (id, signal) => (await apiGet(`/pages/albums/${encodeURIComponent(id)}`, AlbumTracksSchema, signal)).tracks,
-  playlist: async (id, signal) => (await apiGet(`/playlists/${encodeURIComponent(id)}/tracks`, TrackListSchema, signal)).data,
+  album: async (id, signal) => (await apiGet(`/pages/albums/${encodeURIComponent(id)}`, PageTracksSchema, signal)).tracks,
+  playlist: async (id, signal) => (await apiGet(`/pages/playlists/${encodeURIComponent(id)}`, PageTracksSchema, signal)).tracks,
   artist: async (id, signal) => (await apiGet(`/artists/${encodeURIComponent(id)}/top-tracks`, TrackListSchema, signal)).data,
 };
 
