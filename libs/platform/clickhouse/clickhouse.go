@@ -142,6 +142,8 @@ func (c *Client) database() string {
 func (c *Client) do(ctx context.Context, query string, params Params, body io.Reader, dedupToken string) ([]byte, error) {
 	q := url.Values{}
 	q.Set("database", c.database())
+	// (U)Int64 as JSON numbers, not strings: rows decode straight into Go ints.
+	q.Set("output_format_json_quote_64bit_integers", "0")
 	for k, v := range params {
 		q.Set("param_"+k, v)
 	}
