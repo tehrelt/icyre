@@ -51,6 +51,20 @@ application, репозитории берут транзакцию из ctx), �
 даёт повтор — доставка at-least-once, consumer'ы идемпотентны. Trace context сохраняется в строке, трейс не рвётся.
 Метрики: `outbox_published_total`, `outbox_publish_errors_total`, `outbox_lag_seconds`.
 
+## Статус трека из медиапайплайна (`media.events`, consumer group `catalog`)
+
+| Событие | Переход |
+|---|---|
+| `track.uploaded` (Media Ingest) | `DRAFT → PROCESSING` |
+| `track.transcoded` (Transcoder) | `PROCESSING`/`DRAFT → READY` |
+| `media.transcode.failed` (Transcoder) | `PROCESSING → DRAFT` (нужна новая загрузка) |
+
+Каждое изменение — `track.updated` через outbox. Повторы и сигналы не по статусу игнорируются: redelivery ничего не
+меняет, `READY` трек остаётся играбельным во время перезаливки, `BLOCKED`/`DELETED` не оживают. Read-modify-write трека
+(и HTTP `PATCH`, и consumer) идёт под `SELECT … FOR NO KEY UPDATE`, поэтому блокировка модератором не теряется при
+гонке с событием. Неразбираемое сообщение — сразу в `media.events.dlq`; ошибка БД — retry, потом DLQ; событие о
+неизвестном треке логируется и подтверждается.
+
 ## Конфигурация
 
 | ENV | По умолчанию |

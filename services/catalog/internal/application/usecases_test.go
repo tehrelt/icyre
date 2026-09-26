@@ -125,6 +125,9 @@ func (m memTracks) ListByIDs(_ context.Context, ids []uuid.UUID) ([]domain.Track
 	}
 	return out, nil
 }
+func (m memTracks) GetForUpdate(ctx context.Context, id uuid.UUID) (domain.Track, error) {
+	return m.Get(ctx, id)
+}
 func (m memTracks) Update(_ context.Context, t domain.Track) error { m[t.ID] = t; return nil }
 func (m memTracks) ListByAlbum(_ context.Context, albumID uuid.UUID) ([]domain.Track, error) {
 	var out []domain.Track
@@ -389,5 +392,46 @@ func TestListAlbumsAndArtists(t *testing.T) {
 	}
 	if tracks, err := f.svc.ListTracks(ctx, nil); err != nil || len(tracks) != 0 {
 		t.Fatalf("empty batch = %v, %v", tracks, err)
+	}
+}
+
+func TestAdvanceTrackMediaWalksThePipeline(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	artist, _ := f.svc.CreateArtist(ctx, CreateArtist{Name: "Nova Hale"})
+	album := f.album(t, time.Now(), artist.ID)
+	tr, _ := f.svc.CreateTrack(ctx, CreateTrack{AlbumID: album.ID, Title: "One", Duration: time.Minute, TrackNumber: 1})
+	published := len(f.pub.events)
+
+	steps := []struct {
+		stage domain.MediaStage
+		want  domain.TrackStatus
+		event bool
+	}{
+		{domain.MediaUploaded, domain.TrackStatusProcessing, true},
+		{domain.MediaUploaded, domain.TrackStatusProcessing, false}, // redelivery
+		{domain.MediaFailed, domain.TrackStatusDraft, true},
+		{domain.MediaUploaded, domain.TrackStatusProcessing, true},
+		{domain.MediaTranscoded, domain.TrackStatusReady, true},
+		{domain.MediaTranscoded, domain.TrackStatusReady, false}, // redelivery
+	}
+	for i, st := range steps {
+		got, err := f.svc.AdvanceTrackMedia(ctx, tr.ID, st.stage)
+		if err != nil || got.Status != st.want || f.tracks[tr.ID].Status != st.want {
+			t.Fatalf("step %d: got %s (stored %s), err %v; want %s", i, got.Status, f.tracks[tr.ID].Status, err, st.want)
+		}
+		if st.event {
+			published++
+			if _, ok := f.pub.events[len(f.pub.events)-1].(domain.TrackUpdated); !ok {
+				t.Fatalf("step %d: last event is not TrackUpdated", i)
+			}
+		}
+		if len(f.pub.events) != published {
+			t.Fatalf("step %d: %d events, want %d", i, len(f.pub.events), published)
+		}
+	}
+
+	if _, err := f.svc.AdvanceTrackMedia(ctx, uuid.New(), domain.MediaUploaded); !errors.Is(err, domain.ErrTrackNotFound) {
+		t.Fatalf("unknown track: %v", err)
 	}
 }

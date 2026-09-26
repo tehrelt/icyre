@@ -237,7 +237,18 @@ func (r *TrackRepository) Create(ctx context.Context, t domain.Track) error {
 
 // Get loads a track, including deleted ones.
 func (r *TrackRepository) Get(ctx context.Context, id uuid.UUID) (domain.Track, error) {
-	rows, err := conn(ctx, r.pool).Query(ctx, `SELECT `+trackColumns+` FROM catalog.tracks t WHERE t.id = $1`, id)
+	return r.get(ctx, id, "")
+}
+
+// GetForUpdate loads a track and locks its row until the transaction ends.
+// NO KEY UPDATE is enough for status changes and does not block inserts
+// that reference the track.
+func (r *TrackRepository) GetForUpdate(ctx context.Context, id uuid.UUID) (domain.Track, error) {
+	return r.get(ctx, id, " FOR NO KEY UPDATE")
+}
+
+func (r *TrackRepository) get(ctx context.Context, id uuid.UUID, lock string) (domain.Track, error) {
+	rows, err := conn(ctx, r.pool).Query(ctx, `SELECT `+trackColumns+` FROM catalog.tracks t WHERE t.id = $1`+lock, id)
 	if err != nil {
 		return domain.Track{}, fmt.Errorf("select track: %w", err)
 	}

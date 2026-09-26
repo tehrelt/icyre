@@ -236,21 +236,49 @@ type UpdateTrack struct {
 
 // UpdateTrack applies a partial update, including status transitions.
 func (s *Service) UpdateTrack(ctx context.Context, cmd UpdateTrack) (domain.Track, error) {
-	t, err := s.d.Tracks.Get(ctx, cmd.ID)
+	return s.modifyTrack(ctx, cmd.ID, func(t *domain.Track) (bool, error) {
+		return t.Apply(cmd.Changes, s.d.Now())
+	})
+}
+
+// AdvanceTrackMedia applies a media pipeline signal (media.events) to the
+// track status. Redelivered and out-of-date signals change nothing and
+// publish nothing (domain.Track.AdvanceMedia).
+func (s *Service) AdvanceTrackMedia(ctx context.Context, id uuid.UUID, stage domain.MediaStage) (domain.Track, error) {
+	return s.modifyTrack(ctx, id, func(t *domain.Track) (bool, error) {
+		return t.AdvanceMedia(stage, s.d.Now()), nil
+	})
+}
+
+// modifyTrack is a read-modify-write of one track under a row lock; a change
+// is stored together with its track.updated event.
+func (s *Service) modifyTrack(ctx context.Context, id uuid.UUID, modify func(t *domain.Track) (bool, error)) (domain.Track, error) {
+	var out domain.Track
+	err := s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		t, err := s.d.Tracks.GetForUpdate(ctx, id)
+		if err != nil {
+			return err
+		}
+		changed, err := modify(&t)
+		if err != nil {
+			return err
+		}
+		out = t
+		if !changed {
+			return nil
+		}
+		if err := s.d.Tracks.Update(ctx, t); err != nil {
+			return fmt.Errorf("store track: %w", err)
+		}
+		if err := s.d.Publisher.Publish(ctx, domain.TrackUpdated{Track: t}); err != nil {
+			return fmt.Errorf("record events: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
 		return domain.Track{}, err
 	}
-	changed, err := t.Apply(cmd.Changes, s.d.Now())
-	if err != nil {
-		return domain.Track{}, err
-	}
-	if !changed {
-		return t, nil
-	}
-	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Tracks.Update(ctx, t) }, domain.TrackUpdated{Track: t}); err != nil {
-		return domain.Track{}, fmt.Errorf("store track: %w", err)
-	}
-	return t, nil
+	return out, nil
 }
 
 // ListGenres returns the curated genre list.

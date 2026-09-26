@@ -47,6 +47,10 @@ type AlbumRepository interface {
 type TrackRepository interface {
 	Create(ctx context.Context, t domain.Track) error
 	Get(ctx context.Context, id uuid.UUID) (domain.Track, error)
+	// GetForUpdate is Get that locks the row until the surrounding
+	// Transactor.InTx ends, so concurrent read-modify-write cycles
+	// (HTTP updates, media events) do not overwrite each other.
+	GetForUpdate(ctx context.Context, id uuid.UUID) (domain.Track, error)
 	Update(ctx context.Context, t domain.Track) error
 	// ListByAlbum returns non-deleted tracks ordered by disc and track number.
 	ListByAlbum(ctx context.Context, albumID uuid.UUID) ([]domain.Track, error)

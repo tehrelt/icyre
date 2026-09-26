@@ -11,7 +11,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/tehrelt/icyre/libs/contracts/events"
 	"github.com/tehrelt/icyre/libs/platform/health"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
@@ -124,6 +126,22 @@ func run(args []string) error {
 		Log:       log,
 	})
 
+	// Media pipeline events drive the track status (DRAFT → PROCESSING →
+	// READY); offsets are committed only after the change is stored.
+	consumerDone := make(chan error, 1)
+	if cfg.Kafka.Enabled {
+		consumer, err := platformkafka.NewConsumer(platformkafka.ConsumerConfig{
+			Brokers: cfg.Kafka.Brokers, ClientID: config.ServiceName, Group: config.ConsumerGroup,
+			Topics: []string{events.TopicMediaEvents}, MaxRetries: 5, RetryBackoff: 500 * time.Millisecond, DLQ: true,
+		}, kafkaadapter.MediaEventsHandler(app, log), log, platformkafka.NewConsumerMetrics(reg))
+		if err != nil {
+			return err
+		}
+		go func() { consumerDone <- consumer.Run(ctx) }()
+	} else {
+		close(consumerDone)
+	}
+
 	// 6. Handlers.
 	mux := http.NewServeMux()
 	checks.Register(mux)
@@ -158,6 +176,9 @@ func run(args []string) error {
 	// Unsent rows stay in the outbox for the next start.
 	if err := <-relayDone; err != nil && !errors.Is(err, context.Canceled) {
 		log.Error("outbox relay stopped with error", logger.Err(err))
+	}
+	if err := <-consumerDone; err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("consumer stopped with error", logger.Err(err))
 	}
 	log.Info("catalog service stopped")
 	return nil

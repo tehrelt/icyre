@@ -13,6 +13,9 @@ import (
 // ServiceName identifies the service in logs, traces and event envelopes.
 const ServiceName = "catalog-service"
 
+// ConsumerGroup consumes media.events (track status from the media pipeline).
+const ConsumerGroup = "catalog"
+
 // Config is the complete service configuration.
 type Config struct {
 	Env             string
