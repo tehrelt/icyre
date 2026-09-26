@@ -10,9 +10,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	platformpg "github.com/tehrelt/icyre/libs/platform/postgres"
 	"github.com/tehrelt/icyre/services/catalog/internal/domain"
 	"github.com/tehrelt/icyre/services/catalog/internal/ports"
 )
+
+// conn is the unit-of-work transaction when the caller runs in one
+// (application Transactor), the pool otherwise; inner BeginFunc calls then
+// become savepoints.
+func conn(ctx context.Context, pool *pgxpool.Pool) platformpg.Querier {
+	return platformpg.Conn(ctx, pool)
+}
 
 // ArtistRepository implements ports.ArtistRepository.
 type ArtistRepository struct{ pool *pgxpool.Pool }
@@ -22,7 +30,7 @@ func NewArtistRepository(pool *pgxpool.Pool) *ArtistRepository { return &ArtistR
 
 // Create inserts an artist.
 func (r *ArtistRepository) Create(ctx context.Context, a domain.Artist) error {
-	_, err := r.pool.Exec(ctx,
+	_, err := conn(ctx, r.pool).Exec(ctx,
 		`INSERT INTO catalog.artists (id, name, created_at, updated_at) VALUES ($1, $2, $3, $4)`,
 		a.ID, a.Name, a.CreatedAt, a.UpdatedAt)
 	if err != nil {
@@ -34,7 +42,7 @@ func (r *ArtistRepository) Create(ctx context.Context, a domain.Artist) error {
 // Get loads an artist.
 func (r *ArtistRepository) Get(ctx context.Context, id uuid.UUID) (domain.Artist, error) {
 	var a domain.Artist
-	err := r.pool.QueryRow(ctx,
+	err := conn(ctx, r.pool).QueryRow(ctx,
 		`SELECT id, name, created_at, updated_at FROM catalog.artists WHERE id = $1`, id,
 	).Scan(&a.ID, &a.Name, &a.CreatedAt, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -48,7 +56,7 @@ func (r *ArtistRepository) Get(ctx context.Context, id uuid.UUID) (domain.Artist
 
 // ListByIDs loads the existing artists among ids.
 func (r *ArtistRepository) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Artist, error) {
-	rows, err := r.pool.Query(ctx,
+	rows, err := conn(ctx, r.pool).Query(ctx,
 		`SELECT id, name, created_at, updated_at FROM catalog.artists WHERE id = ANY($1::uuid[])`, uuidStrings(ids))
 	if err != nil {
 		return nil, fmt.Errorf("select artists: %w", err)
@@ -77,7 +85,7 @@ const albumColumns = `
 
 // Create inserts an album and its credits in one transaction.
 func (r *AlbumRepository) Create(ctx context.Context, a domain.Album) error {
-	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, conn(ctx, r.pool), func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx,
 			`INSERT INTO catalog.albums (id, title, album_type, release_date, created_at, updated_at)
 			 VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -108,7 +116,7 @@ func (r *AlbumRepository) Create(ctx context.Context, a domain.Album) error {
 
 // Get loads an album with its credits.
 func (r *AlbumRepository) Get(ctx context.Context, id uuid.UUID) (domain.Album, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+albumColumns+` FROM catalog.albums a WHERE a.id = $1`, id)
+	rows, err := conn(ctx, r.pool).Query(ctx, `SELECT `+albumColumns+` FROM catalog.albums a WHERE a.id = $1`, id)
 	if err != nil {
 		return domain.Album{}, fmt.Errorf("select album: %w", err)
 	}
@@ -131,7 +139,7 @@ func (r *AlbumRepository) ListByArtist(ctx context.Context, artistID uuid.UUID, 
 	if after != nil {
 		afterDate, afterID = &after.ReleaseDate, &after.ID
 	}
-	rows, err := r.pool.Query(ctx, `
+	rows, err := conn(ctx, r.pool).Query(ctx, `
 		SELECT `+albumColumns+`
 		FROM catalog.albums a
 		JOIN catalog.album_artists credit ON credit.album_id = a.id AND credit.artist_id = $1
@@ -154,7 +162,7 @@ func (r *AlbumRepository) List(ctx context.Context, after *ports.AlbumCursor, li
 	if after != nil {
 		afterDate, afterID = &after.ReleaseDate, &after.ID
 	}
-	rows, err := r.pool.Query(ctx, `
+	rows, err := conn(ctx, r.pool).Query(ctx, `
 		SELECT `+albumColumns+`
 		FROM catalog.albums a
 		WHERE $1::date IS NULL OR (a.release_date, a.id) < ($1::date, $2::uuid)
@@ -206,7 +214,7 @@ const trackColumns = `
 
 // Create inserts a track and its artist credits in one transaction.
 func (r *TrackRepository) Create(ctx context.Context, t domain.Track) error {
-	err := pgx.BeginFunc(ctx, r.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, conn(ctx, r.pool), func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO catalog.tracks
 				(id, album_id, title, duration_ms, track_number, disc_number, explicit, isrc, status, created_at, updated_at)
@@ -229,7 +237,18 @@ func (r *TrackRepository) Create(ctx context.Context, t domain.Track) error {
 
 // Get loads a track, including deleted ones.
 func (r *TrackRepository) Get(ctx context.Context, id uuid.UUID) (domain.Track, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+trackColumns+` FROM catalog.tracks t WHERE t.id = $1`, id)
+	return r.get(ctx, id, "")
+}
+
+// GetForUpdate loads a track and locks its row until the transaction ends.
+// NO KEY UPDATE is enough for status changes and does not block inserts
+// that reference the track.
+func (r *TrackRepository) GetForUpdate(ctx context.Context, id uuid.UUID) (domain.Track, error) {
+	return r.get(ctx, id, " FOR NO KEY UPDATE")
+}
+
+func (r *TrackRepository) get(ctx context.Context, id uuid.UUID, lock string) (domain.Track, error) {
+	rows, err := conn(ctx, r.pool).Query(ctx, `SELECT `+trackColumns+` FROM catalog.tracks t WHERE t.id = $1`+lock, id)
 	if err != nil {
 		return domain.Track{}, fmt.Errorf("select track: %w", err)
 	}
@@ -245,7 +264,7 @@ func (r *TrackRepository) Get(ctx context.Context, id uuid.UUID) (domain.Track, 
 
 // Update persists the mutable fields of a track.
 func (r *TrackRepository) Update(ctx context.Context, t domain.Track) error {
-	tag, err := r.pool.Exec(ctx, `
+	tag, err := conn(ctx, r.pool).Exec(ctx, `
 		UPDATE catalog.tracks SET title = $2, explicit = $3, status = $4, updated_at = $5
 		WHERE id = $1`,
 		t.ID, t.Title, t.Explicit, string(t.Status), t.UpdatedAt)
@@ -260,13 +279,25 @@ func (r *TrackRepository) Update(ctx context.Context, t domain.Track) error {
 
 // ListByAlbum returns the album's live tracks in play order.
 func (r *TrackRepository) ListByAlbum(ctx context.Context, albumID uuid.UUID) ([]domain.Track, error) {
-	rows, err := r.pool.Query(ctx, `
+	rows, err := conn(ctx, r.pool).Query(ctx, `
 		SELECT `+trackColumns+`
 		FROM catalog.tracks t
 		WHERE t.album_id = $1 AND t.status <> 'DELETED'
 		ORDER BY t.disc_number, t.track_number`, albumID)
 	if err != nil {
 		return nil, fmt.Errorf("select album tracks: %w", err)
+	}
+	return collectTracks(rows)
+}
+
+// ListByIDs loads the live tracks among ids.
+func (r *TrackRepository) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	rows, err := conn(ctx, r.pool).Query(ctx, `
+		SELECT `+trackColumns+`
+		FROM catalog.tracks t
+		WHERE t.id = ANY($1::uuid[]) AND t.status <> 'DELETED'`, uuidStrings(ids))
+	if err != nil {
+		return nil, fmt.Errorf("select tracks: %w", err)
 	}
 	return collectTracks(rows)
 }
@@ -303,7 +334,7 @@ func NewGenreRepository(pool *pgxpool.Pool) *GenreRepository { return &GenreRepo
 
 // List returns all genres ordered by name.
 func (r *GenreRepository) List(ctx context.Context) ([]domain.Genre, error) {
-	rows, err := r.pool.Query(ctx, `SELECT id, slug, name FROM catalog.genres ORDER BY name`)
+	rows, err := conn(ctx, r.pool).Query(ctx, `SELECT id, slug, name FROM catalog.genres ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("select genres: %w", err)
 	}

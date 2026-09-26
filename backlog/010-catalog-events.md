@@ -32,7 +32,7 @@
 
 `libs/contracts/events/catalogv1` (Version = 1): `track.created`, `track.updated`, `album.created`, `artist.created`.
 Публикация после успешной записи, ключ = aggregate ID, topic `catalog.events`. Проверено consumer'ом в compose.
-Ограничение: publish best-effort после commit (ошибка логируется). Для end-to-end at-least-once нужен transactional outbox
-(предлагается отдельной задачей перед сервисами-потребителями, EPIC-024/026).
+Transactional outbox: события пишутся в `catalog.outbox` в транзакции изменения, relay (`libs/platform/outbox`)
+публикует их в Kafka — at-least-once end to end, порядок вставки, один relay на таблицу (advisory lock).
 
 ---

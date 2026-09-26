@@ -22,6 +22,9 @@
 
 - [x] EPIC-018 — MinIO / S3 foundation
 - [x] EPIC-017 — Stream Authorization (signed URL, аудио идёт браузер → MinIO напрямую)
+- [x] EPIC-019 — Media Ingest (upload session, presigned PUT с SHA-256, complete: размер/MIME/сигнатура → `track.uploaded` через outbox)
+- [x] EPIC-020 — Transcoder (`track.uploaded` → AAC 64/128/256 в MinIO → `track.transcoded`; provenance-идемпотентность, retry, DLQ)
+- [x] Catalog ← `media.events`: `track.uploaded` → `PROCESSING`, `track.transcoded` → `READY`, `media.transcode.failed` → `DRAFT`
 
 Catalog Service — эталон для остальных сервисов (`services/catalog/README.md`).
 
@@ -35,7 +38,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 ## Backend — Playlists
 
-- [-] EPIC-013 — Playlist Service (срез 1: создание, свои плейлисты, add/remove track)
+- [x] EPIC-013 — Playlist Service (CRUD, add/remove/reorder, `playlist.events`)
 
 ## Backend — Listening History
 
@@ -50,7 +53,7 @@ Catalog Service — эталон для остальных сервисов (`se
 ## Edge и агрегация
 
 - [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)
-- [-] EPIC-033 — Web BFF (home + album pages, user context → liked и Recently played; осталось artist page — нет макета)
+- [-] EPIC-033 — Web BFF (home, album и playlist pages, user context → liked и Recently played с альбомами и плейлистами; осталось artist page — нет макета)
 
 ## Frontend
 
@@ -73,7 +76,6 @@ Home и Album работают на реальных данных: Postgres → 
 (EPIC-051 BLOCKED) — войти можно через API (`POST /api/v1/auth/register|login`).
 Недостающие источники данных, по порядку ценности для экранов canvas:
 
-1. EPIC-013 срез 2: PATCH/DELETE, reorder, события `playlist.*` → Search Indexer; плейлисты в «Recently played».
-2. Transactional outbox для catalog events (at-least-once end to end).
-3. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
-4. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.
+1. Экран плейлиста и его редактирование (EPIC-050 BLOCKED — нет макета; BFF `GET /pages/playlists/{id}` уже есть,
+   плеер играет плейлисты через неё, плейлисты — в поиске и в «Recently played»).
+2. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.

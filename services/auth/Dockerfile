@@ -8,12 +8,15 @@ WORKDIR /src
 COPY libs/platform/go.mod libs/platform/go.sum libs/platform/
 COPY libs/contracts/go.mod libs/contracts/go.sum libs/contracts/
 COPY services/auth/go.mod services/auth/go.sum services/auth/
-RUN cd services/auth && go mod download
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    cd services/auth && go mod download
 
 COPY libs/ libs/
 COPY services/auth/ services/auth/
 ARG VERSION=dev
-RUN cd services/auth && go build -trimpath -ldflags="-s -w" -o /out/auth ./cmd/auth
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    --mount=type=cache,id=icyre-gobuild,target=/root/.cache/go-build \
+    cd services/auth && go build -trimpath -ldflags="-s -w" -o /out/auth ./cmd/auth
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/auth /usr/local/bin/auth

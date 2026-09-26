@@ -44,7 +44,26 @@ FK/unique violations БД маппятся в domain errors (БД — после
 ## События (`catalog.events`, key = aggregate ID, eventVersion 1)
 
 `artist.created`, `album.created`, `track.created`, `track.updated` — payloads в `libs/contracts/events/catalogv1`.
-Публикация после commit, best effort (ошибка логируется). Следующий шаг — transactional outbox.
+Transactional outbox: событие пишется в `catalog.outbox` в той же транзакции, что и изменение (`Transactor` в
+application, репозитории берут транзакцию из ctx), — нет изменения без события и события без изменения. Relay
+(`libs/platform/outbox`) публикует строки в порядке вставки и удаляет их после ack Kafka; один relay на таблицу
+(advisory lock), поэтому порядок по ключу сохраняется и при нескольких репликах. Падение между publish и delete
+даёт повтор — доставка at-least-once, consumer'ы идемпотентны. Trace context сохраняется в строке, трейс не рвётся.
+Метрики: `outbox_published_total`, `outbox_publish_errors_total`, `outbox_lag_seconds`.
+
+## Статус трека из медиапайплайна (`media.events`, consumer group `catalog`)
+
+| Событие | Переход |
+|---|---|
+| `track.uploaded` (Media Ingest) | `DRAFT → PROCESSING` |
+| `track.transcoded` (Transcoder) | `PROCESSING`/`DRAFT → READY` |
+| `media.transcode.failed` (Transcoder) | `PROCESSING → DRAFT` (нужна новая загрузка) |
+
+Каждое изменение — `track.updated` через outbox. Повторы и сигналы не по статусу игнорируются: redelivery ничего не
+меняет, `READY` трек остаётся играбельным во время перезаливки, `BLOCKED`/`DELETED` не оживают. Read-modify-write трека
+(и HTTP `PATCH`, и consumer) идёт под `SELECT … FOR NO KEY UPDATE`, поэтому блокировка модератором не теряется при
+гонке с событием. Неразбираемое сообщение — сразу в `media.events.dlq`; ошибка БД — retry, потом DLQ; событие о
+неизвестном треке логируется и подтверждается.
 
 ## Конфигурация
 

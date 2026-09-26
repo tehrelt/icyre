@@ -68,35 +68,83 @@ func TestRepository(t *testing.T) {
 	for i := range ids {
 		ids[i] = uuid.New()
 		wg.Go(func() {
-			if err := repo.AppendTrack(ctx, p.ID, domain.Track{TrackID: ids[i], AddedBy: owner, AddedAt: now.Add(time.Minute)}); err != nil {
+			if _, _, err := repo.AppendTrack(ctx, p.ID, domain.Track{TrackID: ids[i], AddedBy: owner, AddedAt: now.Add(time.Minute)}); err != nil {
 				t.Error(err)
 			}
 		})
 	}
 	wg.Wait()
-	_ = repo.AppendTrack(ctx, p.ID, domain.Track{TrackID: ids[0], AddedBy: owner, AddedAt: now}) // duplicate: no-op
+	if _, added, err := repo.AppendTrack(ctx, p.ID, domain.Track{TrackID: ids[0], AddedBy: owner, AddedAt: now}); added || err != nil {
+		t.Fatalf("duplicate append: added=%v %v", added, err)
+	}
 	tracks, err := repo.Tracks(ctx, p.ID)
 	if err != nil || len(tracks) != 8 || tracks[0].Position != 1 || tracks[7].Position != 8 {
 		t.Fatalf("tracks %+v %v", tracks, err)
 	}
 
-	if err := repo.RemoveTrack(ctx, p.ID, tracks[3].TrackID, now.Add(time.Hour)); err != nil {
-		t.Fatal(err)
+	if removed, err := repo.RemoveTrack(ctx, p.ID, tracks[3].TrackID, now.Add(time.Hour)); !removed || err != nil {
+		t.Fatal(removed, err)
+	}
+	if removed, err := repo.RemoveTrack(ctx, p.ID, tracks[3].TrackID, now.Add(time.Hour)); removed || err != nil {
+		t.Fatal("second remove", removed, err)
 	}
 	got, err := repo.Get(ctx, p.ID)
 	if err != nil || got.TrackCount != 7 || !got.UpdatedAt.Equal(now.Add(time.Hour)) {
 		t.Fatalf("get %+v %v", got, err)
 	}
-	_ = repo.AppendTrack(ctx, p.ID, domain.Track{TrackID: uuid.New(), AddedBy: owner, AddedAt: now})
-	if tracks, _ := repo.Tracks(ctx, p.ID); tracks[len(tracks)-1].Position != 9 {
-		t.Fatalf("append after a gap: %+v", tracks[len(tracks)-1])
+	if last, added, err := repo.AppendTrack(ctx, p.ID, domain.Track{TrackID: uuid.New(), AddedBy: owner, AddedAt: now}); !added || err != nil || last.Position != 9 {
+		t.Fatalf("append after a gap: %+v %v %v", last, added, err)
 	}
 
+	if page, err := repo.Page(ctx, uuid.Nil, 10); err != nil || len(page) != 1 || page[0].TrackCount != 8 {
+		t.Fatalf("page %+v %v", page, err)
+	}
+	if page, _ := repo.Page(ctx, p.ID, 10); len(page) != 0 {
+		t.Fatalf("page after last: %+v", page)
+	}
 	mine, err := repo.ByOwner(ctx, owner)
 	if err != nil || len(mine) != 1 || mine[0].TrackCount != 8 {
 		t.Fatalf("mine %+v %v", mine, err)
 	}
 	if _, err := repo.Get(ctx, uuid.New()); err != domain.ErrNotFound {
 		t.Fatal(err)
+	}
+
+	// Reorder: reverse the list; positions become dense 1..n.
+	tracks, _ = repo.Tracks(ctx, p.ID)
+	order := make([]uuid.UUID, len(tracks))
+	for i, tr := range tracks {
+		order[len(tracks)-1-i] = tr.TrackID
+	}
+	if err := repo.Reorder(ctx, p.ID, order, now.Add(2*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := repo.Tracks(ctx, p.ID)
+	for i, tr := range after {
+		if tr.TrackID != order[i] || tr.Position != i+1 {
+			t.Fatalf("reordered %d: %+v", i, tr)
+		}
+	}
+	if err := repo.Reorder(ctx, p.ID, order[1:], now); err != domain.ErrOrderMismatch {
+		t.Fatalf("partial order: %v", err)
+	}
+	if err := repo.Reorder(ctx, uuid.New(), nil, now); err != domain.ErrNotFound {
+		t.Fatalf("missing playlist: %v", err)
+	}
+
+	if err := repo.UpdateTitle(ctx, p.ID, "Road trip", now.Add(3*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := repo.Get(ctx, p.ID); got.Title != "Road trip" || !got.UpdatedAt.Equal(now.Add(3*time.Hour)) {
+		t.Fatalf("renamed %+v", got)
+	}
+	if deleted, err := repo.Delete(ctx, p.ID); !deleted || err != nil {
+		t.Fatal(deleted, err)
+	}
+	if deleted, _ := repo.Delete(ctx, p.ID); deleted {
+		t.Fatal("second delete reported a change")
+	}
+	if tracks, _ := repo.Tracks(ctx, p.ID); len(tracks) != 0 {
+		t.Fatalf("tracks survived delete: %d", len(tracks))
 	}
 }

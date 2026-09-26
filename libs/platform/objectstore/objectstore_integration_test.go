@@ -113,15 +113,43 @@ func TestPresignedUploadDownloadAndChecksum(t *testing.T) {
 	}
 
 	// Service-side put + stat.
-	info, err := s.Put(ctx, bucket, "tracks/t1/audio/128.aac", bytes.NewReader(body), int64(len(body)), PutOptions{ContentType: "audio/aac"})
+	info, err := s.Put(ctx, bucket, "tracks/t1/audio/128.aac", bytes.NewReader(body), int64(len(body)),
+		PutOptions{ContentType: "audio/aac", Metadata: map[string]string{"source-sha256": "abc"}})
 	if err != nil || info.SHA256 == "" {
 		t.Fatalf("put %+v %v", info, err)
 	}
 	st, err := s.Stat(ctx, bucket, "tracks/t1/audio/128.aac")
-	if err != nil || st.Size != int64(len(body)) || st.ContentType != "audio/aac" || st.SHA256 != info.SHA256 {
+	if err != nil || st.Size != int64(len(body)) || st.ContentType != "audio/aac" || st.SHA256 != info.SHA256 ||
+		st.Metadata["Source-Sha256"] != "abc" {
 		t.Fatalf("stat %+v %v", st, err)
 	}
 	if _, err := s.Stat(ctx, bucket, "tracks/nope/audio/64.aac"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing: %v", err)
+	}
+
+	// Streaming download.
+	var buf bytes.Buffer
+	if n, err := s.Download(ctx, bucket, "tracks/t1/audio/128.aac", &buf); err != nil || n != int64(len(body)) || !bytes.Equal(buf.Bytes(), body) {
+		t.Fatalf("download %d %v", n, err)
+	}
+	if _, err := s.Download(ctx, bucket, "tracks/nope/audio/64.aac", io.Discard); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("download of missing: %v", err)
+	}
+
+	// Content sniffing reads only the head; removal is idempotent.
+	head, err := s.ReadHead(ctx, bucket, "tracks/t1/audio/128.aac", 5)
+	if err != nil || string(head) != "icyre" {
+		t.Fatalf("head %q %v", head, err)
+	}
+	if _, err := s.ReadHead(ctx, bucket, "tracks/nope/audio/64.aac", 5); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("head of missing: %v", err)
+	}
+	for range 2 {
+		if err := s.Remove(ctx, bucket, "tracks/t1/audio/128.aac"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.Stat(ctx, bucket, "tracks/t1/audio/128.aac"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("removed: %v", err)
 	}
 }

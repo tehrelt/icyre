@@ -13,8 +13,8 @@ import (
 	"github.com/tehrelt/icyre/libs/contracts/search"
 )
 
-// ErrNotFound means Catalog does not know a referenced entity.
-var ErrNotFound = errors.New("catalog entity not found")
+// ErrNotFound means the source service does not know a referenced entity.
+var ErrNotFound = errors.New("entity not found")
 
 // Album, Artist and Track are what the indexer reads from Catalog.
 type Album struct {
@@ -69,14 +69,16 @@ type Index interface {
 
 // Indexer implements the use cases.
 type Indexer struct {
-	catalog Catalog
-	index   Index
-	log     *slog.Logger
+	catalog   Catalog
+	playlists Playlists
+	profiles  Profiles
+	index     Index
+	log       *slog.Logger
 }
 
 // New returns an Indexer.
-func New(c Catalog, i Index, log *slog.Logger) *Indexer {
-	return &Indexer{catalog: c, index: i, log: log}
+func New(c Catalog, p Playlists, u Profiles, i Index, log *slog.Logger) *Indexer {
+	return &Indexer{catalog: c, playlists: p, profiles: u, index: i, log: log}
 }
 
 // version turns a timestamp into an external document version.
@@ -119,8 +121,8 @@ func (x *Indexer) ArtistCreated(ctx context.Context, a catalogv1.Artist, at time
 // batchSize bounds one bulk request during a rebuild.
 const batchSize = 500
 
-// Rebuild fills fresh indices (alias → physical index) from Catalog. The
-// caller creates and promotes them (indices.Generation).
+// Rebuild fills fresh indices (alias → physical index) from Catalog and the
+// Playlist Service. The caller creates and promotes them (indices.Generation).
 func (x *Indexer) Rebuild(ctx context.Context, target map[string]string) (Stats, error) {
 	var st Stats
 	var pending []Write
@@ -198,11 +200,14 @@ func (x *Indexer) Rebuild(ctx context.Context, target map[string]string) (Stats,
 			st.Artists++
 		}
 	}
+	if st.Playlists, err = x.rebuildPlaylists(ctx, target[search.AliasPlaylists], add); err != nil {
+		return st, fmt.Errorf("playlists: %w", err)
+	}
 	return st, flush()
 }
 
 // Stats counts rebuilt documents.
-type Stats struct{ Albums, Tracks, Artists int }
+type Stats struct{ Albums, Tracks, Artists, Playlists int }
 
 func names(ids []string, artists map[string]Artist) []string {
 	out := make([]string, 0, len(ids))

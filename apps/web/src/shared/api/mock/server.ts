@@ -108,6 +108,27 @@ function tracksOf(kind: string, id: string): MockResponse {
   return ok({ data: generatedTracks(id, info.title, info.artistName, info.art, kind === 'artist' ? 5 : 8) });
 }
 
+/** BFF playlist page (GET /pages/playlists/:id): header and tracks in play order. */
+function playlistPage(id: string): MockResponse {
+  const info = collections.get(id);
+  if (!info || !id.startsWith('pl-')) return notFound('PLAYLIST_NOT_FOUND', 'Playlist not found');
+  const tracks = generatedTracks(id, info.title, info.artistName, info.art, 8);
+  return ok({
+    playlist: {
+      id,
+      title: info.title,
+      ownerId: currentUser.id,
+      owner: info.artistName,
+      trackCount: tracks.length,
+      durationSec: tracks.reduce((sum, t) => sum + t.durationSec, 0),
+      updatedAt: '2026-09-26T10:00:00Z',
+      coverUrl: null,
+      art: info.art,
+    },
+    tracks,
+  });
+}
+
 interface IndexedAlbum extends CollectionInfo {
   year?: number;
 }
@@ -160,7 +181,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],
   ['GET', '/pages/search', () => ok(searchBrowsePage)],
   ['GET', '/search', (_p, q) => searchRoute(q)],
-  ['GET', '/playlists/:id/tracks', (p) => tracksOf('playlist', p.id ?? '')],
+  ['GET', '/pages/playlists/:id', (p) => playlistPage(p.id ?? '')],
   ['GET', '/artists/:id/top-tracks', (p) => tracksOf('artist', p.id ?? '')],
   // Stream authorization. Mock mode plays through the simulated engine, so
   // the URL is never fetched.

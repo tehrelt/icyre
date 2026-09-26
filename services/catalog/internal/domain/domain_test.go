@@ -150,3 +150,40 @@ func TestTrackApply(t *testing.T) {
 		t.Fatalf("expected ErrTrackDeleted, got %v", err)
 	}
 }
+
+func TestTrackAdvanceMedia(t *testing.T) {
+	later := now.Add(time.Hour)
+	cases := []struct {
+		from  TrackStatus
+		stage MediaStage
+		want  TrackStatus
+	}{
+		{TrackStatusDraft, MediaUploaded, TrackStatusProcessing},
+		{TrackStatusProcessing, MediaTranscoded, TrackStatusReady},
+		{TrackStatusDraft, MediaTranscoded, TrackStatusReady},
+		{TrackStatusProcessing, MediaFailed, TrackStatusDraft},
+		// Redeliveries and signals that do not fit are ignored.
+		{TrackStatusProcessing, MediaUploaded, TrackStatusProcessing},
+		{TrackStatusReady, MediaUploaded, TrackStatusReady},
+		{TrackStatusReady, MediaTranscoded, TrackStatusReady},
+		{TrackStatusReady, MediaFailed, TrackStatusReady},
+		{TrackStatusDraft, MediaFailed, TrackStatusDraft},
+		{TrackStatusBlocked, MediaTranscoded, TrackStatusBlocked},
+		{TrackStatusDeleted, MediaUploaded, TrackStatusDeleted},
+		{TrackStatusDeleted, MediaTranscoded, TrackStatusDeleted},
+	}
+	for _, c := range cases {
+		tr := validTrack(t)
+		tr.Status = c.from
+		changed := tr.AdvanceMedia(c.stage, later)
+		if tr.Status != c.want || changed != (c.from != c.want) {
+			t.Errorf("%s + stage %d: got %s (changed=%v), want %s", c.from, c.stage, tr.Status, changed, c.want)
+		}
+		if changed && !tr.UpdatedAt.Equal(later) {
+			t.Errorf("%s + stage %d: updatedAt not bumped", c.from, c.stage)
+		}
+		if !changed && tr.UpdatedAt.Equal(later) {
+			t.Errorf("%s + stage %d: updatedAt bumped without a change", c.from, c.stage)
+		}
+	}
+}

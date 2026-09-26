@@ -3,6 +3,7 @@ package domain
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -16,6 +17,8 @@ var (
 	ErrForbidden     = errors.New("only the owner can change a playlist")
 	ErrTrackNotFound = errors.New("track not found")
 	ErrInvalidTitle  = errors.New("title must be 1–100 characters")
+	// ErrOrderMismatch: a reorder must list exactly the playlist's tracks.
+	ErrOrderMismatch = errors.New("order must list every playlist track exactly once")
 )
 
 // MaxTitle bounds a playlist title.
@@ -46,4 +49,20 @@ type Track struct {
 	Position int
 	AddedBy  uuid.UUID
 	AddedAt  time.Time
+}
+
+// CheckOrder reports whether order lists exactly the tracks of current, each
+// once (ErrOrderMismatch otherwise).
+func CheckOrder(current []Track, order []uuid.UUID) error {
+	if len(order) != len(current) {
+		return ErrOrderMismatch
+	}
+	seen := make(map[uuid.UUID]bool, len(order))
+	for _, id := range order {
+		if seen[id] || !slices.ContainsFunc(current, func(t Track) bool { return t.TrackID == id }) {
+			return ErrOrderMismatch
+		}
+		seen[id] = true
+	}
+	return nil
 }

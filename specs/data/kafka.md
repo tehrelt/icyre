@@ -6,6 +6,7 @@
 catalog.events
 playback.events
 library.events
+playlist.events
 social.events
 media.events
 notification.events

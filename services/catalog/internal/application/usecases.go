@@ -26,10 +26,9 @@ func (s *Service) CreateArtist(ctx context.Context, cmd CreateArtist) (domain.Ar
 	if err != nil {
 		return domain.Artist{}, err
 	}
-	if err := s.d.Artists.Create(ctx, a); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Artists.Create(ctx, a) }, domain.ArtistCreated{Artist: a}); err != nil {
 		return domain.Artist{}, fmt.Errorf("store artist: %w", err)
 	}
-	s.publish(ctx, domain.ArtistCreated{Artist: a})
 	return a, nil
 }
 
@@ -55,6 +54,22 @@ func (s *Service) ListArtists(ctx context.Context, ids []uuid.UUID) ([]domain.Ar
 		return nil, fmt.Errorf("list artists: %w", err)
 	}
 	return artists, nil
+}
+
+// ListTracks returns the live tracks among ids (batch lookup for aggregators,
+// e.g. a playlist page). Unknown and deleted IDs are skipped.
+func (s *Service) ListTracks(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	if len(ids) > MaxBatchIDs {
+		return nil, &domain.ValidationError{Fields: map[string]string{"ids": "at most 100 IDs per request"}}
+	}
+	if len(ids) == 0 {
+		return []domain.Track{}, nil
+	}
+	tracks, err := s.d.Tracks.ListByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list tracks: %w", err)
+	}
+	return tracks, nil
 }
 
 // ListArtistAlbums is the input of Service.ListArtistAlbums.
@@ -144,10 +159,9 @@ func (s *Service) CreateAlbum(ctx context.Context, cmd CreateAlbum) (domain.Albu
 	if err != nil {
 		return domain.Album{}, err
 	}
-	if err := s.d.Albums.Create(ctx, a); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Albums.Create(ctx, a) }, domain.AlbumCreated{Album: a}); err != nil {
 		return domain.Album{}, fmt.Errorf("store album: %w", err)
 	}
-	s.publish(ctx, domain.AlbumCreated{Album: a})
 	return a, nil
 }
 
@@ -203,10 +217,9 @@ func (s *Service) CreateTrack(ctx context.Context, cmd CreateTrack) (domain.Trac
 	if err != nil {
 		return domain.Track{}, err
 	}
-	if err := s.d.Tracks.Create(ctx, t); err != nil {
+	if err := s.store(ctx, func(ctx context.Context) error { return s.d.Tracks.Create(ctx, t) }, domain.TrackCreated{Track: t}); err != nil {
 		return domain.Track{}, fmt.Errorf("store track: %w", err)
 	}
-	s.publish(ctx, domain.TrackCreated{Track: t})
 	return t, nil
 }
 
@@ -223,22 +236,49 @@ type UpdateTrack struct {
 
 // UpdateTrack applies a partial update, including status transitions.
 func (s *Service) UpdateTrack(ctx context.Context, cmd UpdateTrack) (domain.Track, error) {
-	t, err := s.d.Tracks.Get(ctx, cmd.ID)
+	return s.modifyTrack(ctx, cmd.ID, func(t *domain.Track) (bool, error) {
+		return t.Apply(cmd.Changes, s.d.Now())
+	})
+}
+
+// AdvanceTrackMedia applies a media pipeline signal (media.events) to the
+// track status. Redelivered and out-of-date signals change nothing and
+// publish nothing (domain.Track.AdvanceMedia).
+func (s *Service) AdvanceTrackMedia(ctx context.Context, id uuid.UUID, stage domain.MediaStage) (domain.Track, error) {
+	return s.modifyTrack(ctx, id, func(t *domain.Track) (bool, error) {
+		return t.AdvanceMedia(stage, s.d.Now()), nil
+	})
+}
+
+// modifyTrack is a read-modify-write of one track under a row lock; a change
+// is stored together with its track.updated event.
+func (s *Service) modifyTrack(ctx context.Context, id uuid.UUID, modify func(t *domain.Track) (bool, error)) (domain.Track, error) {
+	var out domain.Track
+	err := s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		t, err := s.d.Tracks.GetForUpdate(ctx, id)
+		if err != nil {
+			return err
+		}
+		changed, err := modify(&t)
+		if err != nil {
+			return err
+		}
+		out = t
+		if !changed {
+			return nil
+		}
+		if err := s.d.Tracks.Update(ctx, t); err != nil {
+			return fmt.Errorf("store track: %w", err)
+		}
+		if err := s.d.Publisher.Publish(ctx, domain.TrackUpdated{Track: t}); err != nil {
+			return fmt.Errorf("record events: %w", err)
+		}
+		return nil
+	})
 	if err != nil {
 		return domain.Track{}, err
 	}
-	changed, err := t.Apply(cmd.Changes, s.d.Now())
-	if err != nil {
-		return domain.Track{}, err
-	}
-	if !changed {
-		return t, nil
-	}
-	if err := s.d.Tracks.Update(ctx, t); err != nil {
-		return domain.Track{}, fmt.Errorf("store track: %w", err)
-	}
-	s.publish(ctx, domain.TrackUpdated{Track: t})
-	return t, nil
+	return out, nil
 }
 
 // ListGenres returns the curated genre list.

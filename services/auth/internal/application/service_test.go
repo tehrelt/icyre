@@ -190,6 +190,38 @@ func TestRegisterNormalisesAndPublishes(t *testing.T) {
 	}
 }
 
+type failingPub struct{}
+
+func (failingPub) Publish(context.Context, ...domain.Event) error {
+	return errors.New("outbox insert failed")
+}
+
+type rollbackTx struct{ rolledBack int }
+
+func (r *rollbackTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	err := fn(ctx)
+	if err != nil {
+		r.rolledBack++
+	}
+	return err
+}
+
+func TestRegisterFailsWithoutItsEvent(t *testing.T) {
+	tx := &rollbackTx{}
+	svc, err := New(Deps{
+		Accounts: memAccounts{}, Sessions: memSessions{}, Hasher: fakeHasher{}, Tokens: fakeTokens{}, Refresh: &seqRefresh{},
+		Revocation: memRevocations{}, Throttle: &memThrottle{failures: map[string]int{}}, Publisher: failingPub{}, Tx: tx,
+		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// No account may exist that User Profile never hears about.
+	if _, err := svc.Register(context.Background(), "rin@example.com", pw, Client{}); err == nil || tx.rolledBack != 1 {
+		t.Fatalf("register must fail and roll back: %v, rollbacks %d", err, tx.rolledBack)
+	}
+}
+
 func TestLoginAndThrottle(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()

@@ -13,9 +13,10 @@ type Variants interface {
 	Available(ctx context.Context, trackID string) ([]media.Quality, error)
 }
 
-// CachedVariants remembers non-empty variant sets. Variants are immutable
-// once written, so a hit never goes stale; an empty set is not cached so a
-// track becomes playable as soon as the transcoder finishes.
+// CachedVariants remembers complete variant sets. The transcoder writes the
+// variants one by one, so an incomplete set (mid-transcode) is not cached:
+// the track gets every quality as soon as the transcoder finishes. A
+// re-transcode replaces variants in place and never shrinks a complete set.
 type CachedVariants struct {
 	next  Variants
 	cache *redis.Cache[[]media.Quality]
@@ -35,7 +36,7 @@ func (c *CachedVariants) Available(ctx context.Context, trackID string) ([]media
 		c.log.WarnContext(ctx, "variant cache read failed, using storage", "error", err)
 	}
 	v, err := c.next.Available(ctx, trackID)
-	if err != nil || len(v) == 0 {
+	if err != nil || len(v) < len(media.Qualities) {
 		return v, err
 	}
 	if err := c.cache.Set(ctx, trackID, v); err != nil {

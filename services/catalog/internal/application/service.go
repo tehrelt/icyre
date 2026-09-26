@@ -22,7 +22,9 @@ type Deps struct {
 	Tracks    ports.TrackRepository
 	Genres    ports.GenreRepository
 	Publisher ports.EventPublisher
-	Log       *slog.Logger
+	// Tx is the unit of work; nil runs without a transaction (tests).
+	Tx  ports.Transactor
+	Log *slog.Logger
 	// Now and NewID are overridable for tests.
 	Now   func() time.Time
 	NewID func() (uuid.UUID, error)
@@ -44,18 +46,25 @@ func New(d Deps) *Service {
 	if d.Log == nil {
 		d.Log = slog.Default()
 	}
+	if d.Tx == nil {
+		d.Tx = noTx{}
+	}
 	return &Service{d: d}
 }
 
-// publish delivers events after the state change is committed.
-//
-// Publishing is best effort: the write already succeeded, so a broker
-// failure is logged instead of failing the request. A transactional outbox
-// will make this at-least-once end to end (see services/catalog/README.md).
-func (s *Service) publish(ctx context.Context, events ...domain.Event) {
-	if err := s.d.Publisher.Publish(ctx, events...); err != nil {
-		s.d.Log.ErrorContext(ctx, "publish catalog events failed", "error", err, "count", len(events))
-	}
+// store runs write and records events in one transaction (transactional
+// outbox): an event exists if and only if its change committed, and the
+// outbox relay delivers it to Kafka at least once.
+func (s *Service) store(ctx context.Context, write func(ctx context.Context) error, events ...domain.Event) error {
+	return s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		if err := write(ctx); err != nil {
+			return err
+		}
+		if err := s.d.Publisher.Publish(ctx, events...); err != nil {
+			return fmt.Errorf("record events: %w", err)
+		}
+		return nil
+	})
 }
 
 func (s *Service) newID() (uuid.UUID, error) {
@@ -74,3 +83,8 @@ func asReference(err error, field string, target error) error {
 	}
 	return err
 }
+
+// noTx runs the unit of work directly (in-memory test repositories).
+type noTx struct{}
+
+func (noTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error { return fn(ctx) }

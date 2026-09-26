@@ -30,6 +30,9 @@
   деградация необязательных секций с полем `unavailable`, in-memory кеш жанров.
 - Catalog дополнен `GET /api/v1/albums` (новые релизы) и `GET /api/v1/artists?ids=` (batch).
 - Проверено в compose: реальные данные через gateway, 503 при недоступном Catalog, деградация Home, трейс BFF → Catalog → DB.
+- `GET /api/v1/pages/playlists/{id}`: плейлист (Playlist Service) → треки батчем из Catalog (`GET /tracks?ids=`) и
+  владелец (User Profile) параллельно → альбомы треков, артисты, liked; удалённые треки пропускаются. «Recently
+  played» на Home показывает альбомы и плейлисты в порядке истории. Плеер веба берёт треки плейлиста из этой страницы.
 
 Осталось: TASK-033.4 — artist page (нет макета в canvas). Внутренний транспорт — REST до EPIC-034 (gRPC).
 

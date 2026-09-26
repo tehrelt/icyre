@@ -8,12 +8,15 @@ WORKDIR /src
 COPY libs/platform/go.mod libs/platform/go.sum libs/platform/
 COPY libs/contracts/go.mod libs/contracts/go.sum libs/contracts/
 COPY services/search/go.mod services/search/go.sum services/search/
-RUN cd services/search && go mod download
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    cd services/search && go mod download
 
 COPY libs/ libs/
 COPY services/search/ services/search/
 ARG VERSION=dev
-RUN cd services/search && go build -trimpath -ldflags="-s -w" -o /out/search ./cmd/search
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    --mount=type=cache,id=icyre-gobuild,target=/root/.cache/go-build \
+    cd services/search && go build -trimpath -ldflags="-s -w" -o /out/search ./cmd/search
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/search /usr/local/bin/search

@@ -153,6 +153,37 @@ func TestCatalogRepositories(t *testing.T) {
 		t.Fatalf("list = %+v, err = %v", list, err)
 	}
 
+	// GetForUpdate holds the row lock until the transaction ends: a second
+	// locker times out instead of reading a status about to change.
+	tx := platformpg.Transactor{Pool: pool}
+	err = tx.InTx(ctx, func(ctx context.Context) error {
+		if got, err := tracks.GetForUpdate(ctx, second.ID); err != nil || got.ID != second.ID {
+			return fmt.Errorf("GetForUpdate = %+v, %v", got, err)
+		}
+		// The failed statement aborts the other transaction; errLocked rolls
+		// it back instead of committing.
+		errLocked := errors.New("locked")
+		err := platformpg.InTx(context.Background(), pool, func(other context.Context) error {
+			if _, err := platformpg.Conn(other, pool).Exec(other, `SET LOCAL lock_timeout = '200ms'`); err != nil {
+				return err
+			}
+			if _, err := tracks.GetForUpdate(other, second.ID); err != nil {
+				return errLocked
+			}
+			return nil
+		})
+		if !errors.Is(err, errLocked) {
+			return fmt.Errorf("second GetForUpdate must wait for the lock, got %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tracks.GetForUpdate(ctx, newID()); !errors.Is(err, domain.ErrTrackNotFound) {
+		t.Fatalf("GetForUpdate of unknown track: %v", err)
+	}
+
 	// Update, then delete frees the position.
 	deleted := domain.TrackStatusDeleted
 	if _, err := first.Apply(domain.TrackChanges{Status: &deleted}, now.Add(time.Minute)); err != nil {
@@ -163,6 +194,9 @@ func TestCatalogRepositories(t *testing.T) {
 	}
 	if got, _ := tracks.Get(ctx, first.ID); got.Status != domain.TrackStatusDeleted {
 		t.Fatalf("status = %s", got.Status)
+	}
+	if byIDs, err := tracks.ListByIDs(ctx, []uuid.UUID{first.ID, second.ID, newID()}); err != nil || len(byIDs) != 1 || byIDs[0].ID != second.ID {
+		t.Fatalf("ListByIDs must skip deleted and unknown: %+v, %v", byIDs, err)
 	}
 	if err := tracks.Create(ctx, mk(1, "Frozen Choir (new master)")); err != nil {
 		t.Fatalf("deleted track must free its position: %v", err)

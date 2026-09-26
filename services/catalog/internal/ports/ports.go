@@ -47,9 +47,15 @@ type AlbumRepository interface {
 type TrackRepository interface {
 	Create(ctx context.Context, t domain.Track) error
 	Get(ctx context.Context, id uuid.UUID) (domain.Track, error)
+	// GetForUpdate is Get that locks the row until the surrounding
+	// Transactor.InTx ends, so concurrent read-modify-write cycles
+	// (HTTP updates, media events) do not overwrite each other.
+	GetForUpdate(ctx context.Context, id uuid.UUID) (domain.Track, error)
 	Update(ctx context.Context, t domain.Track) error
 	// ListByAlbum returns non-deleted tracks ordered by disc and track number.
 	ListByAlbum(ctx context.Context, albumID uuid.UUID) ([]domain.Track, error)
+	// ListByIDs returns the non-deleted tracks among ids, in no particular order.
+	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error)
 }
 
 // GenreRepository reads the curated genre list.
@@ -57,7 +63,15 @@ type GenreRepository interface {
 	List(ctx context.Context) ([]domain.Genre, error)
 }
 
-// EventPublisher delivers domain events to other services.
+// EventPublisher delivers domain events to other services. Called inside
+// Transactor.InTx it records them in the same transaction as the change
+// (transactional outbox).
 type EventPublisher interface {
 	Publish(ctx context.Context, events ...domain.Event) error
+}
+
+// Transactor runs fn as one unit of work: repository writes and published
+// events inside it commit or roll back together.
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
 }

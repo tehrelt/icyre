@@ -72,6 +72,13 @@ func (s *stubCatalog) CreateTrack(_ context.Context, cmd application.CreateTrack
 func (s *stubCatalog) GetTrack(context.Context, uuid.UUID) (domain.Track, error) {
 	return s.track, s.err
 }
+func (s *stubCatalog) ListTracks(_ context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	out := make([]domain.Track, len(ids))
+	for i, id := range ids {
+		out[i] = domain.Track{ID: id, Title: "t", Status: domain.TrackStatusReady}
+	}
+	return out, s.err
+}
 func (s *stubCatalog) UpdateTrack(_ context.Context, cmd application.UpdateTrack) (domain.Track, error) {
 	s.gotUpdate = cmd
 	return s.track, s.err
@@ -169,6 +176,8 @@ func TestErrorMapping(t *testing.T) {
 		{"bad date", nil, http.MethodPost, "/api/v1/albums", `{"title":"x","albumType":"ALBUM","releaseDate":"06.03.2026","artistIds":[]}`, 422, httpserver.CodeValidation},
 		{"bad cursor", nil, http.MethodGet, "/api/v1/artists/" + uuid.NewString() + "/albums?cursor=not!base64", "", 400, codeInvalidCursor},
 		{"bad limit", nil, http.MethodGet, "/api/v1/artists/" + uuid.NewString() + "/albums?limit=1000", "", 422, httpserver.CodeValidation},
+		{"tracks without ids", nil, http.MethodGet, "/api/v1/tracks", "", 422, httpserver.CodeValidation},
+		{"tracks bad id", nil, http.MethodGet, "/api/v1/tracks?ids=nope", "", 422, httpserver.CodeValidation},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

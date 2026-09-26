@@ -138,6 +138,44 @@ func validateTitle(v validator, title string) {
 	v.check(utf8.RuneCountInString(title) <= MaxNameLength, "title", "is too long")
 }
 
+// MediaStage is a step of the media pipeline reported on media.events.
+type MediaStage int
+
+// Media pipeline steps (specs/services/catalog.md).
+const (
+	// MediaUploaded: a verified master is stored; transcoding starts.
+	MediaUploaded MediaStage = iota + 1
+	// MediaTranscoded: every audio variant is stored; the track is playable.
+	MediaTranscoded
+	// MediaFailed: the master cannot be transcoded; a new upload is needed.
+	MediaFailed
+)
+
+// AdvanceMedia moves the track along the media pipeline and reports whether
+// its status changed. Signals that do not fit the current status are
+// ignored, not errors: redeliveries repeat, a READY track stays playable
+// while a re-upload is processed, BLOCKED and DELETED tracks never come back.
+//
+// MediaTranscoded also finishes a DRAFT track: the event itself proves the
+// audio went through processing (e.g. a failed upload followed by a
+// successful one).
+func (t *Track) AdvanceMedia(stage MediaStage, now time.Time) bool {
+	var next TrackStatus
+	switch {
+	case stage == MediaUploaded && t.Status == TrackStatusDraft:
+		next = TrackStatusProcessing
+	case stage == MediaTranscoded && (t.Status == TrackStatusDraft || t.Status == TrackStatusProcessing):
+		next = TrackStatusReady
+	case stage == MediaFailed && t.Status == TrackStatusProcessing:
+		next = TrackStatusDraft
+	default:
+		return false
+	}
+	t.Status = next
+	t.UpdatedAt = now.UTC()
+	return true
+}
+
 // TrackChanges describes a partial update. Nil fields stay unchanged.
 type TrackChanges struct {
 	Title    *string

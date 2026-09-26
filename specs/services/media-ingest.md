@@ -13,9 +13,9 @@ Artist/Admin Portal
 
 ## API
 ```http
-POST /media/uploads
-POST /media/uploads/{id}/complete
-GET /media/uploads/{id}
+POST /api/v1/media/uploads
+POST /api/v1/media/uploads/{id}/complete
+GET /api/v1/media/uploads/{id}
 ```
 
 Предпочтительно выдавать pre-signed upload URL вместо проксирования большого файла через backend.

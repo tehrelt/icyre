@@ -9,7 +9,8 @@
 | `httpserver` | HTTP-сервер, middleware (request ID, access log, recovery, timeout, tracing, metrics), JSON и error model |
 | `health` | `GET /health/live`, `GET /health/ready` с readiness-проверками |
 | `shutdown` | SIGINT/SIGTERM и упорядоченное (LIFO) закрытие ресурсов |
-| `postgres` | `pgxpool`, таймауты, метрики/трейсинг запросов, миграции (goose) в schema домена |
+| `postgres` | `pgxpool`, таймауты, метрики/трейсинг запросов, миграции (goose) в schema домена; unit of work (`InTx`, `Conn`, `Transactor`) |
+| `outbox` | transactional outbox: `Sink` вместо Kafka producer пишет сообщения в `<schema>.outbox` в транзакции изменения, `Relay` публирует их в Kafka (at-least-once, порядок вставки, один relay на таблицу) |
 | `redis` | go-redis клиент с таймаутами и pool, `Key(...)` (`<ns>:<entity>:<id>`), generic TTL `Cache[T]` с fallback на источник |
 | `objectstore` | S3-совместимое хранилище (minio-go): presigned download (Range, `Cache-Control`) и upload с `x-amz-checksum-sha256`, `Stat`, `VerifySHA256`, readiness по bucket. Подпись идёт на публичный endpoint (CDN/origin) |
 | `opensearch` | Тонкий клиент OpenSearch на net/http: JSON-запросы, bulk с external versioning (`external_gte`), шаблоны, индексы, атомарная смена алиасов, readiness |

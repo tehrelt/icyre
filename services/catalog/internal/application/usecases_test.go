@@ -116,6 +116,18 @@ func (m memTracks) Get(_ context.Context, id uuid.UUID) (domain.Track, error) {
 	}
 	return t, nil
 }
+func (m memTracks) ListByIDs(_ context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	var out []domain.Track
+	for _, id := range ids {
+		if t, ok := m[id]; ok && t.Status != domain.TrackStatusDeleted {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+func (m memTracks) GetForUpdate(ctx context.Context, id uuid.UUID) (domain.Track, error) {
+	return m.Get(ctx, id)
+}
 func (m memTracks) Update(_ context.Context, t domain.Track) error { m[t.ID] = t; return nil }
 func (m memTracks) ListByAlbum(_ context.Context, albumID uuid.UUID) ([]domain.Track, error) {
 	var out []domain.Track
@@ -223,15 +235,55 @@ func TestCreateTrackRejectsTakenPosition(t *testing.T) {
 	}
 }
 
-func TestPublishFailureDoesNotFailTheWrite(t *testing.T) {
-	f := newFixture()
-	f.pub.err = errors.New("broker down")
-	a, err := f.svc.CreateArtist(context.Background(), CreateArtist{Name: "Kai Frost"})
+// spyTx records units of work and whether they ended in an error (a
+// rollback for the real Transactor).
+type spyTx struct {
+	runs, rolledBack int
+	inside           bool
+}
+
+func (s *spyTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	s.runs++
+	s.inside = true
+	defer func() { s.inside = false }()
+	err := fn(ctx)
 	if err != nil {
-		t.Fatalf("write must succeed when publishing fails: %v", err)
+		s.rolledBack++
 	}
-	if _, ok := f.artists[a.ID]; !ok {
-		t.Fatal("artist was not stored")
+	return err
+}
+
+// insideTx fails a publish that happens outside the unit of work.
+type insideTx struct {
+	tx  *spyTx
+	err error
+}
+
+func (p insideTx) Publish(context.Context, ...domain.Event) error {
+	if !p.tx.inside {
+		return errors.New("event recorded outside the transaction")
+	}
+	return p.err
+}
+
+func TestEventsAreRecordedWithTheChange(t *testing.T) {
+	f := newFixture()
+	tx := &spyTx{}
+	svc := New(Deps{Artists: f.artists, Publisher: insideTx{tx: tx}, Tx: tx, Now: func() time.Time { return f.clock }})
+	if _, err := svc.CreateArtist(context.Background(), CreateArtist{Name: "Kai Frost"}); err != nil {
+		t.Fatal(err)
+	}
+	if tx.runs != 1 || tx.rolledBack != 0 {
+		t.Fatalf("unit of work: %+v", tx)
+	}
+
+	// The outbox write failing rolls the change back: no change without its event.
+	svc = New(Deps{Artists: f.artists, Publisher: insideTx{tx: tx, err: errors.New("outbox insert failed")}, Tx: tx, Now: func() time.Time { return f.clock }})
+	if _, err := svc.CreateArtist(context.Background(), CreateArtist{Name: "Mira Solen"}); err == nil {
+		t.Fatal("a failed event write must fail the request")
+	}
+	if tx.rolledBack != 1 {
+		t.Fatalf("expected a rollback: %+v", tx)
 	}
 }
 
@@ -334,5 +386,52 @@ func TestListAlbumsAndArtists(t *testing.T) {
 	}
 	if _, err := f.svc.ListArtists(ctx, make([]uuid.UUID, MaxBatchIDs+1)); err == nil {
 		t.Fatal("expected validation error for oversized batch")
+	}
+	if _, err := f.svc.ListTracks(ctx, make([]uuid.UUID, MaxBatchIDs+1)); err == nil {
+		t.Fatal("expected validation error for oversized track batch")
+	}
+	if tracks, err := f.svc.ListTracks(ctx, nil); err != nil || len(tracks) != 0 {
+		t.Fatalf("empty batch = %v, %v", tracks, err)
+	}
+}
+
+func TestAdvanceTrackMediaWalksThePipeline(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	artist, _ := f.svc.CreateArtist(ctx, CreateArtist{Name: "Nova Hale"})
+	album := f.album(t, time.Now(), artist.ID)
+	tr, _ := f.svc.CreateTrack(ctx, CreateTrack{AlbumID: album.ID, Title: "One", Duration: time.Minute, TrackNumber: 1})
+	published := len(f.pub.events)
+
+	steps := []struct {
+		stage domain.MediaStage
+		want  domain.TrackStatus
+		event bool
+	}{
+		{domain.MediaUploaded, domain.TrackStatusProcessing, true},
+		{domain.MediaUploaded, domain.TrackStatusProcessing, false}, // redelivery
+		{domain.MediaFailed, domain.TrackStatusDraft, true},
+		{domain.MediaUploaded, domain.TrackStatusProcessing, true},
+		{domain.MediaTranscoded, domain.TrackStatusReady, true},
+		{domain.MediaTranscoded, domain.TrackStatusReady, false}, // redelivery
+	}
+	for i, st := range steps {
+		got, err := f.svc.AdvanceTrackMedia(ctx, tr.ID, st.stage)
+		if err != nil || got.Status != st.want || f.tracks[tr.ID].Status != st.want {
+			t.Fatalf("step %d: got %s (stored %s), err %v; want %s", i, got.Status, f.tracks[tr.ID].Status, err, st.want)
+		}
+		if st.event {
+			published++
+			if _, ok := f.pub.events[len(f.pub.events)-1].(domain.TrackUpdated); !ok {
+				t.Fatalf("step %d: last event is not TrackUpdated", i)
+			}
+		}
+		if len(f.pub.events) != published {
+			t.Fatalf("step %d: %d events, want %d", i, len(f.pub.events), published)
+		}
+	}
+
+	if _, err := f.svc.AdvanceTrackMedia(ctx, uuid.New(), domain.MediaUploaded); !errors.Is(err, domain.ErrTrackNotFound) {
+		t.Fatalf("unknown track: %v", err)
 	}
 }

@@ -11,11 +11,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/tehrelt/icyre/libs/contracts/events"
 	"github.com/tehrelt/icyre/libs/platform/health"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
 	"github.com/tehrelt/icyre/libs/platform/logger"
+	"github.com/tehrelt/icyre/libs/platform/outbox"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
 	"github.com/tehrelt/icyre/libs/platform/shutdown"
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
@@ -87,7 +90,12 @@ func run(args []string) error {
 	checks := health.New(0)
 	checks.Add("postgres", postgres.Check(pool))
 
-	var publisher ports.EventPublisher = kafkaadapter.NopPublisher{}
+	// Events go to catalog.outbox in the transaction of each change; the
+	// relay moves them to Kafka (at-least-once end to end).
+	var (
+		publisher ports.EventPublisher = kafkaadapter.NopPublisher{}
+		relay     *outbox.Relay
+	)
 	if cfg.Kafka.Enabled {
 		producer, err := platformkafka.NewProducer(platformkafka.ProducerConfig{Brokers: cfg.Kafka.Brokers, ClientID: config.ServiceName}, reg)
 		if err != nil {
@@ -95,7 +103,14 @@ func run(args []string) error {
 		}
 		closers.Add("kafka producer", producer.Close)
 		checks.Add("kafka", producer.Ping)
-		publisher = kafkaadapter.NewPublisher(producer, config.ServiceName)
+		sink, err := outbox.NewSink(pool, pgadapter.OutboxTable)
+		if err != nil {
+			return err
+		}
+		publisher = kafkaadapter.NewPublisher(sink, config.ServiceName)
+		if relay, err = outbox.NewRelay(pool, producer, outbox.RelayConfig{Table: pgadapter.OutboxTable}, log, reg); err != nil {
+			return err
+		}
 	} else {
 		log.Warn("kafka disabled: catalog events are not published")
 	}
@@ -107,8 +122,25 @@ func run(args []string) error {
 		Tracks:    pgadapter.NewTrackRepository(pool),
 		Genres:    pgadapter.NewGenreRepository(pool),
 		Publisher: publisher,
+		Tx:        postgres.Transactor{Pool: pool},
 		Log:       log,
 	})
+
+	// Media pipeline events drive the track status (DRAFT → PROCESSING →
+	// READY); offsets are committed only after the change is stored.
+	consumerDone := make(chan error, 1)
+	if cfg.Kafka.Enabled {
+		consumer, err := platformkafka.NewConsumer(platformkafka.ConsumerConfig{
+			Brokers: cfg.Kafka.Brokers, ClientID: config.ServiceName, Group: config.ConsumerGroup,
+			Topics: []string{events.TopicMediaEvents}, MaxRetries: 5, RetryBackoff: 500 * time.Millisecond, DLQ: true,
+		}, kafkaadapter.MediaEventsHandler(app, log), log, platformkafka.NewConsumerMetrics(reg))
+		if err != nil {
+			return err
+		}
+		go func() { consumerDone <- consumer.Run(ctx) }()
+	} else {
+		close(consumerDone)
+	}
 
 	// 6. Handlers.
 	mux := http.NewServeMux()
@@ -132,8 +164,21 @@ func run(args []string) error {
 		checks.Drain()
 		cancelServe()
 	}()
+	relayDone := make(chan error, 1)
+	if relay != nil {
+		go func() { relayDone <- relay.Run(ctx) }()
+	} else {
+		relayDone <- nil
+	}
 	if err := srv.Run(serveCtx, cfg.ShutdownTimeout); err != nil && !errors.Is(err, context.Canceled) {
 		return err
+	}
+	// Unsent rows stay in the outbox for the next start.
+	if err := <-relayDone; err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("outbox relay stopped with error", logger.Err(err))
+	}
+	if err := <-consumerDone; err != nil && !errors.Is(err, context.Canceled) {
+		log.Error("consumer stopped with error", logger.Err(err))
 	}
 	log.Info("catalog service stopped")
 	return nil

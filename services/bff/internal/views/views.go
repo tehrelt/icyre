@@ -2,7 +2,8 @@
 //
 // A BFF has no domain of its own: these page-shaped view models ARE its
 // product, so they carry the public JSON names. They mirror the zod schemas
-// in apps/web (pages/home/api/homeFeed.ts, pages/album/api/albumPage.ts).
+// in apps/web (pages/home/api/homeFeed.ts, pages/album/api/albumPage.ts,
+// entities/playlist).
 package views
 
 // Track is a playable row.
@@ -32,6 +33,38 @@ type AlbumCard struct {
 	Art        int     `json:"art"`
 	AlbumType  string  `json:"albumType,omitempty"`
 	Badge      string  `json:"badge,omitempty"`
+}
+
+// PlaylistCard is a playlist in a grid (entities/playlist PlaylistSummary).
+type PlaylistCard struct {
+	Kind       string  `json:"kind"` // always "playlist"
+	ID         string  `json:"id"`
+	Title      string  `json:"title"`
+	Owner      string  `json:"owner,omitempty"`
+	TrackCount int     `json:"trackCount"`
+	CoverURL   *string `json:"coverUrl"`
+	Art        int     `json:"art"`
+}
+
+// PlaylistPage is GET /api/v1/pages/playlists/{id}.
+type PlaylistPage struct {
+	Playlist PlaylistHeader `json:"playlist"`
+	// Tracks in play order; tracks gone from Catalog are left out.
+	Tracks      []Track  `json:"tracks"`
+	Unavailable []string `json:"unavailable,omitempty"`
+}
+
+// PlaylistHeader is the hero of the playlist page.
+type PlaylistHeader struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	OwnerID     string  `json:"ownerId"`
+	Owner       string  `json:"owner"`
+	TrackCount  int     `json:"trackCount"`
+	DurationSec int     `json:"durationSec"`
+	UpdatedAt   string  `json:"updatedAt"`
+	CoverURL    *string `json:"coverUrl"`
+	Art         int     `json:"art"`
 }
 
 // AlbumPage is GET /api/v1/pages/albums/{id}.

@@ -20,6 +20,7 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
 	"github.com/tehrelt/icyre/libs/platform/logger"
+	"github.com/tehrelt/icyre/libs/platform/outbox"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
 	platformredis "github.com/tehrelt/icyre/libs/platform/redis"
 	"github.com/tehrelt/icyre/libs/platform/shutdown"
@@ -97,18 +98,30 @@ func run(args []string) error {
 	checks.Add("redis", platformredis.Check(rdb))
 
 	var publisher application.Publisher = kafkaadapter.NopPublisher{}
-	var producer *platformkafka.Producer
+	var (
+		producer *platformkafka.Producer
+		relay    *outbox.Relay
+	)
 	if cfg.KafkaEnabled {
 		if producer, err = platformkafka.NewProducer(platformkafka.ProducerConfig{Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName}, reg); err != nil {
 			return err
 		}
 		closers.Add("kafka producer", producer.Close)
 		checks.Add("kafka", producer.Ping)
-		publisher = kafkaadapter.NewPublisher(producer, config.ServiceName)
+		// profile.events go to profile.outbox in the transaction of each
+		// change; the relay moves them to Kafka.
+		sink, err := outbox.NewSink(pool, pgadapter.OutboxTable)
+		if err != nil {
+			return err
+		}
+		publisher = kafkaadapter.NewPublisher(sink, config.ServiceName)
+		if relay, err = outbox.NewRelay(pool, producer, outbox.RelayConfig{Table: pgadapter.OutboxTable}, log, reg); err != nil {
+			return err
+		}
 	}
 
 	// 5. Application.
-	app := application.New(pgadapter.New(pool), publisher, log)
+	app := application.New(pgadapter.New(pool), publisher, postgres.Transactor{Pool: pool}, log)
 
 	// 6. Consumers: auth.events → profile creation. Runs until shutdown;
 	// offsets are committed only after the profile is stored.
@@ -145,8 +158,15 @@ func run(args []string) error {
 		checks.Drain()
 		cancelServe()
 	}()
+	waitRelay := func() error { return nil }
+	if relay != nil {
+		waitRelay = relay.Start(ctx)
+	}
 	if err := srv.Run(serveCtx, cfg.ShutdownTimeout); err != nil && !errors.Is(err, context.Canceled) {
 		return err
+	}
+	if err := waitRelay(); err != nil {
+		log.Error("outbox relay stopped with error", logger.Err(err))
 	}
 	if err := <-consumerDone; err != nil && !errors.Is(err, context.Canceled) {
 		log.Error("consumer stopped with error", logger.Err(err))

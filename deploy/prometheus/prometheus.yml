@@ -56,6 +56,13 @@ scrape_configs:
         labels:
           service: search-indexer
 
+  - job_name: transcoder
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["transcoder:8080"]
+        labels:
+          service: transcoder
+
   - job_name: library-service
     metrics_path: /metrics
     static_configs:
@@ -83,3 +90,10 @@ scrape_configs:
       - targets: ["playlist:8080"]
         labels:
           service: playlist-service
+
+  - job_name: media-ingest-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["media-ingest:8080"]
+        labels:
+          service: media-ingest-service

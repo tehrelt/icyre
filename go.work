@@ -10,10 +10,12 @@ use (
 	./services/catalog
 	./services/history
 	./services/library
+	./services/media-ingest
 	./services/playback
 	./services/playlist
 	./services/search
 	./services/stream-auth
 	./services/user-profile
 	./workers/search-indexer
+	./workers/transcoder
 )

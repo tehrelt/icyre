@@ -30,17 +30,31 @@ type Publisher interface {
 	ProfileUpdated(ctx context.Context, p domain.Profile) error
 }
 
+// Transactor runs fn as one unit of work: a profile change and its event
+// (transactional outbox) commit or roll back together.
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+type noTx struct{}
+
+func (noTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error { return fn(ctx) }
+
 // Service exposes the use cases.
 type Service struct {
 	repo Repository
 	pub  Publisher
+	tx   Transactor
 	log  *slog.Logger
 	now  func() time.Time
 }
 
-// New returns a Service.
-func New(repo Repository, pub Publisher, log *slog.Logger) *Service {
-	return &Service{repo: repo, pub: pub, log: log, now: time.Now}
+// New returns a Service; a nil tx runs without a transaction (tests).
+func New(repo Repository, pub Publisher, tx Transactor, log *slog.Logger) *Service {
+	if tx == nil {
+		tx = noTx{}
+	}
+	return &Service{repo: repo, pub: pub, tx: tx, log: log, now: time.Now}
 }
 
 // maxUsernameAttempts bounds suffixing when the derived username is taken.
@@ -52,17 +66,19 @@ func (s *Service) CreateForNewUser(ctx context.Context, userID uuid.UUID, email 
 	base := domain.FromRegistration(userID, email, s.now())
 	p := base
 	for attempt := 1; attempt <= maxUsernameAttempts; attempt++ {
-		created, err := s.repo.CreateIfAbsent(ctx, p)
-		switch {
-		case errors.Is(err, domain.ErrUsernameTaken):
+		// One transaction per attempt: a username clash aborts it.
+		err := s.tx.InTx(ctx, func(ctx context.Context) error {
+			created, err := s.repo.CreateIfAbsent(ctx, p)
+			if err != nil || !created {
+				return err
+			}
+			return s.record(ctx, p)
+		})
+		if errors.Is(err, domain.ErrUsernameTaken) {
 			p.Username = base.Username + strconv.Itoa(attempt+1)
 			continue
-		case err != nil:
-			return err
-		case created:
-			s.publish(ctx, p)
 		}
-		return nil
+		return err
 	}
 	return fmt.Errorf("no free username for %s", base.Username)
 }
@@ -82,15 +98,23 @@ func (s *Service) Update(ctx context.Context, userID uuid.UUID, c domain.Changes
 	if err != nil || !changed {
 		return p, err
 	}
-	if err := s.repo.Update(ctx, p); err != nil {
+	err = s.tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.repo.Update(ctx, p); err != nil {
+			return err
+		}
+		return s.record(ctx, p)
+	})
+	if err != nil {
 		return domain.Profile{}, err
 	}
-	s.publish(ctx, p)
 	return p, nil
 }
 
-func (s *Service) publish(ctx context.Context, p domain.Profile) {
+// record writes profile.updated in the current unit of work (transactional
+// outbox): it is published if and only if the change commits.
+func (s *Service) record(ctx context.Context, p domain.Profile) error {
 	if err := s.pub.ProfileUpdated(ctx, p); err != nil {
-		s.log.ErrorContext(ctx, "publish profile.updated failed", "error", err)
+		return fmt.Errorf("record profile.updated: %w", err)
 	}
+	return nil
 }

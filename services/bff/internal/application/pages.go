@@ -45,9 +45,13 @@ type Pages struct {
 	catalog ports.Catalog
 	library ports.Library // nil: no personalization
 	history ports.History // nil: no "Recently played"
-	cfg     Config
-	log     *slog.Logger
-	now     func() time.Time
+	// playlists: nil disables the playlist page and playlists in "Recently
+	// played"; profiles: nil leaves owner names blank.
+	playlists ports.Playlists
+	profiles  ports.Profiles
+	cfg       Config
+	log       *slog.Logger
+	now       func() time.Time
 
 	genreMu      sync.Mutex
 	genres       map[string]ports.Genre
@@ -57,8 +61,10 @@ type Pages struct {
 // Personal holds the per-listener upstreams; nil members switch the
 // matching page features off.
 type Personal struct {
-	Library ports.Library
-	History ports.History
+	Library   ports.Library
+	History   ports.History
+	Playlists ports.Playlists
+	Profiles  ports.Profiles
 }
 
 // New returns a Pages service.
@@ -78,7 +84,10 @@ func New(catalog ports.Catalog, personal Personal, cfg Config, log *slog.Logger)
 	if cfg.RecentlyPlayed <= 0 {
 		cfg.RecentlyPlayed = 6
 	}
-	return &Pages{catalog: catalog, library: personal.Library, history: personal.History, cfg: cfg, log: log, now: time.Now}
+	return &Pages{
+		catalog: catalog, library: personal.Library, history: personal.History,
+		playlists: personal.Playlists, profiles: personal.Profiles, cfg: cfg, log: log, now: time.Now,
+	}
 }
 
 // Album aggregates GET /api/v1/pages/albums/{id}:
@@ -185,7 +194,7 @@ func (p *Pages) Home(ctx context.Context) (views.HomePage, error) {
 	var (
 		latest    []ports.Album
 		latestErr error
-		recent    []ports.Album
+		recent    []recentItem
 	)
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -193,18 +202,30 @@ func (p *Pages) Home(ctx context.Context) (views.HomePage, error) {
 		return nil
 	})
 	g.Go(func() error {
-		recent = p.recentAlbums(gctx, degraded)
+		recent = p.recentItems(gctx, degraded)
 		return nil
 	})
 	_ = g.Wait()
 
-	var ids []string
-	for _, a := range append(append([]ports.Album{}, latest...), recent...) {
+	var ids, owners []string
+	for _, a := range latest {
 		ids = append(ids, a.ArtistIDs...)
 	}
+	for _, it := range recent {
+		if it.album != nil {
+			ids = append(ids, it.album.ArtistIDs...)
+		} else {
+			owners = append(owners, it.playlist.OwnerID)
+		}
+	}
 	names := p.artistNames(ctx, ids, degraded)
-	for _, a := range recent {
-		page.RecentlyPlayed = append(page.RecentlyPlayed, albumCard(a, names))
+	ownerNames := p.ownerNames(ctx, owners, degraded)
+	for _, it := range recent {
+		if it.album != nil {
+			page.RecentlyPlayed = append(page.RecentlyPlayed, albumCard(*it.album, names))
+		} else {
+			page.RecentlyPlayed = append(page.RecentlyPlayed, playlistCard(*it.playlist, ownerNames))
+		}
 	}
 
 	if latestErr != nil {
@@ -223,10 +244,17 @@ func (p *Pages) Home(ctx context.Context) (views.HomePage, error) {
 	return page, nil
 }
 
-// recentAlbums resolves the listener's recently played albums. Other source
-// kinds (playlists, artists) wait for their services. Albums that no longer
-// exist are skipped; a History failure degrades the row.
-func (p *Pages) recentAlbums(ctx context.Context, degraded *degradedSet) []ports.Album {
+// recentItem is one "Recently played" entry: an album or a playlist.
+type recentItem struct {
+	album    *ports.Album
+	playlist *ports.Playlist
+}
+
+// recentItems resolves the listener's recently played sources in History
+// order: albums from Catalog, playlists from the Playlist Service. Other
+// kinds (artists) wait for their pages; sources that no longer exist are
+// skipped; a History failure degrades the row.
+func (p *Pages) recentItems(ctx context.Context, degraded *degradedSet) []recentItem {
 	if p.history == nil || ports.UserToken(ctx) == "" {
 		return nil
 	}
@@ -235,30 +263,35 @@ func (p *Pages) recentAlbums(ctx context.Context, degraded *degradedSet) []ports
 		degraded.add(ctx, p.log, "recentlyPlayed", err)
 		return nil
 	}
-	var ids []string
-	for _, s := range sources {
-		if id, ok := strings.CutPrefix(s, "album:"); ok {
-			ids = append(ids, id)
-		}
-	}
-	albums := make([]*ports.Album, len(ids))
+	items := make([]recentItem, len(sources))
 	g, gctx := errgroup.WithContext(ctx)
-	for i, id := range ids {
+	for i, s := range sources {
+		kind, id, _ := strings.Cut(s, ":")
 		g.Go(func() error {
-			a, err := p.catalog.GetAlbum(gctx, id)
-			if err == nil {
-				albums[i] = &a
-			} else if !errors.Is(err, ports.ErrNotFound) {
-				p.log.WarnContext(gctx, "recently played album unavailable", "album_id", id, "error", err)
+			switch {
+			case kind == "album":
+				a, err := p.catalog.GetAlbum(gctx, id)
+				if err == nil {
+					items[i].album = &a
+				} else if !errors.Is(err, ports.ErrNotFound) {
+					p.log.WarnContext(gctx, "recently played album unavailable", "album_id", id, "error", err)
+				}
+			case kind == "playlist" && p.playlists != nil:
+				pl, err := p.playlists.GetPlaylist(gctx, id)
+				if err == nil {
+					items[i].playlist = &pl
+				} else if !errors.Is(err, ports.ErrNotFound) {
+					p.log.WarnContext(gctx, "recently played playlist unavailable", "playlist_id", id, "error", err)
+				}
 			}
 			return nil
 		})
 	}
 	_ = g.Wait()
-	out := make([]ports.Album, 0, len(albums))
-	for _, a := range albums {
-		if a != nil {
-			out = append(out, *a)
+	out := make([]recentItem, 0, len(items))
+	for _, it := range items {
+		if it.album != nil || it.playlist != nil {
+			out = append(out, it)
 		}
 	}
 	return out

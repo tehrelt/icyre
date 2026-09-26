@@ -76,6 +76,21 @@ func (f *fakeCatalog) Genres(context.Context) ([]ports.Genre, error) {
 	return []ports.Genre{{ID: "g1", Slug: "ambient-pop", Name: "Ambient pop"}}, nil
 }
 
+func (f *fakeCatalog) Tracks(_ context.Context, ids []string) ([]ports.Track, error) {
+	if f.failTracks != nil {
+		return nil, f.failTracks
+	}
+	var out []ports.Track
+	for _, list := range f.tracks {
+		for _, t := range list {
+			if slices.Contains(ids, t.ID) {
+				out = append(out, t)
+			}
+		}
+	}
+	return out, nil
+}
+
 func fixture() *fakeCatalog {
 	day := func(y int) time.Time { return time.Date(y, 3, 6, 0, 0, 0, 0, time.UTC) }
 	return &fakeCatalog{
@@ -263,20 +278,31 @@ func (f fakeHistory) RecentSources(context.Context, int) ([]string, error) { ret
 func TestHomeRecentlyPlayed(t *testing.T) {
 	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := Config{PageBudget: 200 * time.Millisecond}
-	hist := fakeHistory{sources: []string{"playlist:p1", "album:prism", "album:gone"}}
-	p := New(fixture(), Personal{History: hist}, cfg, quiet)
+	hist := fakeHistory{sources: []string{"playlist:p1", "album:prism", "album:gone", "playlist:gone", "artist:nova"}}
+	personal := Personal{History: hist, Playlists: fakePlaylists(), Profiles: fakeProfiles{"u1": "Mira"}}
+	p := New(fixture(), personal, cfg, quiet)
 	user := ports.WithUserToken(context.Background(), "tok")
 
 	page, err := p.Home(user)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.RecentlyPlayed) != 1 || slices.Contains(page.Unavailable, "recentlyPlayed") {
+	if len(page.RecentlyPlayed) != 2 || slices.Contains(page.Unavailable, "recentlyPlayed") {
 		t.Fatalf("recent %+v unavailable %v", page.RecentlyPlayed, page.Unavailable)
 	}
-	card := page.RecentlyPlayed[0].(views.AlbumCard)
+	// History order is kept: the playlist came first.
+	pl := page.RecentlyPlayed[0].(views.PlaylistCard)
+	if pl.Kind != "playlist" || pl.ID != "p1" || pl.Owner != "Mira" || pl.TrackCount != 3 {
+		t.Fatalf("playlist card %+v", pl)
+	}
+	card := page.RecentlyPlayed[1].(views.AlbumCard)
 	if card.ID != "prism" || card.ArtistName != "Nova Hale" || card.Kind != "album" {
 		t.Fatalf("card %+v", card)
+	}
+	// Without the Playlist Service playlists are skipped, albums stay.
+	p = New(fixture(), Personal{History: hist}, cfg, quiet)
+	if page, _ := p.Home(user); len(page.RecentlyPlayed) != 1 {
+		t.Fatalf("no playlists upstream %+v", page.RecentlyPlayed)
 	}
 	// Anonymous: empty, not degraded.
 	if page, _ := p.Home(context.Background()); len(page.RecentlyPlayed) != 0 || slices.Contains(page.Unavailable, "recentlyPlayed") {
@@ -286,5 +312,76 @@ func TestHomeRecentlyPlayed(t *testing.T) {
 	p = New(fixture(), Personal{History: fakeHistory{err: errors.New("503")}}, cfg, quiet)
 	if page, err := p.Home(user); err != nil || !slices.Contains(page.Unavailable, "recentlyPlayed") {
 		t.Fatalf("degraded: %v %v", err, page.Unavailable)
+	}
+}
+
+type fakePlaylistsStore map[string]ports.Playlist
+
+func fakePlaylists() fakePlaylistsStore {
+	return fakePlaylistsStore{"p1": {ID: "p1", OwnerID: "u1", Title: "Late night", TrackIDs: []string{"t2", "gone", "t1"}, UpdatedAt: time.Date(2026, 9, 26, 10, 0, 0, 0, time.UTC)}}
+}
+
+func (f fakePlaylistsStore) GetPlaylist(_ context.Context, id string) (ports.Playlist, error) {
+	p, ok := f[id]
+	if !ok {
+		return ports.Playlist{}, ports.ErrNotFound
+	}
+	return p, nil
+}
+
+type fakeProfiles map[string]string
+
+func (f fakeProfiles) DisplayName(_ context.Context, id string) (string, error) {
+	if id == "down" {
+		return "", errors.New("503")
+	}
+	n, ok := f[id]
+	if !ok {
+		return "", ports.ErrNotFound
+	}
+	return n, nil
+}
+
+func TestPlaylistPage(t *testing.T) {
+	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := Config{PageBudget: 200 * time.Millisecond}
+	personal := Personal{Playlists: fakePlaylists(), Profiles: fakeProfiles{"u1": "Mira"}, Library: fakeLibrary{saved: map[string]bool{"t1": true}}}
+	p := New(fixture(), personal, cfg, quiet)
+
+	page, err := p.Playlist(ports.WithUserToken(context.Background(), "tok"), "p1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := page.Playlist
+	if h.Title != "Late night" || h.Owner != "Mira" || h.TrackCount != 2 || h.DurationSec != 439 || h.UpdatedAt != "2026-09-26T10:00:00Z" {
+		t.Fatalf("header %+v", h)
+	}
+	// Playlist order, the track gone from Catalog left out, album and artists resolved.
+	if len(page.Tracks) != 2 || page.Tracks[0].ID != "t2" || page.Tracks[1].ID != "t1" {
+		t.Fatalf("tracks %+v", page.Tracks)
+	}
+	if tr := page.Tracks[0]; tr.AlbumTitle != "Prism Hours" || tr.ArtistName != "Nova Hale · Kai Frost" || tr.Available || tr.Liked {
+		t.Fatalf("row %+v", tr)
+	}
+	if !page.Tracks[1].Liked || len(page.Unavailable) != 0 {
+		t.Fatalf("liked / unavailable: %+v %v", page.Tracks[1], page.Unavailable)
+	}
+
+	if _, err := p.Playlist(context.Background(), "nope"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing playlist: %v", err)
+	}
+	cat := fixture()
+	cat.failTracks = errors.New("catalog down")
+	if _, err := New(cat, personal, cfg, quiet).Playlist(context.Background(), "p1"); !errors.Is(err, ErrUpstream) {
+		t.Fatalf("catalog down: %v", err)
+	}
+	if _, err := New(fixture(), Personal{}, cfg, quiet).Playlist(context.Background(), "p1"); !errors.Is(err, ErrUpstream) {
+		t.Fatalf("no playlist upstream: %v", err)
+	}
+	// Owner lookup failing degrades only the owner name.
+	down := fakePlaylistsStore{"p1": {ID: "p1", OwnerID: "down", Title: "x"}}
+	page, err = New(fixture(), Personal{Playlists: down, Profiles: fakeProfiles{}}, cfg, quiet).Playlist(context.Background(), "p1")
+	if err != nil || page.Playlist.Owner != "" || !slices.Contains(page.Unavailable, "owners") {
+		t.Fatalf("owner degraded: %v %+v", err, page)
 	}
 }

@@ -13,7 +13,9 @@
     "lint": "bun run --filter '*' lint",
     "typecheck": "bun run --filter '*' typecheck",
     "tokens": "bun run --filter @icyre/web tokens",
-    "typecheck:scripts": "tsc -p scripts"
+    "typecheck:scripts": "tsc -p scripts",
+    "stack:build": "bun scripts/compose-build.ts",
+    "stack:up": "bun scripts/compose-build.ts && docker compose up -d"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",

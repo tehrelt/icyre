@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,10 @@ type Playlists interface {
 	Mine(ctx context.Context, owner uuid.UUID) ([]domain.Playlist, error)
 	AddTrack(ctx context.Context, caller, id, trackID uuid.UUID) error
 	RemoveTrack(ctx context.Context, caller, id, trackID uuid.UUID) error
+	Rename(ctx context.Context, caller, id uuid.UUID, title string) (domain.Playlist, error)
+	Delete(ctx context.Context, caller, id uuid.UUID) error
+	Reorder(ctx context.Context, caller, id uuid.UUID, order []uuid.UUID) error
+	All(ctx context.Context, after uuid.UUID, limit int) ([]domain.Playlist, error)
 }
 
 // Handler serves the playlist API.
@@ -36,11 +41,19 @@ func NewHandler(app Playlists, verifier *authn.Verifier, log *slog.Logger) *Hand
 	return &Handler{app: app, verifier: verifier, log: log}
 }
 
-// Register mounts the routes (first slice of specs/services/playlist.md).
+// MaxOrder bounds the track list of one reorder request.
+const MaxOrder = 10_000
+
+// Register mounts the routes of specs/services/playlist.md.
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/playlists", h.auth(h.create))
 	mux.Handle("GET /api/v1/me/playlists", h.auth(h.mine))
 	mux.HandleFunc("GET /api/v1/playlists/{id}", h.get)
+	mux.Handle("PATCH /api/v1/playlists/{id}", h.auth(h.rename))
+	mux.Handle("DELETE /api/v1/playlists/{id}", h.auth(h.delete))
+	mux.Handle("PATCH /api/v1/playlists/{id}/tracks/order", h.auth(h.reorder))
+	// Service-to-service (Search Indexer rebuilds); the gateway does not route /internal.
+	mux.HandleFunc("GET /internal/v1/playlists", h.all)
 	mux.Handle("POST /api/v1/playlists/{id}/tracks", h.auth(h.addTrack))
 	mux.Handle("DELETE /api/v1/playlists/{id}/tracks/{trackId}", h.auth(h.removeTrack))
 }
@@ -178,6 +191,102 @@ func (h *Handler) removeTrack(w http.ResponseWriter, r *http.Request, user uuid.
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *Handler) rename(w http.ResponseWriter, r *http.Request, user uuid.UUID) {
+	id, ok := pathUUID(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		Title string `json:"title"`
+	}
+	if err := httpserver.DecodeJSON(w, r, &req); err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, httpserver.CodeBadRequest, err.Error(), nil)
+		return
+	}
+	p, err := h.app.Rename(r.Context(), user, id, req.Title)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, view(p))
+}
+
+func (h *Handler) delete(w http.ResponseWriter, r *http.Request, user uuid.UUID) {
+	id, ok := pathUUID(w, r, "id")
+	if !ok {
+		return
+	}
+	if err := h.app.Delete(r.Context(), user, id); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) reorder(w http.ResponseWriter, r *http.Request, user uuid.UUID) {
+	id, ok := pathUUID(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		TrackIDs []string `json:"trackIds"`
+	}
+	if err := httpserver.DecodeJSON(w, r, &req); err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, httpserver.CodeBadRequest, err.Error(), nil)
+		return
+	}
+	if req.TrackIDs == nil || len(req.TrackIDs) > MaxOrder {
+		httpserver.WriteError(w, r, http.StatusUnprocessableEntity, httpserver.CodeValidation, "Request validation failed", map[string]any{"fields": map[string]any{"trackIds": "must list the playlist's track IDs"}})
+		return
+	}
+	order := make([]uuid.UUID, len(req.TrackIDs))
+	for i, s := range req.TrackIDs {
+		tid, err := uuid.Parse(s)
+		if err != nil {
+			httpserver.WriteError(w, r, http.StatusUnprocessableEntity, httpserver.CodeValidation, "Request validation failed", map[string]any{"fields": map[string]any{"trackIds": "must be track IDs"}})
+			return
+		}
+		order[i] = tid
+	}
+	if err := h.app.Reorder(r.Context(), user, id, order); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) all(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	after := uuid.Nil
+	if s := q.Get("after"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			httpserver.WriteError(w, r, http.StatusBadRequest, httpserver.CodeBadRequest, "after must be a playlist ID", nil)
+			return
+		}
+		after = id
+	}
+	limit, err := strconv.Atoi(q.Get("limit"))
+	if q.Get("limit") != "" && (err != nil || limit < 1) {
+		httpserver.WriteError(w, r, http.StatusBadRequest, httpserver.CodeBadRequest, "limit must be a positive integer", nil)
+		return
+	}
+	list, err := h.app.All(r.Context(), after, limit)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	out := make([]playlistView, len(list))
+	for i, p := range list {
+		out[i] = view(p)
+	}
+	next := ""
+	if len(list) > 0 {
+		next = list[len(list)-1].ID.String()
+	}
+	httpserver.WriteJSON(w, http.StatusOK, map[string]any{"data": out, "nextAfter": next})
+}
+
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrInvalidTitle):
@@ -186,6 +295,8 @@ func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
 		httpserver.WriteError(w, r, http.StatusNotFound, "PLAYLIST_NOT_FOUND", "Playlist not found", nil)
 	case errors.Is(err, domain.ErrTrackNotFound):
 		httpserver.WriteError(w, r, http.StatusNotFound, "TRACK_NOT_FOUND", "Track not found", nil)
+	case errors.Is(err, domain.ErrOrderMismatch):
+		httpserver.WriteError(w, r, http.StatusConflict, "PLAYLIST_ORDER_MISMATCH", "The order must list every track of the playlist exactly once", nil)
 	case errors.Is(err, domain.ErrForbidden):
 		httpserver.WriteError(w, r, http.StatusForbidden, "FORBIDDEN", "Only the owner can change this playlist", nil)
 	default:

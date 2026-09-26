@@ -56,5 +56,13 @@ album.updated
 artist.updated
 ```
 
+## Consumed events
+```text
+media.events: track.uploaded          DRAFT → PROCESSING
+media.events: track.transcoded        DRAFT | PROCESSING → READY
+media.events: media.transcode.failed  PROCESSING → DRAFT
+```
+Остальные сочетания статуса и события — no-op (идемпотентность, BLOCKED/DELETED не меняются).
+
 ## Cache
 Популярные объекты кешируются в Redis.

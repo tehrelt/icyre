@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"slices"
 	"testing"
 	"time"
@@ -27,19 +29,74 @@ func (m *memRepo) Get(_ context.Context, id uuid.UUID) (domain.Playlist, error) 
 	return p, nil
 }
 func (m *memRepo) ByOwner(context.Context, uuid.UUID) ([]domain.Playlist, error) { return nil, nil }
+func (m *memRepo) Page(context.Context, uuid.UUID, int) ([]domain.Playlist, error) {
+	return nil, nil
+}
 func (m *memRepo) Tracks(_ context.Context, id uuid.UUID) ([]domain.Track, error) {
 	return m.tracks[id], nil
 }
-func (m *memRepo) AppendTrack(_ context.Context, id uuid.UUID, t domain.Track) error {
+func (m *memRepo) UpdateTitle(_ context.Context, id uuid.UUID, title string, at time.Time) error {
+	p := m.lists[id]
+	p.Title, p.UpdatedAt = title, at
+	m.lists[id] = p
+	return nil
+}
+func (m *memRepo) Delete(_ context.Context, id uuid.UUID) (bool, error) {
+	_, ok := m.lists[id]
+	delete(m.lists, id)
+	delete(m.tracks, id)
+	return ok, nil
+}
+func (m *memRepo) AppendTrack(_ context.Context, id uuid.UUID, t domain.Track) (domain.Track, bool, error) {
 	if slices.ContainsFunc(m.tracks[id], func(x domain.Track) bool { return x.TrackID == t.TrackID }) {
-		return nil
+		return t, false, nil
 	}
 	t.Position = len(m.tracks[id]) + 1
 	m.tracks[id] = append(m.tracks[id], t)
+	return t, true, nil
+}
+func (m *memRepo) RemoveTrack(_ context.Context, id, trackID uuid.UUID, _ time.Time) (bool, error) {
+	n := len(m.tracks[id])
+	m.tracks[id] = slices.DeleteFunc(m.tracks[id], func(x domain.Track) bool { return x.TrackID == trackID })
+	return len(m.tracks[id]) < n, nil
+}
+func (m *memRepo) Reorder(_ context.Context, id uuid.UUID, order []uuid.UUID, _ time.Time) error {
+	if err := domain.CheckOrder(m.tracks[id], order); err != nil {
+		return err
+	}
+	out := make([]domain.Track, len(order))
+	for i, tid := range order {
+		out[i] = domain.Track{TrackID: tid, Position: i + 1}
+	}
+	m.tracks[id] = out
 	return nil
 }
-func (m *memRepo) RemoveTrack(_ context.Context, id, trackID uuid.UUID, _ time.Time) error {
-	m.tracks[id] = slices.DeleteFunc(m.tracks[id], func(x domain.Track) bool { return x.TrackID == trackID })
+
+// recorder captures published event types.
+type recorder struct{ events []string }
+
+func (r *recorder) Created(context.Context, domain.Playlist) error {
+	r.events = append(r.events, "created")
+	return nil
+}
+func (r *recorder) Updated(context.Context, domain.Playlist) error {
+	r.events = append(r.events, "updated")
+	return nil
+}
+func (r *recorder) Deleted(context.Context, domain.Playlist, time.Time) error {
+	r.events = append(r.events, "deleted")
+	return nil
+}
+func (r *recorder) TrackAdded(context.Context, domain.Playlist, domain.Track) error {
+	r.events = append(r.events, "track_added")
+	return nil
+}
+func (r *recorder) TrackRemoved(context.Context, domain.Playlist, uuid.UUID, time.Time) error {
+	r.events = append(r.events, "track_removed")
+	return nil
+}
+func (r *recorder) TracksReordered(context.Context, domain.Playlist, []uuid.UUID, time.Time) error {
+	r.events = append(r.events, "tracks_reordered")
 	return nil
 }
 
@@ -55,7 +112,8 @@ func (c catalog) TrackExists(_ context.Context, id uuid.UUID) error {
 func TestPlaylistFlow(t *testing.T) {
 	track := uuid.New()
 	repo := &memRepo{lists: map[uuid.UUID]domain.Playlist{}, tracks: map[uuid.UUID][]domain.Track{}}
-	svc := New(repo, catalog{track: true})
+	pub := &recorder{}
+	svc := New(repo, catalog{track: true}, pub, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	owner, stranger := uuid.New(), uuid.New()
 
@@ -88,5 +146,88 @@ func TestPlaylistFlow(t *testing.T) {
 	}
 	if _, _, err := svc.Get(ctx, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatal(err)
+	}
+
+	if !slices.Equal(pub.events, []string{"created", "track_added", "track_removed"}) {
+		t.Fatalf("events: only real changes publish, got %v", pub.events)
+	}
+}
+
+func TestRenameReorderDelete(t *testing.T) {
+	a, b, c := uuid.New(), uuid.New(), uuid.New()
+	repo := &memRepo{lists: map[uuid.UUID]domain.Playlist{}, tracks: map[uuid.UUID][]domain.Track{}}
+	pub := &recorder{}
+	svc := New(repo, catalog{a: true, b: true, c: true}, pub, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ctx := context.Background()
+	owner, stranger := uuid.New(), uuid.New()
+	p, _ := svc.Create(ctx, owner, "Mix")
+	for _, id := range []uuid.UUID{a, b, c} {
+		_ = svc.AddTrack(ctx, owner, p.ID, id)
+	}
+	pub.events = nil
+
+	if got, err := svc.Rename(ctx, owner, p.ID, "  Road   trip "); err != nil || got.Title != "Road trip" {
+		t.Fatal(got, err)
+	}
+	if _, err := svc.Rename(ctx, owner, p.ID, "Road trip"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Rename(ctx, owner, p.ID, ""); !errors.Is(err, domain.ErrInvalidTitle) {
+		t.Fatal(err)
+	}
+	if _, err := svc.Rename(ctx, stranger, p.ID, "Mine now"); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatal(err)
+	}
+
+	if err := svc.Reorder(ctx, owner, p.ID, []uuid.UUID{c, a, b}); err != nil {
+		t.Fatal(err)
+	}
+	if _, tracks, _ := svc.Get(ctx, p.ID); tracks[0].TrackID != c || tracks[2].TrackID != b {
+		t.Fatalf("order %+v", tracks)
+	}
+	if err := svc.Reorder(ctx, owner, p.ID, []uuid.UUID{c, a}); !errors.Is(err, domain.ErrOrderMismatch) {
+		t.Fatal(err)
+	}
+	if err := svc.Reorder(ctx, stranger, p.ID, []uuid.UUID{a, b, c}); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatal(err)
+	}
+
+	if err := svc.Delete(ctx, stranger, p.ID); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatal(err)
+	}
+	if err := svc.Delete(ctx, owner, p.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Delete(ctx, owner, p.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatal(err)
+	}
+	if !slices.Equal(pub.events, []string{"updated", "tracks_reordered", "deleted"}) {
+		t.Fatalf("events %v", pub.events)
+	}
+}
+
+// failingPub fails every event write (e.g. the outbox insert).
+type failingPub struct{ recorder }
+
+func (failingPub) Created(context.Context, domain.Playlist) error {
+	return errors.New("outbox insert failed")
+}
+
+type rollbackTx struct{ rolledBack int }
+
+func (r *rollbackTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	err := fn(ctx)
+	if err != nil {
+		r.rolledBack++
+	}
+	return err
+}
+
+func TestEventFailureRollsBackTheChange(t *testing.T) {
+	repo := &memRepo{lists: map[uuid.UUID]domain.Playlist{}, tracks: map[uuid.UUID][]domain.Track{}}
+	tx := &rollbackTx{}
+	svc := New(repo, catalog{}, &failingPub{}, tx, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if _, err := svc.Create(context.Background(), uuid.New(), "Mix"); err == nil || tx.rolledBack != 1 {
+		t.Fatalf("create must fail and roll back: %v, rollbacks %d", err, tx.rolledBack)
 	}
 }

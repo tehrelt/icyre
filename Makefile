@@ -52,8 +52,10 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/library && LIBRARY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/history && HISTORY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/playlist && PLAYLIST_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/media-ingest && MEDIA_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
+	cd libs/platform && OUTBOX_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./outbox/...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
 		S3_ENDPOINT=localhost:9000 S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret \
 		go test -tags integration -count=1 ./kafka/... ./redis/... ./objectstore/...
@@ -75,7 +77,9 @@ build: ## Build service binaries into ./bin
 	cd services/playback && go build -o ../../bin/playback ./cmd/playback
 	cd services/history && go build -o ../../bin/history ./cmd/history
 	cd services/playlist && go build -o ../../bin/playlist ./cmd/playlist
+	cd services/media-ingest && go build -o ../../bin/media-ingest ./cmd/media-ingest
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
+	cd workers/transcoder && go build -o ../../bin/transcoder ./cmd/transcoder
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -85,6 +89,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/library migrate
 	cd services/history && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/history migrate
 	cd services/playlist && DATABASE_URL="$(PG_TEST_DSN)" go run ./cmd/playlist migrate
+	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/media-ingest migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -118,6 +123,14 @@ run-stream-auth: ## Run Stream Authorization locally on :8085 (Catalog :8081, Au
 run-library: ## Run Library locally on :8088 (Catalog :8081, Auth :8083)
 	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8088 LOG_FORMAT=text go run ./cmd/library
 
+.PHONY: run-media-ingest
+run-media-ingest: ## Run Media Ingest locally on :8092 (Catalog :8081, Auth :8083, MinIO :9000)
+	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8092 LOG_FORMAT=text go run ./cmd/media-ingest
+
+.PHONY: run-transcoder
+run-transcoder: ## Run the Transcoder locally (consumes media.events; needs ffmpeg, MinIO :9000)
+	cd workers/transcoder && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8093 LOG_FORMAT=text go run ./cmd/transcoder
+
 .PHONY: run-search-indexer reindex run-search
 run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)
 	cd workers/search-indexer && HTTP_ADDR=:8087 LOG_FORMAT=text go run ./cmd/search-indexer
@@ -144,9 +157,11 @@ scripts-typecheck: ## Typecheck scripts/*.ts
 
 # --- Docker -----------------------------------------------------------------
 
-.PHONY: up up-core down logs
-up: ## docker compose up -d (everything)
-	docker compose up -d --build
+.PHONY: up up-core down logs images
+images: ## Build the compose images 4 at a time (COMPOSE_BUILD_BATCH=n to change)
+	bun scripts/compose-build.ts
+up: images ## docker compose up -d (everything), images built in batches
+	docker compose up -d
 up-core: ## Infrastructure only: PostgreSQL, Redis, Kafka, MinIO, OpenSearch (for go run / integration tests)
 	docker compose up -d postgres redis kafka kafka-init minio minio-init opensearch
 down: ## Stop the stand

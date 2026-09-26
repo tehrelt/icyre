@@ -13,7 +13,7 @@ import (
 // ServiceName identifies the worker.
 const ServiceName = "search-indexer"
 
-// ConsumerGroup consumes catalog.events.
+// ConsumerGroup consumes catalog.events and playlist.events.
 const ConsumerGroup = "search-indexer"
 
 // Config is the complete worker configuration.
@@ -32,6 +32,8 @@ type Config struct {
 	RetryBackoff    time.Duration
 	CatalogURL      string
 	CatalogTimeout  time.Duration
+	PlaylistURL     string
+	UserProfileURL  string
 	Tracing         telemetry.TracingConfig
 }
 
@@ -58,6 +60,8 @@ func Load() (Config, error) {
 		RetryBackoff:   env.Duration("CONSUMER_RETRY_BACKOFF", time.Second),
 		CatalogURL:     env.String("CATALOG_URL", "http://localhost:8081"),
 		CatalogTimeout: env.Duration("CATALOG_TIMEOUT", 3*time.Second),
+		PlaylistURL:    env.String("PLAYLIST_URL", "http://localhost:8091"),
+		UserProfileURL: env.String("USER_PROFILE_URL", "http://localhost:8084"),
 		Tracing: telemetry.TracingConfig{
 			ServiceName:  ServiceName,
 			Enabled:      env.Bool("OTEL_ENABLED", false),
