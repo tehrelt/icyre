@@ -79,6 +79,16 @@ func (r *Repository) ByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.P
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Playlist, error) { return scan(row) })
 }
 
+// Page lists playlists by ID after the given one (uuid.Nil = from the
+// start) — keyset pagination for index rebuilds.
+func (r *Repository) Page(ctx context.Context, after uuid.UUID, limit int) ([]domain.Playlist, error) {
+	rows, err := r.pool.Query(ctx, selectPlaylist+` WHERE p.id > $1 ORDER BY p.id LIMIT $2`, after, limit)
+	if err != nil {
+		return nil, fmt.Errorf("page playlists: %w", err)
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Playlist, error) { return scan(row) })
+}
+
 // Tracks returns a playlist's tracks by position.
 func (r *Repository) Tracks(ctx context.Context, id uuid.UUID) ([]domain.Track, error) {
 	rows, err := r.pool.Query(ctx, `SELECT track_id, position, added_by, added_at FROM playlist.playlist_tracks WHERE playlist_id = $1 ORDER BY position`, id)

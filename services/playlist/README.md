@@ -14,6 +14,7 @@ EPIC-013 (`specs/services/playlist.md`). Схема `playlist`: `playlists`, `pl
 | DELETE | `/api/v1/playlists/{id}/tracks/{trackId}` | 204, идемпотентно |
 | PATCH | `/api/v1/playlists/{id}` | `{title}` → 200 и плейлист; тот же title — no-op без события |
 | DELETE | `/api/v1/playlists/{id}` | 204 вместе с треками; повтор — 404 |
+| GET | `/internal/v1/playlists?after={id}&limit=` | все плейлисты по ID (keyset, до 500) → `{data, nextAfter}` — для `reindex` Search Indexer; gateway не проксирует |
 | PATCH | `/api/v1/playlists/{id}/tracks/order` | `{trackIds}` — полный новый порядок → 204; список не совпал с треками плейлиста — 409 `PLAYLIST_ORDER_MISMATCH` |
 
 Менять плейлист может только владелец (403 `FORBIDDEN`). Позиции: добавление под блокировкой строки плейлиста
@@ -27,7 +28,7 @@ Reorder под той же блокировкой сверяет список с
 `playlist.deleted`, `playlist.track_added` (с позицией), `playlist.track_removed`, `playlist.tracks_reordered`
 (полный порядок). Публикуются только реальные изменения, после commit; сбой публикации логируется (outbox — позже).
 
-Дальше: индексация плейлистов в Search Indexer, плейлисты в «Recently played», UI редактирования.
+Search Indexer индексирует плейлисты по этим событиям. Дальше: плейлисты в «Recently played», UI редактирования.
 
 Конфигурация: `DATABASE_URL`, `REDIS_ADDR`, `CATALOG_URL`, `AUTH_JWKS_URL`, `KAFKA_BROKERS` (`KAFKA_ENABLED=false` —
 без событий); локально порт 8091.

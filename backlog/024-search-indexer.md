@@ -32,7 +32,10 @@
 - `reindex`: из Catalog (альбомы → треки → артисты) в новые индексы, refresh, атомарная смена алиасов.
 - Проверено e2e: артист/альбом/трек через Catalog → поиск; DRAFT не виден, READY виден, BLOCKED — `available=false`,
   переименование подхватывается, DELETED удаляется; lag consumer 0.
-- Spec перечисляет также `track.deleted`, `album.updated`, `artist.updated`, `playlist.updated` — Catalog их пока не
+- Плейлисты: consumer читает и `playlist.events` (EPIC-013). Любое `playlist.*`, кроме `deleted`, перечитывает
+  плейлист из Playlist Service (название, число треков) и имя владельца из User Profile; `playlist.deleted` или
+  404 — удаление. `reindex` берёт плейлисты из внутреннего листинга `GET /internal/v1/playlists` (keyset по ID).
+- Spec перечисляет также `track.deleted`, `album.updated`, `artist.updated` — Catalog их пока не
   публикует (удаление — через статус DELETED); подписка появится вместе с событиями.
 
 ---

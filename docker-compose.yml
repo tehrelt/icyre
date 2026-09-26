@@ -390,18 +390,22 @@ services:
     build: { context: ., dockerfile: workers/search-indexer/Dockerfile }
     image: icyre/search-indexer:local
     pull_policy: build
-    # Rebuild the indices from Catalog: docker compose run --rm search-indexer reindex
+    # Rebuild the indices from Catalog and Playlist: docker compose run --rm search-indexer reindex
     environment:
       APP_ENV: local
       OPENSEARCH_URL: http://opensearch:9200
       KAFKA_BROKERS: kafka:9092
       CATALOG_URL: http://catalog:8080
+      PLAYLIST_URL: http://playlist:8080
+      USER_PROFILE_URL: http://user-profile:8080
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     depends_on:
       opensearch: { condition: service_healthy }
       kafka-init: { condition: service_completed_successfully }
       catalog: { condition: service_started }
+      playlist: { condition: service_started }
+      user-profile: { condition: service_started }
     restart: unless-stopped
 
   search:

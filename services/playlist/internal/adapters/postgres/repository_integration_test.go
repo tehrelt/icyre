@@ -96,6 +96,12 @@ func TestRepository(t *testing.T) {
 		t.Fatalf("append after a gap: %+v %v %v", last, added, err)
 	}
 
+	if page, err := repo.Page(ctx, uuid.Nil, 10); err != nil || len(page) != 1 || page[0].TrackCount != 8 {
+		t.Fatalf("page %+v %v", page, err)
+	}
+	if page, _ := repo.Page(ctx, p.ID, 10); len(page) != 0 {
+		t.Fatalf("page after last: %+v", page)
+	}
 	mine, err := repo.ByOwner(ctx, owner)
 	if err != nil || len(mine) != 1 || mine[0].TrackCount != 8 {
 		t.Fatalf("mine %+v %v", mine, err)

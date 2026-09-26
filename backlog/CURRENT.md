@@ -73,7 +73,7 @@ Home и Album работают на реальных данных: Postgres → 
 (EPIC-051 BLOCKED) — войти можно через API (`POST /api/v1/auth/register|login`).
 Недостающие источники данных, по порядку ценности для экранов canvas:
 
-1. `playlist.events` → Search Indexer (плейлисты в поиске); плейлисты в «Recently played»; UI редактирования плейлиста.
+1. Плейлисты в «Recently played»; UI редактирования плейлиста (плейлисты уже в поиске через `playlist.events`).
 2. Transactional outbox для catalog events (at-least-once end to end).
 3. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
 4. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.

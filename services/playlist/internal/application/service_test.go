@@ -29,6 +29,9 @@ func (m *memRepo) Get(_ context.Context, id uuid.UUID) (domain.Playlist, error) 
 	return p, nil
 }
 func (m *memRepo) ByOwner(context.Context, uuid.UUID) ([]domain.Playlist, error) { return nil, nil }
+func (m *memRepo) Page(context.Context, uuid.UUID, int) ([]domain.Playlist, error) {
+	return nil, nil
+}
 func (m *memRepo) Tracks(_ context.Context, id uuid.UUID) ([]domain.Track, error) {
 	return m.tracks[id], nil
 }

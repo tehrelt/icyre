@@ -69,12 +69,70 @@ var (
 			{ID: "t3", Title: "Draft", AlbumID: "al1", ArtistIDs: []string{"ar1"}, Status: "DRAFT", UpdatedAt: t0},
 		}},
 	}
-	quiet = slog.New(slog.NewTextHandler(io.Discard, nil))
+	playlists = fakePlaylists{"p1": {ID: "p1", OwnerID: "u1", Title: "Late night", TrackCount: 4, UpdatedAt: t0}, "p2": {ID: "p2", OwnerID: "ghost", Title: "Orphan", UpdatedAt: t0}}
+	profiles  = fakeProfiles{"u1": "Nova"}
+	quiet     = slog.New(slog.NewTextHandler(io.Discard, nil))
 )
+
+type fakePlaylists map[string]Playlist
+
+func (f fakePlaylists) Playlist(_ context.Context, id string) (Playlist, error) {
+	p, ok := f[id]
+	if !ok {
+		return Playlist{}, ErrNotFound
+	}
+	return p, nil
+}
+func (f fakePlaylists) EachPlaylist(_ context.Context, fn func(Playlist) error) error {
+	for _, id := range []string{"p1", "p2"} {
+		if err := fn(f[id]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type fakeProfiles map[string]string
+
+func (f fakeProfiles) DisplayNames(_ context.Context, ids []string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, id := range ids {
+		if n, ok := f[id]; ok {
+			out[id] = n
+		}
+	}
+	return out, nil
+}
+
+func TestPlaylistEvents(t *testing.T) {
+	rec := &recorder{}
+	x := New(catalog, playlists, profiles, rec, quiet)
+	ctx := context.Background()
+	at := t0.Add(time.Hour)
+	if err := x.PlaylistChanged(ctx, "p1", at); err != nil {
+		t.Fatal(err)
+	}
+	w := rec.writes[0]
+	if doc := w.Doc.(search.Playlist); w.Index != search.AliasPlaylists || w.Version != at.UnixMilli() || doc.OwnerName != "Nova" || doc.TrackCount != 4 {
+		t.Fatalf("write %+v", w)
+	}
+	// Gone from the Playlist Service by the time the event is handled: removed.
+	if err := x.PlaylistChanged(ctx, "gone", at); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.PlaylistDeleted(ctx, "p1", at); err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range rec.writes[1:] {
+		if !w.Delete || w.Version != at.UnixMilli() {
+			t.Fatalf("delete %+v", w)
+		}
+	}
+}
 
 func TestTrackChanged(t *testing.T) {
 	rec := &recorder{}
-	x := New(catalog, rec, quiet)
+	x := New(catalog, playlists, profiles, rec, quiet)
 	ctx := context.Background()
 	at := t0.Add(time.Minute)
 
@@ -103,7 +161,7 @@ func TestTrackChanged(t *testing.T) {
 
 func TestCreatedEvents(t *testing.T) {
 	rec := &recorder{}
-	x := New(catalog, rec, quiet)
+	x := New(catalog, playlists, profiles, rec, quiet)
 	ctx := context.Background()
 	_ = x.AlbumCreated(ctx, catalogv1.Album{AlbumID: "al2", Title: "Hollow Signal", AlbumType: "ALBUM", ArtistIDs: []string{"ar2"}}, t0)
 	_ = x.ArtistCreated(ctx, catalogv1.Artist{ArtistID: "ar3", Name: "Mira Solen"}, t0)
@@ -117,20 +175,20 @@ func TestCreatedEvents(t *testing.T) {
 
 func TestRebuild(t *testing.T) {
 	rec := &recorder{}
-	x := New(catalog, rec, quiet)
-	target := map[string]string{search.AliasTracks: "tracks-v2", search.AliasAlbums: "albums-v2", search.AliasArtists: "artists-v2"}
+	x := New(catalog, playlists, profiles, rec, quiet)
+	target := map[string]string{search.AliasTracks: "tracks-v2", search.AliasAlbums: "albums-v2", search.AliasArtists: "artists-v2", search.AliasPlaylists: "playlists-v2"}
 	st, err := x.Rebuild(context.Background(), target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st != (Stats{Albums: 1, Tracks: 2, Artists: 2}) {
+	if st != (Stats{Albums: 1, Tracks: 2, Artists: 2, Playlists: 2}) {
 		t.Fatalf("stats %+v", st)
 	}
 	byIndex := map[string]int{}
 	for _, w := range rec.writes {
 		byIndex[w.Index]++
 	}
-	if byIndex["tracks-v2"] != 2 || byIndex["albums-v2"] != 1 || byIndex["artists-v2"] != 2 || byIndex[search.AliasTracks] != 0 {
+	if byIndex["tracks-v2"] != 2 || byIndex["albums-v2"] != 1 || byIndex["artists-v2"] != 2 || byIndex["playlists-v2"] != 2 || byIndex[search.AliasTracks] != 0 {
 		t.Fatalf("writes %v", byIndex)
 	}
 }

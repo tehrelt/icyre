@@ -1,8 +1,8 @@
-// Command search-indexer keeps OpenSearch in step with Catalog.
+// Command search-indexer keeps OpenSearch in step with Catalog and Playlist.
 //
-//	search-indexer          consume catalog.events and update the indices
+//	search-indexer          consume catalog.events and playlist.events, update the indices
 //	search-indexer migrate  install index templates, create missing indices
-//	search-indexer reindex  rebuild every index from Catalog into new
+//	search-indexer reindex  rebuild every index from Catalog and Playlist into new
 //	                        versioned indices and switch the aliases
 package main
 
@@ -27,6 +27,7 @@ import (
 	"github.com/tehrelt/icyre/workers/search-indexer/internal/adapters/catalog"
 	kafkaadapter "github.com/tehrelt/icyre/workers/search-indexer/internal/adapters/kafka"
 	osadapter "github.com/tehrelt/icyre/workers/search-indexer/internal/adapters/opensearch"
+	"github.com/tehrelt/icyre/workers/search-indexer/internal/adapters/playlist"
 	"github.com/tehrelt/icyre/workers/search-indexer/internal/application"
 	"github.com/tehrelt/icyre/workers/search-indexer/internal/config"
 	"github.com/tehrelt/icyre/workers/search-indexer/internal/indices"
@@ -73,7 +74,8 @@ func run(args []string) error {
 	osc := opensearch.New(cfg.OpenSearch, httpclient.New(httpclient.Config{Timeout: cfg.OpenSearch.Timeout}))
 	idxOpts := indices.Options{Shards: cfg.Shards, Replicas: cfg.Replicas}
 	cat := catalog.New(cfg.CatalogURL, httpclient.New(httpclient.Config{Timeout: cfg.CatalogTimeout}))
-	app := application.New(cat, osadapter.New(osc, false), log)
+	sources := httpclient.New(httpclient.Config{Timeout: cfg.CatalogTimeout})
+	app := application.New(cat, playlist.New(cfg.PlaylistURL, sources), playlist.NewProfiles(cfg.UserProfileURL, sources), osadapter.New(osc, false), log)
 
 	switch {
 	case len(args) > 0 && args[0] == "migrate":
@@ -95,7 +97,7 @@ func run(args []string) error {
 	// 5. Consumer: at-least-once; offsets are committed after the bulk write.
 	consumer, err := platformkafka.NewConsumer(platformkafka.ConsumerConfig{
 		Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName, Group: config.ConsumerGroup,
-		Topics: []string{events.TopicCatalogEvents}, MaxRetries: cfg.MaxRetries, RetryBackoff: cfg.RetryBackoff, DLQ: true,
+		Topics: []string{events.TopicCatalogEvents, events.TopicPlaylistEvents}, MaxRetries: cfg.MaxRetries, RetryBackoff: cfg.RetryBackoff, DLQ: true,
 	}, kafkaadapter.Handler(app), log, platformkafka.NewConsumerMetrics(reg))
 	if err != nil {
 		return err
@@ -126,7 +128,8 @@ func run(args []string) error {
 	return nil
 }
 
-// reindex fills new versioned indices from Catalog and swaps the aliases.
+// reindex fills new versioned indices from Catalog and the Playlist Service
+// and swaps the aliases.
 // Readers keep the old indices until the swap; on failure nothing changes.
 // Events consumed during the rebuild land in the old indices — run it with
 // the consumer stopped, or run it again, for an exact result.
@@ -153,7 +156,7 @@ func reindex(ctx context.Context, osc *opensearch.Client, o indices.Options, app
 	if err := gen.Promote(ctx, osc); err != nil {
 		return err
 	}
-	log.Info("reindex complete", "albums", stats.Albums, "tracks", stats.Tracks, "artists", stats.Artists,
+	log.Info("reindex complete", "albums", stats.Albums, "tracks", stats.Tracks, "artists", stats.Artists, "playlists", stats.Playlists,
 		"indices", fmt.Sprint(gen.Index), "duration", time.Since(start).Round(time.Millisecond).String())
 	return nil
 }

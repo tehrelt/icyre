@@ -16,6 +16,8 @@ type Repository interface {
 	Create(ctx context.Context, p domain.Playlist) error
 	Get(ctx context.Context, id uuid.UUID) (domain.Playlist, error)
 	ByOwner(ctx context.Context, ownerID uuid.UUID) ([]domain.Playlist, error)
+	// Page lists playlists by ID, after the given one.
+	Page(ctx context.Context, after uuid.UUID, limit int) ([]domain.Playlist, error)
 	Tracks(ctx context.Context, id uuid.UUID) ([]domain.Track, error)
 	UpdateTitle(ctx context.Context, id uuid.UUID, title string, at time.Time) error
 	// Delete removes the playlist with its tracks; false if it was already gone.
@@ -98,6 +100,18 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (domain.Playlist, []dom
 // Mine lists the caller's playlists, recently changed first.
 func (s *Service) Mine(ctx context.Context, owner uuid.UUID) ([]domain.Playlist, error) {
 	return s.repo.ByOwner(ctx, owner)
+}
+
+// MaxPage bounds All.
+const MaxPage = 500
+
+// All pages through every playlist by ID (index rebuilds); after = uuid.Nil
+// starts from the beginning.
+func (s *Service) All(ctx context.Context, after uuid.UUID, limit int) ([]domain.Playlist, error) {
+	if limit <= 0 || limit > MaxPage {
+		limit = MaxPage
+	}
+	return s.repo.Page(ctx, after, limit)
 }
 
 func (s *Service) owned(ctx context.Context, caller, id uuid.UUID) (domain.Playlist, error) {

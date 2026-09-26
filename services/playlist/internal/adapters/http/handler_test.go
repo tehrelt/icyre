@@ -42,6 +42,12 @@ func (f *fakeApp) Create(context.Context, uuid.UUID, string) (domain.Playlist, e
 func (f *fakeApp) Get(context.Context, uuid.UUID) (domain.Playlist, []domain.Track, error) {
 	return domain.Playlist{}, nil, nil
 }
+func (f *fakeApp) All(_ context.Context, after uuid.UUID, limit int) ([]domain.Playlist, error) {
+	if after != uuid.Nil {
+		return nil, nil
+	}
+	return []domain.Playlist{{ID: f.id, OwnerID: f.owner, Title: f.title}}, nil
+}
 func (f *fakeApp) Mine(context.Context, uuid.UUID) ([]domain.Playlist, error) { return nil, nil }
 func (f *fakeApp) AddTrack(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error {
 	return nil
@@ -131,6 +137,18 @@ func TestEditRoutes(t *testing.T) {
 		mux.ServeHTTP(rec, req)
 		if rec.Code != tc.want {
 			t.Errorf("%s: %d %s", tc.name, rec.Code, rec.Body)
+		}
+	}
+	for path, want := range map[string]int{
+		"/internal/v1/playlists":                          200,
+		"/internal/v1/playlists?after=" + app.id.String(): 200,
+		"/internal/v1/playlists?after=nope":               400,
+		"/internal/v1/playlists?limit=0":                  400,
+	} {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		if rec.Code != want {
+			t.Errorf("GET %s: %d %s", path, rec.Code, rec.Body)
 		}
 	}
 	if app.title != "Road trip" || app.order[0] != b {
