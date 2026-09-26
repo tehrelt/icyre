@@ -50,6 +50,8 @@ type TrackRepository interface {
 	Update(ctx context.Context, t domain.Track) error
 	// ListByAlbum returns non-deleted tracks ordered by disc and track number.
 	ListByAlbum(ctx context.Context, albumID uuid.UUID) ([]domain.Track, error)
+	// ListByIDs returns the non-deleted tracks among ids, in no particular order.
+	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error)
 }
 
 // GenreRepository reads the curated genre list.

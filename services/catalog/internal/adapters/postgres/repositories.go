@@ -271,6 +271,18 @@ func (r *TrackRepository) ListByAlbum(ctx context.Context, albumID uuid.UUID) ([
 	return collectTracks(rows)
 }
 
+// ListByIDs loads the live tracks among ids.
+func (r *TrackRepository) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+trackColumns+`
+		FROM catalog.tracks t
+		WHERE t.id = ANY($1::uuid[]) AND t.status <> 'DELETED'`, uuidStrings(ids))
+	if err != nil {
+		return nil, fmt.Errorf("select tracks: %w", err)
+	}
+	return collectTracks(rows)
+}
+
 func collectTracks(rows pgx.Rows) ([]domain.Track, error) {
 	tracks, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Track, error) {
 		var (

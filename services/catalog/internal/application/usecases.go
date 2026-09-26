@@ -57,6 +57,22 @@ func (s *Service) ListArtists(ctx context.Context, ids []uuid.UUID) ([]domain.Ar
 	return artists, nil
 }
 
+// ListTracks returns the live tracks among ids (batch lookup for aggregators,
+// e.g. a playlist page). Unknown and deleted IDs are skipped.
+func (s *Service) ListTracks(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	if len(ids) > MaxBatchIDs {
+		return nil, &domain.ValidationError{Fields: map[string]string{"ids": "at most 100 IDs per request"}}
+	}
+	if len(ids) == 0 {
+		return []domain.Track{}, nil
+	}
+	tracks, err := s.d.Tracks.ListByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("list tracks: %w", err)
+	}
+	return tracks, nil
+}
+
 // ListArtistAlbums is the input of Service.ListArtistAlbums.
 type ListArtistAlbums struct {
 	ArtistID uuid.UUID

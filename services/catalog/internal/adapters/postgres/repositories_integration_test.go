@@ -164,6 +164,9 @@ func TestCatalogRepositories(t *testing.T) {
 	if got, _ := tracks.Get(ctx, first.ID); got.Status != domain.TrackStatusDeleted {
 		t.Fatalf("status = %s", got.Status)
 	}
+	if byIDs, err := tracks.ListByIDs(ctx, []uuid.UUID{first.ID, second.ID, newID()}); err != nil || len(byIDs) != 1 || byIDs[0].ID != second.ID {
+		t.Fatalf("ListByIDs must skip deleted and unknown: %+v, %v", byIDs, err)
+	}
 	if err := tracks.Create(ctx, mk(1, "Frozen Choir (new master)")); err != nil {
 		t.Fatalf("deleted track must free its position: %v", err)
 	}

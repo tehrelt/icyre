@@ -33,6 +33,7 @@ type Catalog interface {
 	ListAlbumTracks(ctx context.Context, albumID uuid.UUID) ([]domain.Track, error)
 	CreateTrack(ctx context.Context, cmd application.CreateTrack) (domain.Track, error)
 	GetTrack(ctx context.Context, id uuid.UUID) (domain.Track, error)
+	ListTracks(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error)
 	UpdateTrack(ctx context.Context, cmd application.UpdateTrack) (domain.Track, error)
 	ListGenres(ctx context.Context) ([]domain.Genre, error)
 }
@@ -59,6 +60,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/albums/{id}", h.getAlbum)
 	mux.HandleFunc("GET /api/v1/albums/{id}/tracks", h.listAlbumTracks)
 	mux.HandleFunc("POST /api/v1/tracks", h.createTrack)
+	mux.HandleFunc("GET /api/v1/tracks", h.listTracks)
 	mux.HandleFunc("GET /api/v1/tracks/{id}", h.getTrack)
 	mux.HandleFunc("PATCH /api/v1/tracks/{id}", h.updateTrack)
 	mux.HandleFunc("GET /api/v1/genres", h.listGenres)
@@ -248,6 +250,27 @@ func (h *Handler) createTrack(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Location", "/api/v1/tracks/"+t.ID.String())
 	httpserver.WriteJSON(w, http.StatusCreated, toTrack(t))
+}
+
+// listTracks: GET /api/v1/tracks?ids= — batch lookup, unknown/deleted skipped.
+func (h *Handler) listTracks(w http.ResponseWriter, r *http.Request) {
+	raw := r.URL.Query().Get("ids")
+	if raw == "" {
+		h.fail(w, r, invalidFields(map[string]string{"ids": "comma-separated track IDs are required"}))
+		return
+	}
+	fields := map[string]string{}
+	ids := parseIDs(strings.Split(raw, ","), "ids", fields)
+	if len(fields) > 0 {
+		h.fail(w, r, invalidFields(fields))
+		return
+	}
+	tracks, err := h.app.ListTracks(r.Context(), ids)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, listResponse[trackResponse]{Data: mapSlice(tracks, toTrack)})
 }
 
 func (h *Handler) getTrack(w http.ResponseWriter, r *http.Request) {

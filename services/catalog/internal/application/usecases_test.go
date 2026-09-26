@@ -116,6 +116,15 @@ func (m memTracks) Get(_ context.Context, id uuid.UUID) (domain.Track, error) {
 	}
 	return t, nil
 }
+func (m memTracks) ListByIDs(_ context.Context, ids []uuid.UUID) ([]domain.Track, error) {
+	var out []domain.Track
+	for _, id := range ids {
+		if t, ok := m[id]; ok && t.Status != domain.TrackStatusDeleted {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
 func (m memTracks) Update(_ context.Context, t domain.Track) error { m[t.ID] = t; return nil }
 func (m memTracks) ListByAlbum(_ context.Context, albumID uuid.UUID) ([]domain.Track, error) {
 	var out []domain.Track
@@ -334,5 +343,11 @@ func TestListAlbumsAndArtists(t *testing.T) {
 	}
 	if _, err := f.svc.ListArtists(ctx, make([]uuid.UUID, MaxBatchIDs+1)); err == nil {
 		t.Fatal("expected validation error for oversized batch")
+	}
+	if _, err := f.svc.ListTracks(ctx, make([]uuid.UUID, MaxBatchIDs+1)); err == nil {
+		t.Fatal("expected validation error for oversized track batch")
+	}
+	if tracks, err := f.svc.ListTracks(ctx, nil); err != nil || len(tracks) != 0 {
+		t.Fatalf("empty batch = %v, %v", tracks, err)
 	}
 }
