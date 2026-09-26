@@ -8,12 +8,15 @@ WORKDIR /src
 COPY libs/platform/go.mod libs/platform/go.sum libs/platform/
 COPY libs/contracts/go.mod libs/contracts/go.sum libs/contracts/
 COPY services/user-profile/go.mod services/user-profile/go.sum services/user-profile/
-RUN cd services/user-profile && go mod download
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    cd services/user-profile && go mod download
 
 COPY libs/ libs/
 COPY services/user-profile/ services/user-profile/
 ARG VERSION=dev
-RUN cd services/user-profile && go build -trimpath -ldflags="-s -w" -o /out/user-profile ./cmd/user-profile
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    --mount=type=cache,id=icyre-gobuild,target=/root/.cache/go-build \
+    cd services/user-profile && go build -trimpath -ldflags="-s -w" -o /out/user-profile ./cmd/user-profile
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/user-profile /usr/local/bin/user-profile

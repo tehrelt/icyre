@@ -144,9 +144,11 @@ scripts-typecheck: ## Typecheck scripts/*.ts
 
 # --- Docker -----------------------------------------------------------------
 
-.PHONY: up up-core down logs
-up: ## docker compose up -d (everything)
-	docker compose up -d --build
+.PHONY: up up-core down logs images
+images: ## Build the compose images 4 at a time (COMPOSE_BUILD_BATCH=n to change)
+	bun scripts/compose-build.ts
+up: images ## docker compose up -d (everything), images built in batches
+	docker compose up -d
 up-core: ## Infrastructure only: PostgreSQL, Redis, Kafka, MinIO, OpenSearch (for go run / integration tests)
 	docker compose up -d postgres redis kafka kafka-init minio minio-init opensearch
 down: ## Stop the stand

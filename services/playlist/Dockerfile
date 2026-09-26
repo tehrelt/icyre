@@ -8,12 +8,15 @@ WORKDIR /src
 COPY libs/platform/go.mod libs/platform/go.sum libs/platform/
 COPY libs/contracts/go.mod libs/contracts/go.sum libs/contracts/
 COPY services/playlist/go.mod services/playlist/go.sum services/playlist/
-RUN cd services/playlist && go mod download
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    cd services/playlist && go mod download
 
 COPY libs/ libs/
 COPY services/playlist/ services/playlist/
 ARG VERSION=dev
-RUN cd services/playlist && go build -trimpath -ldflags="-s -w" -o /out/playlist ./cmd/playlist
+RUN --mount=type=cache,id=icyre-gomod,target=/go/pkg/mod \
+    --mount=type=cache,id=icyre-gobuild,target=/root/.cache/go-build \
+    cd services/playlist && go build -trimpath -ldflags="-s -w" -o /out/playlist ./cmd/playlist
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/playlist /usr/local/bin/playlist

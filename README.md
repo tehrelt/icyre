@@ -50,13 +50,18 @@ Chromium (в том числе из Playwright) — нет, там плеер п
 ## Быстрый старт
 
 ```bash
-docker compose up -d --build      # Postgres, Redis, Kafka, MinIO, сервисы, Gateway, Jaeger, Prometheus, Grafana
+bun run stack:up                  # образы батчами по 4 (make up), затем compose up: Postgres, Redis, Kafka, MinIO, сервисы, Gateway…
 make seed                         # контент из product canvas → Catalog
 make seed-media                   # аудио-варианты 64/128/256 kbps → MinIO (нужен ffmpeg, ~3 мин)
 docker compose run --rm search-indexer reindex   # поисковый индекс из каталога (дальше — по событиям)
 bun install && bun run dev        # http://localhost:5173 (mock API по умолчанию)
 bun run dev:real                  # тот же UI на реальных данных через gateway (любая ОС)
 ```
+
+`docker compose up -d --build` собирает все Go-образы одновременно (~20 мин); `bun run stack:build` собирает их
+по 4 за раз (`COMPOSE_BUILD_BATCH=n` или `--batch n`, можно назвать сервисы: `bun run stack:build playlist bff`).
+Go-модули и build cache лежат в общих BuildKit cache mounts (`icyre-gomod`, `icyre-gobuild`): зависимости компилируются
+один раз на весь стенд, пересборка после правки сервиса — секунды. Сбросить: `docker builder prune --filter type=exec.cachemount`.
 
 | Что | URL |
 |---|---|
