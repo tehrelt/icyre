@@ -56,7 +56,7 @@ func TestPublishConsumeAndShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer p.Close(ctx)
+	defer func() { _ = p.Close(ctx) }()
 
 	if err := p.Publish(ctx, Message{Topic: topic, Key: []byte("k"), Value: []byte("hello")}); err != nil {
 		t.Fatal(err)
@@ -105,7 +105,7 @@ func TestFailedMessageGoesToDLQ(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer p.Close(ctx)
+	defer func() { _ = p.Close(ctx) }()
 	if err := p.Publish(ctx, Message{Topic: topic, Value: []byte("poison")}); err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestFailedMessageGoesToDLQ(t *testing.T) {
 		t.Fatal(err)
 	}
 	fctx, fstop := context.WithCancel(ctx)
-	go failing.Run(fctx)
+	go func() { _ = failing.Run(fctx) }()
 	defer fstop()
 
 	got := make(chan Record, 1)
@@ -126,7 +126,7 @@ func TestFailedMessageGoesToDLQ(t *testing.T) {
 		t.Fatal(err)
 	}
 	dctx, dstop := context.WithCancel(ctx)
-	go dlq.Run(dctx)
+	go func() { _ = dlq.Run(dctx) }()
 	defer dstop()
 
 	select {
@@ -151,7 +151,7 @@ func TestBatchConsumerRetriesFlushAndDeadLettersUndecodable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer p.Close(ctx)
+	defer func() { _ = p.Close(ctx) }()
 	for _, v := range []string{"a", "b", "poison", "c", "d"} {
 		if err := p.Publish(ctx, Message{Topic: topic, Key: []byte("k"), Value: []byte(v)}); err != nil {
 			t.Fatal(err)

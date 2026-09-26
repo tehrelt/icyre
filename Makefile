@@ -17,6 +17,12 @@ help: ## Show available targets
 sync: ## go work sync
 	go work sync
 
+.PHONY: work-check
+work-check: ## Fail if a Go module is missing from go.work
+	@for d in $$(find . -name go.mod -not -path './node_modules/*' | xargs -n1 dirname); do \
+		echo "$(GO_MODULES)" | tr ' ' '\n' | grep -qx "$$d" || { echo "$$d is not in go.work: go work use $$d"; exit 1; }; \
+	done
+
 .PHONY: tidy
 tidy: ## go mod tidy in every module (standalone, as Docker builds them)
 	@for m in $(GO_MODULES); do echo "==> tidy $$m"; (cd $$m && GOWORK=off go mod tidy) || exit 1; done

@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -106,7 +107,7 @@ func TestRepository(t *testing.T) {
 	if err != nil || len(mine) != 1 || mine[0].TrackCount != 8 {
 		t.Fatalf("mine %+v %v", mine, err)
 	}
-	if _, err := repo.Get(ctx, uuid.New()); err != domain.ErrNotFound {
+	if _, err := repo.Get(ctx, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatal(err)
 	}
 
@@ -125,10 +126,10 @@ func TestRepository(t *testing.T) {
 			t.Fatalf("reordered %d: %+v", i, tr)
 		}
 	}
-	if err := repo.Reorder(ctx, p.ID, order[1:], now); err != domain.ErrOrderMismatch {
+	if err := repo.Reorder(ctx, p.ID, order[1:], now); !errors.Is(err, domain.ErrOrderMismatch) {
 		t.Fatalf("partial order: %v", err)
 	}
-	if err := repo.Reorder(ctx, uuid.New(), nil, now); err != domain.ErrNotFound {
+	if err := repo.Reorder(ctx, uuid.New(), nil, now); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("missing playlist: %v", err)
 	}
 

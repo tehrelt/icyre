@@ -1,0 +1,29 @@
+# golangci-lint v2, shared by every Go module (make lint, CI).
+# Formatting is checked by `make fmt-check` (gofmt), not here.
+version: "2"
+
+run:
+  timeout: 5m
+  # Integration tests are linted too.
+  build-tags: [integration]
+
+linters:
+  # standard: errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - misspell
+    - nilerr
+    - unconvert
+  settings:
+    errorlint:
+      # fmt.Errorf("%w: %v", kafka.ErrPermanent, err) deliberately wraps
+      # only the classification, not the cause.
+      errorf: false
+  exclusions:
+    rules:
+      # Test helpers close response bodies in t.Cleanup.
+      - path: _test\.go
+        linters: [bodyclose]

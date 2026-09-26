@@ -66,6 +66,10 @@ Catalog Service — эталон для остальных сервисов (`se
 - [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)
 - [-] EPIC-033 — Web BFF (home, album и playlist pages, user context → liked и Recently played с альбомами и плейлистами; осталось artist page — нет макета)
 
+## Качество
+
+- [x] EPIC-036 — CI (GitHub Actions: go.work, tidy, gofmt, vet, unit + race, golangci-lint, web, сборка всех образов)
+
 ## Frontend
 
 - [x] EPIC-041 — Frontend Foundation
