@@ -6,10 +6,15 @@ PG_TEST_DSN ?= postgres://icyre:icyre@localhost:5432/icyre?sslmode=disable
 KAFKA_TEST_BROKERS ?= localhost:9094
 OPENSEARCH_TEST_URL ?= http://localhost:9200
 CLICKHOUSE_TEST_ENV ?= CLICKHOUSE_URL=http://localhost:8123 CLICKHOUSE_USERNAME=icyre CLICKHOUSE_PASSWORD=icyre
+E2E_BASE_URL ?= http://localhost:8080
+E2E_CATALOG_URL ?= http://localhost:8081
+# Infrastructure the integration tests need (a subset of `make up-core`:
+# the tests create their own buckets, topics and throwaway schemas).
+TEST_INFRA := postgres redis kafka minio opensearch clickhouse
 
 .PHONY: help
 help: ## Show available targets
-	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # --- Go ---------------------------------------------------------------------
 
@@ -71,6 +76,11 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
 		S3_ENDPOINT=localhost:9000 S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret \
 		go test -tags integration -count=1 ./kafka/... ./redis/... ./objectstore/...
+
+.PHONY: test-e2e
+test-e2e: ## End-to-end flows through the API Gateway (needs the whole stand: `make up`)
+	cd tests/e2e && E2E_BASE_URL="$(E2E_BASE_URL)" E2E_CATALOG_URL="$(E2E_CATALOG_URL)" E2E_DATABASE_DSN="$(PG_TEST_DSN)" \
+		go test -tags e2e -count=1 -v ./...
 
 .PHONY: lint
 lint: ## golangci-lint every module
@@ -200,13 +210,15 @@ scripts-typecheck: ## Typecheck scripts/*.ts
 
 # --- Docker -----------------------------------------------------------------
 
-.PHONY: up up-core down logs images
+.PHONY: up up-core up-test-infra down logs images
 images: ## Build the compose images 4 at a time (COMPOSE_BUILD_BATCH=n to change)
 	bun scripts/compose-build.ts
 up: images ## docker compose up -d (everything), images built in batches
 	docker compose up -d
 up-core: ## Infrastructure only: PostgreSQL, Redis, Kafka, MinIO, OpenSearch, ClickHouse (for go run / integration tests)
 	docker compose up -d postgres redis kafka kafka-init minio minio-init opensearch clickhouse
+up-test-infra: ## Infrastructure for `make test-integration`, waiting for healthchecks (CI)
+	docker compose up -d --wait --wait-timeout 300 $(TEST_INFRA)
 down: ## Stop the stand
 	docker compose down
 logs: ## Follow logs

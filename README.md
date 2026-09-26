@@ -108,6 +108,7 @@ await fetch('/api/v1/auth/register', { method: 'POST', headers: { 'Content-Type'
 make help              # все цели
 make sync fmt vet test # Go
 make test-integration  # нужен `make up-core`
+make test-e2e          # e2e через API Gateway, нужен весь стенд (`make up`)
 make web-build web-test web-lint
 make lint              # golangci-lint (.golangci.yml) во всех модулях
 make check             # всё вместе
@@ -116,3 +117,5 @@ make check             # всё вместе
 CI — `.github/workflows/ci.yml` на push в `main` и на каждый PR: `go.work` и tidy модулей, gofmt, vet,
 unit-тесты и race detector, golangci-lint, web (lint, typecheck, test, build) и сборка каждого Docker-образа
 (buildx, кэш слоёв в GitHub Actions cache). Go-модули кэшируются `setup-go` по всем `go.sum`.
+Job `integration` поднимает инфраструктуру (`make up-test-infra`) и гоняет `make test-integration`;
+e2e на полном стенде — `.github/workflows/e2e.yml` (вручную и ночью).

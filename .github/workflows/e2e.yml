@@ -1,0 +1,68 @@
+# End-to-end flows (EPIC-037): the whole compose stand is built and started,
+# then tests/e2e drives the Catalog, media upload/transcode and playback
+# flows through the API Gateway (`make test-e2e`). Building every image and
+# starting ~30 containers takes a while, so this runs on demand and nightly,
+# not on every PR.
+name: E2E
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: end-to-end flows
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: "**/go.sum"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - name: Build the compose images
+        run: make images
+      - name: Start the stand
+        run: docker compose up -d
+      - name: Wait for the services behind the gateway
+        run: |
+          # Any answer below 500 means the upstream is up (401 = auth enforced).
+          urls="http://localhost:8080/api/v1/genres
+          http://localhost:8080/api/v1/auth/.well-known/jwks.json
+          http://localhost:8080/api/v1/search?q=a
+          http://localhost:8080/api/v1/me/history/tracks
+          http://localhost:8080/api/v1/media/uploads/00000000-0000-0000-0000-000000000000
+          http://localhost:8081/api/v1/genres"
+          for i in $(seq 1 90); do
+            down=0
+            for u in $urls; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$u" || true)
+              if [ "$code" = "000" ] || [ "$code" -ge 500 ]; then down=1; echo "waiting for $u ($code)"; fi
+            done
+            [ "$down" = 0 ] && exit 0
+            sleep 5
+          done
+          echo "::error::the stand did not come up"; exit 1
+      - name: End-to-end tests
+        run: make test-e2e
+        env:
+          E2E_TIMEOUT: 3m
+      - name: Stand state on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --tail 200
+      - name: Stop the stand
+        if: always()
+        run: docker compose down -v
