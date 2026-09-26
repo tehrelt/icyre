@@ -59,6 +59,7 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd workers/analytics && $(CLICKHOUSE_TEST_ENV) go test -tags integration -count=1 ./...
+	cd workers/recommendation && RECOMMENDATION_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd libs/platform && $(CLICKHOUSE_TEST_ENV) go test -tags integration -count=1 ./clickhouse/...
 	cd libs/platform && OUTBOX_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./outbox/...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
@@ -88,6 +89,8 @@ build: ## Build service binaries into ./bin
 	cd workers/metadata && go build -o ../../bin/metadata ./cmd/metadata
 	cd workers/audio-analysis && go build -o ../../bin/audio-analysis ./cmd/audio-analysis
 	cd workers/analytics && go build -o ../../bin/analytics ./cmd/analytics
+	cd workers/recommendation && go build -o ../../bin/recommendation-worker ./cmd/recommendation-worker
+	cd services/recommendation && go build -o ../../bin/recommendation ./cmd/recommendation
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -101,6 +104,7 @@ migrate: ## Apply all service migrations to the local database
 	cd workers/metadata && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/metadata migrate
 	cd workers/audio-analysis && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/audio-analysis migrate
 	cd workers/analytics && $(CLICKHOUSE_TEST_ENV) go run ./cmd/analytics migrate
+	cd workers/recommendation && DATABASE_URL="$(PG_TEST_DSN)" go run ./cmd/recommendation-worker migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -155,6 +159,14 @@ run-analytics: ## Run the Analytics Worker locally (consumes playback.events int
 	cd workers/analytics && HTTP_ADDR=:8096 LOG_FORMAT=text go run ./cmd/analytics
 analytics-report: ## Print today's analytics report (plays, listeners, completion rate, top tracks and artists)
 	cd workers/analytics && LOG_FORMAT=text go run ./cmd/analytics report
+
+.PHONY: run-recommendation-worker recommendations-build run-recommendation
+run-recommendation-worker: ## Run the Recommendation Worker locally (library/media events, ClickHouse, Catalog :8081)
+	cd workers/recommendation && DATABASE_URL="$(PG_TEST_DSN)" $(CLICKHOUSE_TEST_ENV) HTTP_ADDR=:8098 LOG_FORMAT=text go run ./cmd/recommendation-worker
+recommendations-build: ## Build every recommendation set once into Redis
+	cd workers/recommendation && DATABASE_URL="$(PG_TEST_DSN)" $(CLICKHOUSE_TEST_ENV) LOG_FORMAT=text go run ./cmd/recommendation-worker build
+run-recommendation: ## Run the Recommendation Service locally on :8097 (Redis, Auth :8083)
+	cd services/recommendation && HTTP_ADDR=:8097 LOG_FORMAT=text go run ./cmd/recommendation
 
 .PHONY: run-search-indexer reindex run-search
 run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)

@@ -13,12 +13,14 @@ use (
 	./services/media-ingest
 	./services/playback
 	./services/playlist
+	./services/recommendation
 	./services/search
 	./services/stream-auth
 	./services/user-profile
 	./workers/analytics
 	./workers/audio-analysis
 	./workers/metadata
+	./workers/recommendation
 	./workers/search-indexer
 	./workers/transcoder
 )

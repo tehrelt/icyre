@@ -10,6 +10,8 @@
   (анализаторы, `<field>.keyword`, `<field>.autocomplete`, `suggest`) — общий контракт Search Indexer и Search Service;
 - `analytics` — схема ClickHouse (`playback_events`, `daily_track_stats`, `daily_artist_stats`, `daily_totals`),
   версионные миграции и retention — общий контракт Analytics Worker и читателей агрегатов;
+- `recommendation` — ключи Redis (`recommendations:user:{id}`, `recommendations:popular`) и JSON готового набора —
+  общий контракт Recommendation Worker и Recommendation Service;
 - далее здесь появится код, сгенерированный из `api/proto` (gRPC, EPIC-034).
 
 Это **не** склад DTO: сюда попадает только то, что пересекает границу сервиса

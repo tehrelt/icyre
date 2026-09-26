@@ -105,6 +105,20 @@ scrape_configs:
         labels:
           service: analytics
 
+  - job_name: recommendation-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["recommendation-worker:8080"]
+        labels:
+          service: recommendation-worker
+
+  - job_name: recommendation-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["recommendation:8080"]
+        labels:
+          service: recommendation-service
+
   - job_name: playlist-service
     metrics_path: /metrics
     static_configs:
