@@ -55,6 +55,21 @@ x-analytics-env: &analytics-env
   OTEL_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
 
+x-recommendation-env: &recommendation-env
+  APP_ENV: local
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://icyre:icyre@postgres:5432/icyre?sslmode=disable
+  REDIS_ADDR: redis:6379
+  CLICKHOUSE_URL: http://clickhouse:8123
+  CLICKHOUSE_USERNAME: icyre
+  CLICKHOUSE_PASSWORD: icyre
+  CLICKHOUSE_DATABASE: icyre
+  KAFKA_BROKERS: kafka:9092
+  CATALOG_URL: http://catalog:8080
+  AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+  OTEL_ENABLED: "true"
+  OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
+
 x-playlist-env: &playlist-env
   APP_ENV: local
   LOG_LEVEL: info
@@ -550,6 +565,42 @@ services:
       catalog: { condition: service_started }
     restart: unless-stopped
 
+  # Recommendations (EPIC-029): the worker builds sets into Redis, the service serves them.
+  # One-off build: docker compose run --rm recommendation-worker build
+  recommendation-worker-migrate:
+    build: { context: ., dockerfile: workers/recommendation/Dockerfile }
+    image: icyre/recommendation-worker:local
+    pull_policy: build
+    command: ["migrate"]
+    environment: *recommendation-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  recommendation-worker:
+    image: icyre/recommendation-worker:local
+    # Built by the migrate job above; never pulled from a registry.
+    pull_policy: never
+    environment: *recommendation-env
+    depends_on:
+      recommendation-worker-migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      kafka-init: { condition: service_completed_successfully }
+      catalog: { condition: service_started }
+    restart: unless-stopped
+
+  recommendation:
+    build: { context: ., dockerfile: services/recommendation/Dockerfile }
+    image: icyre/recommendation:local
+    pull_policy: build
+    environment: *recommendation-env
+    ports: ["8097:8080"]
+    depends_on:
+      redis: { condition: service_healthy }
+      auth: { condition: service_started }
+    restart: unless-stopped
+
   search-indexer:
     build: { context: ., dockerfile: workers/search-indexer/Dockerfile }
     image: icyre/search-indexer:local
@@ -590,7 +641,7 @@ services:
     image: nginx:1.29-alpine
     volumes: ["./deploy/gateway/nginx.conf:/etc/nginx/nginx.conf:ro"]
     ports: ["8080:8080"]
-    depends_on: [bff, catalog, auth, user-profile, stream-auth, search, library, playback, history, playlist, media-ingest]
+    depends_on: [bff, catalog, auth, user-profile, stream-auth, search, library, playback, history, playlist, media-ingest, recommendation]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 10s

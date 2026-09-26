@@ -57,6 +57,10 @@ Catalog Service — эталон для остальных сервисов (`se
 - [x] EPIC-027 — ClickHouse foundation (`playback_events`, дневные агрегаты по трекам/артистам/платформе, TTL 180 дней / 5 лет)
 - [x] EPIC-028 — Analytics Worker (batch consumer `playback.events` → ClickHouse с артистами из Catalog, пересчёт агрегатов раз в минуту, `report`: plays, listeners, skips, completion rate, топы)
 
+## Backend — Recommendations
+
+- [x] EPIC-029 — Recommendation Worker + Service (history, likes, popularity, audio features → MVP scoring → Redis; `/recommendations/home|tracks|artists`, fallback popular; follows — после EPIC-015)
+
 ## Edge и агрегация
 
 - [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)

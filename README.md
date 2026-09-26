@@ -22,9 +22,11 @@ services/library/    Library Service — сохранённые треки и а
 services/playlist/   Playlist Service — плейлисты слушателя: CRUD, треки, reorder → playlist.events
 services/playback/   Playback Service — телеметрия плеера → playback.events (сессии и очередь — позже)
 services/history/    Listening History — playback.events → история прослушиваний, /me/history
+services/recommendation/ Recommendation Service — готовые рекомендации из Redis, fallback popular
 services/search/     Search Service — полнотекстовый поиск и autocomplete (OpenSearch)
 workers/search-indexer/ Search Indexer — catalog.events → OpenSearch, reindex с переключением алиасов
 workers/analytics/   Analytics Worker — playback.events → ClickHouse, дневные агрегаты, отчёт (топы, completion rate)
+workers/recommendation/ Recommendation Worker — history, likes, popularity, audio features → scoring → Redis
 libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, redis, kafka,
                      objectstore (S3/MinIO), opensearch, clickhouse, telemetry, authn
 libs/contracts/      межсервисные контракты: Kafka envelope, event payloads, media object keys,
@@ -76,6 +78,7 @@ Go-модули и build cache лежат в общих BuildKit cache mounts (`
 | Search | http://localhost:8080/api/v1/search?q=nova · напрямую :8086 |
 | Library | http://localhost:8088/health/ready (API — через gateway, `/api/v1/me/library/*`) |
 | OpenSearch | http://localhost:9200 |
+| Recommendations | http://localhost:8080/api/v1/recommendations/home · напрямую :8097 |
 | ClickHouse | http://localhost:8123/play (icyre / icyre) |
 | MinIO console | http://localhost:9001 (icyre / icyre-secret) |
 | Jaeger | http://localhost:16686 |
