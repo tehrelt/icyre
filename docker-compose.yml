@@ -514,7 +514,7 @@ services:
     ports: ["8080:8080"]
     depends_on: [bff, catalog, auth, user-profile, stream-auth, search, library, playback, history, playlist, media-ingest]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 3s
       retries: 10
