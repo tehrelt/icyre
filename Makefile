@@ -53,6 +53,7 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/history && HISTORY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/playlist && PLAYLIST_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/media-ingest && MEDIA_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd workers/metadata && METADATA_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd libs/platform && OUTBOX_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./outbox/...
@@ -80,6 +81,7 @@ build: ## Build service binaries into ./bin
 	cd services/media-ingest && go build -o ../../bin/media-ingest ./cmd/media-ingest
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
 	cd workers/transcoder && go build -o ../../bin/transcoder ./cmd/transcoder
+	cd workers/metadata && go build -o ../../bin/metadata ./cmd/metadata
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -90,6 +92,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/history && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/history migrate
 	cd services/playlist && DATABASE_URL="$(PG_TEST_DSN)" go run ./cmd/playlist migrate
 	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/media-ingest migrate
+	cd workers/metadata && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/metadata migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -130,6 +133,10 @@ run-media-ingest: ## Run Media Ingest locally on :8092 (Catalog :8081, Auth :808
 .PHONY: run-transcoder
 run-transcoder: ## Run the Transcoder locally (consumes media.events; needs ffmpeg, MinIO :9000)
 	cd workers/transcoder && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8093 LOG_FORMAT=text go run ./cmd/transcoder
+
+.PHONY: run-metadata
+run-metadata: ## Run the Metadata Worker locally (consumes media.events; needs ffprobe, MinIO :9000)
+	cd workers/metadata && DATABASE_URL="$(PG_TEST_DSN)" MIGRATE_ON_START=true KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8094 LOG_FORMAT=text go run ./cmd/metadata
 
 .PHONY: run-search-indexer reindex run-search
 run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)

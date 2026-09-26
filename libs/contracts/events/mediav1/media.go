@@ -20,6 +20,9 @@ const (
 	// TypeTranscodeFailed: the master cannot be transcoded; retrying will
 	// not help.
 	TypeTranscodeFailed = "media.transcode.failed"
+	// TypeMetadataExtracted: technical metadata of an uploaded master is
+	// stored (Metadata Worker, specs/workers/metadata.md).
+	TypeMetadataExtracted = "media.metadata_extracted"
 )
 
 // TrackUploaded is the payload of track.uploaded.
@@ -89,4 +92,21 @@ type TranscodeFailed struct {
 	TrackID  string    `json:"trackId"`
 	Reason   string    `json:"reason"`
 	FailedAt time.Time `json:"failedAt"`
+}
+
+// MetadataExtracted is the payload of media.metadata_extracted: what
+// ffprobe reports about the master of one upload. BitrateBps is the audio
+// stream bitrate, else the container one; 0 when neither is declared.
+type MetadataExtracted struct {
+	UploadID     string    `json:"uploadId"`
+	TrackID      string    `json:"trackId"`
+	Container    string    `json:"container"`
+	Codec        string    `json:"codec"`
+	DurationMs   int64     `json:"durationMs"`
+	BitrateBps   int64     `json:"bitrateBps"`
+	SampleRateHz int       `json:"sampleRateHz"`
+	Channels     int       `json:"channels"`
+	SourceSHA256 string    `json:"sourceSha256"`
+	UploadedAt   time.Time `json:"uploadedAt"`
+	ExtractedAt  time.Time `json:"extractedAt"`
 }

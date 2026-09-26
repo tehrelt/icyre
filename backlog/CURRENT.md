@@ -25,6 +25,7 @@
 - [x] EPIC-019 — Media Ingest (upload session, presigned PUT с SHA-256, complete: размер/MIME/сигнатура → `track.uploaded` через outbox)
 - [x] EPIC-020 — Transcoder (`track.uploaded` → AAC 64/128/256 в MinIO → `track.transcoded`; provenance-идемпотентность, retry, DLQ)
 - [x] Catalog ← `media.events`: `track.uploaded` → `PROCESSING`, `track.transcoded` → `READY`, `media.transcode.failed` → `DRAFT`
+- [x] EPIC-021 — Metadata Worker (`track.uploaded` → ffprobe по presigned URL → `media_metadata` → `media.metadata_extracted` через outbox)
 
 Catalog Service — эталон для остальных сервисов (`services/catalog/README.md`).
 
