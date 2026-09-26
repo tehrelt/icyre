@@ -32,6 +32,9 @@
 ## События (`auth.events`, key = user ID)
 
 `user.registered`, `session.created`, `session.revoked` — `libs/contracts/events/authv1`. Секретов в событиях нет.
+Transactional outbox: аккаунт, сессия и их события коммитятся вместе (`auth.outbox`, миграция 00002), relay
+отправляет их в Kafka — at-least-once; без записи события регистрация не проходит, и User Profile узнаёт о
+каждом аккаунте.
 
 ## Конфигурация
 

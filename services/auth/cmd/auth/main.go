@@ -18,6 +18,7 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
 	"github.com/tehrelt/icyre/libs/platform/logger"
+	"github.com/tehrelt/icyre/libs/platform/outbox"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
 	platformredis "github.com/tehrelt/icyre/libs/platform/redis"
 	"github.com/tehrelt/icyre/libs/platform/shutdown"
@@ -97,7 +98,12 @@ func run(args []string) error {
 	checks.Add("postgres", postgres.Check(pool))
 	checks.Add("redis", platformredis.Check(rdb))
 
-	var publisher ports.EventPublisher = kafkaadapter.NopPublisher{}
+	// Events go to auth.outbox in the transaction of each change; the relay
+	// moves them to Kafka (at-least-once end to end).
+	var (
+		publisher ports.EventPublisher = kafkaadapter.NopPublisher{}
+		relay     *outbox.Relay
+	)
 	if cfg.KafkaEnabled {
 		producer, err := platformkafka.NewProducer(platformkafka.ProducerConfig{Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName}, reg)
 		if err != nil {
@@ -105,7 +111,14 @@ func run(args []string) error {
 		}
 		closers.Add("kafka producer", producer.Close)
 		checks.Add("kafka", producer.Ping)
-		publisher = kafkaadapter.NewPublisher(producer, config.ServiceName)
+		sink, err := outbox.NewSink(pool, pgadapter.OutboxTable)
+		if err != nil {
+			return err
+		}
+		publisher = kafkaadapter.NewPublisher(sink, config.ServiceName)
+		if relay, err = outbox.NewRelay(pool, producer, outbox.RelayConfig{Table: pgadapter.OutboxTable}, log, reg); err != nil {
+			return err
+		}
 	}
 
 	// 5. Keys and adapters.
@@ -137,6 +150,7 @@ func run(args []string) error {
 		Revocation: revocations,
 		Throttle:   redisadapter.NewLoginThrottle(rdb, cfg.LoginMaxFailures, cfg.LoginWindow),
 		Publisher:  publisher,
+		Tx:         postgres.Transactor{Pool: pool},
 		Log:        log,
 		SessionTTL: cfg.SessionTTL,
 	})
@@ -161,8 +175,15 @@ func run(args []string) error {
 		checks.Drain()
 		cancelServe()
 	}()
+	waitRelay := func() error { return nil }
+	if relay != nil {
+		waitRelay = relay.Start(ctx)
+	}
 	if err := srv.Run(serveCtx, cfg.ShutdownTimeout); err != nil && !errors.Is(err, context.Canceled) {
 		return err
+	}
+	if err := waitRelay(); err != nil {
+		log.Error("outbox relay stopped with error", logger.Err(err))
 	}
 	log.Info("auth service stopped")
 	return nil

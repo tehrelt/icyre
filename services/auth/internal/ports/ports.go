@@ -73,3 +73,9 @@ type LoginThrottle interface {
 type EventPublisher interface {
 	Publish(ctx context.Context, events ...domain.Event) error
 }
+
+// Transactor runs fn as one unit of work: repository writes and published
+// events inside it commit or roll back together (transactional outbox).
+type Transactor interface {
+	InTx(ctx context.Context, fn func(ctx context.Context) error) error
+}

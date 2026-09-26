@@ -25,7 +25,9 @@ type Deps struct {
 	Revocation ports.Revocations
 	Throttle   ports.LoginThrottle
 	Publisher  ports.EventPublisher
-	Log        *slog.Logger
+	// Tx is the unit of work (writes + outbox events); nil runs without one.
+	Tx  ports.Transactor
+	Log *slog.Logger
 	// SessionTTL is the sliding lifetime of a session (refresh token).
 	SessionTTL time.Duration
 	Now        func() time.Time
@@ -48,6 +50,9 @@ func New(d Deps) (*Service, error) {
 	}
 	if d.SessionTTL <= 0 {
 		d.SessionTTL = 30 * 24 * time.Hour
+	}
+	if d.Tx == nil {
+		d.Tx = noTx{}
 	}
 	// Verifying against a dummy hash for unknown emails keeps login timing
 	// the same whether or not the account exists (no user enumeration).
@@ -87,14 +92,22 @@ func (s *Service) Register(ctx context.Context, email, password string, c Client
 		return Result{}, err
 	}
 	acc := domain.NewAccount(id, email, hash, s.d.Now())
-	if err := s.d.Accounts.Create(ctx, acc); err != nil {
-		return Result{}, err
-	}
-	res, sess, err := s.startSession(ctx, acc, c)
+	// Account, session and user.registered commit together: User Profile
+	// learns about every account, and only about real ones.
+	var res Result
+	err = s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.d.Accounts.Create(ctx, acc); err != nil {
+			return err
+		}
+		var sess domain.Session
+		if res, sess, err = s.startSession(ctx, acc, c); err != nil {
+			return err
+		}
+		return s.record(ctx, domain.UserRegistered{Account: acc}, domain.SessionCreated{Session: sess})
+	})
 	if err != nil {
 		return Result{}, err
 	}
-	s.publish(ctx, domain.UserRegistered{Account: acc}, domain.SessionCreated{Session: sess})
 	return res, nil
 }
 
@@ -126,11 +139,20 @@ func (s *Service) Login(ctx context.Context, email, password string, c Client) (
 	}
 	_ = s.d.Throttle.Reset(ctx, email)
 
-	res, sess, err := s.startSession(ctx, acc, c)
+	var res Result
+	err = s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		var (
+			sess domain.Session
+			err  error
+		)
+		if res, sess, err = s.startSession(ctx, acc, c); err != nil {
+			return err
+		}
+		return s.record(ctx, domain.SessionCreated{Session: sess})
+	})
 	if err != nil {
 		return Result{}, err
 	}
-	s.publish(ctx, domain.SessionCreated{Session: sess})
 	return res, nil
 }
 
@@ -244,19 +266,31 @@ func (s *Service) revoke(ctx context.Context, sess domain.Session, reason string
 	if !sess.Revoke(reason, s.d.Now()) {
 		return nil
 	}
-	if err := s.d.Sessions.SaveRevocation(ctx, sess); err != nil {
+	err := s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		if err := s.d.Sessions.SaveRevocation(ctx, sess); err != nil {
+			return err
+		}
+		return s.record(ctx, domain.SessionRevoked{Session: sess})
+	})
+	if err != nil {
 		return err
 	}
 	if err := s.d.Revocation.Revoke(ctx, sess.ID.String(), s.d.Tokens.TTL()); err != nil {
 		// Access tokens then live until expiry (minutes); refresh is already dead.
 		s.d.Log.WarnContext(ctx, "revocation cache write failed", "error", err)
 	}
-	s.publish(ctx, domain.SessionRevoked{Session: sess})
 	return nil
 }
 
-func (s *Service) publish(ctx context.Context, events ...domain.Event) {
+// record writes events in the current unit of work (transactional outbox):
+// they are published if and only if the change commits.
+func (s *Service) record(ctx context.Context, events ...domain.Event) error {
 	if err := s.d.Publisher.Publish(ctx, events...); err != nil {
-		s.d.Log.ErrorContext(ctx, "publish auth events failed", "error", err, "count", len(events))
+		return fmt.Errorf("record auth events: %w", err)
 	}
+	return nil
 }
+
+type noTx struct{}
+
+func (noTx) InTx(ctx context.Context, fn func(ctx context.Context) error) error { return fn(ctx) }
