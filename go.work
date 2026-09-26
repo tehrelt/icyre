@@ -17,4 +17,5 @@ use (
 	./services/stream-auth
 	./services/user-profile
 	./workers/search-indexer
+	./workers/transcoder
 )

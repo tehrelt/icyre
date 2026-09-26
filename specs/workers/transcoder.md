@@ -23,5 +23,13 @@ track.uploaded
 256 kbps
 ```
 
+## Output events
+```text
+track.transcoded        — все варианты записаны (media.events, key = trackId)
+media.transcode.failed  — SOURCE_MISSING | SOURCE_CORRUPTED | UNDECODABLE
+```
+
 ## Retry
 Операция должна быть идемпотентной: повторная обработка того же job не создаёт конфликтующие объекты.
+Варианты хранят provenance мастера (upload ID, SHA-256, время загрузки): повтор того же мастера не транскодирует
+заново, устаревший job пропускается. Реализация — `workers/transcoder/README.md`.

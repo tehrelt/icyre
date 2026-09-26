@@ -79,6 +79,7 @@ build: ## Build service binaries into ./bin
 	cd services/playlist && go build -o ../../bin/playlist ./cmd/playlist
 	cd services/media-ingest && go build -o ../../bin/media-ingest ./cmd/media-ingest
 	cd workers/search-indexer && go build -o ../../bin/search-indexer ./cmd/search-indexer
+	cd workers/transcoder && go build -o ../../bin/transcoder ./cmd/transcoder
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -125,6 +126,10 @@ run-library: ## Run Library locally on :8088 (Catalog :8081, Auth :8083)
 .PHONY: run-media-ingest
 run-media-ingest: ## Run Media Ingest locally on :8092 (Catalog :8081, Auth :8083, MinIO :9000)
 	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8092 LOG_FORMAT=text go run ./cmd/media-ingest
+
+.PHONY: run-transcoder
+run-transcoder: ## Run the Transcoder locally (consumes media.events; needs ffmpeg, MinIO :9000)
+	cd workers/transcoder && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8093 LOG_FORMAT=text go run ./cmd/transcoder
 
 .PHONY: run-search-indexer reindex run-search
 run-search-indexer: ## Run the Search Indexer locally (consumes catalog.events)

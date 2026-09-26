@@ -110,6 +110,9 @@ type ObjectInfo struct {
 	LastModified time.Time
 	// SHA256 is the base64 checksum when the object was stored with one.
 	SHA256 string
+	// Metadata is the user metadata (x-amz-meta-*), keys in canonical
+	// header form ("Source-Sha256").
+	Metadata map[string]string
 }
 
 // Stat returns object metadata, or ErrNotFound.
@@ -123,7 +126,34 @@ func (s *Store) Stat(ctx context.Context, bucket, key string) (ObjectInfo, error
 		}
 		return ObjectInfo{}, fmt.Errorf("stat %s: %w", key, err)
 	}
-	return ObjectInfo{Key: info.Key, Size: info.Size, ContentType: info.ContentType, ETag: info.ETag, LastModified: info.LastModified, SHA256: info.ChecksumSHA256}, nil
+	return ObjectInfo{Key: info.Key, Size: info.Size, ContentType: info.ContentType, ETag: info.ETag, LastModified: info.LastModified,
+		SHA256: info.ChecksumSHA256, Metadata: canonicalMetadata(info.UserMetadata)}, nil
+}
+
+func canonicalMetadata(m map[string]string) map[string]string {
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[http.CanonicalHeaderKey(k)] = v
+	}
+	return out
+}
+
+// Download streams an object into w, or returns ErrNotFound. The transfer
+// is bounded by ctx only (large objects outlive the per-call Timeout).
+func (s *Store) Download(ctx context.Context, bucket, key string, w io.Writer) (int64, error) {
+	obj, err := s.cl.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("get %s: %w", key, err)
+	}
+	defer func() { _ = obj.Close() }()
+	n, err := io.Copy(w, obj)
+	if err != nil {
+		if minio.ToErrorResponse(err).StatusCode == http.StatusNotFound {
+			return 0, ErrNotFound
+		}
+		return n, fmt.Errorf("read %s: %w", key, err)
+	}
+	return n, nil
 }
 
 // ReadHead returns up to the first n bytes of an object (content sniffing),
@@ -164,6 +194,8 @@ func (s *Store) Remove(ctx context.Context, bucket, key string) error {
 type PutOptions struct {
 	ContentType  string
 	CacheControl string
+	// Metadata is stored as user metadata (x-amz-meta-*).
+	Metadata map[string]string
 }
 
 // Put stores an object from a reader, with a SHA-256 checksum the store
@@ -171,7 +203,7 @@ type PutOptions struct {
 // upload with PresignUpload.
 func (s *Store) Put(ctx context.Context, bucket, key string, r io.Reader, size int64, o PutOptions) (ObjectInfo, error) {
 	info, err := s.cl.PutObject(ctx, bucket, key, r, size, minio.PutObjectOptions{
-		ContentType: o.ContentType, CacheControl: o.CacheControl,
+		ContentType: o.ContentType, CacheControl: o.CacheControl, UserMetadata: o.Metadata,
 		Checksum: minio.ChecksumSHA256,
 	})
 	if err != nil {
