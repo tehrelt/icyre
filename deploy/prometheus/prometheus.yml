@@ -70,6 +70,13 @@ scrape_configs:
         labels:
           service: metadata-worker
 
+  - job_name: audio-analysis-worker
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["audio-analysis-worker:8080"]
+        labels:
+          service: audio-analysis-worker
+
   - job_name: library-service
     metrics_path: /metrics
     static_configs:

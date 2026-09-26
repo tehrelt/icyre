@@ -6,14 +6,14 @@
 
 ## Задачи
 
-- [ ] TASK-022.1 Рассчитать BPM.
+- [x] TASK-022.1 Рассчитать BPM.
 
-- [ ] TASK-022.2 Рассчитать loudness.
+- [x] TASK-022.2 Рассчитать loudness.
 
-- [ ] TASK-022.3 Подготовить audio feature model.
+- [x] TASK-022.3 Подготовить audio feature model.
 
-- [ ] TASK-022.4 Сохранять признаки.
+- [x] TASK-022.4 Сохранять признаки.
 
-- [ ] TASK-022.5 Публиковать `audio.features_extracted`.
+- [x] TASK-022.5 Публиковать `audio.features_extracted`.
 
 ---

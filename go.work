@@ -16,6 +16,7 @@ use (
 	./services/search
 	./services/stream-auth
 	./services/user-profile
+	./workers/audio-analysis
 	./workers/metadata
 	./workers/search-indexer
 	./workers/transcoder
