@@ -124,4 +124,21 @@ func TestPresignedUploadDownloadAndChecksum(t *testing.T) {
 	if _, err := s.Stat(ctx, bucket, "tracks/nope/audio/64.aac"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("missing: %v", err)
 	}
+
+	// Content sniffing reads only the head; removal is idempotent.
+	head, err := s.ReadHead(ctx, bucket, "tracks/t1/audio/128.aac", 5)
+	if err != nil || string(head) != "icyre" {
+		t.Fatalf("head %q %v", head, err)
+	}
+	if _, err := s.ReadHead(ctx, bucket, "tracks/nope/audio/64.aac", 5); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("head of missing: %v", err)
+	}
+	for range 2 {
+		if err := s.Remove(ctx, bucket, "tracks/t1/audio/128.aac"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.Stat(ctx, bucket, "tracks/t1/audio/128.aac"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("removed: %v", err)
+	}
 }

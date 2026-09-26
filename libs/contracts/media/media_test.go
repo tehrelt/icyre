@@ -6,7 +6,7 @@ func TestKeys(t *testing.T) {
 	if got := TrackAudioKey("t1", Quality128); got != "tracks/t1/audio/128.aac" {
 		t.Fatal(got)
 	}
-	if got := TrackOriginalKey("t1", "flac"); got != "tracks/t1/original/source.flac" {
+	if got := TrackOriginalKey("t1", "u1", "flac"); got != "tracks/t1/original/u1.flac" {
 		t.Fatal(got)
 	}
 	if got := TrackCoverKey("t1"); got != "tracks/t1/cover/cover.webp" {

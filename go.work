@@ -10,6 +10,7 @@ use (
 	./services/catalog
 	./services/history
 	./services/library
+	./services/media-ingest
 	./services/playback
 	./services/playlist
 	./services/search

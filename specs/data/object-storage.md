@@ -5,7 +5,7 @@
 
 ## Layout
 ```text
-tracks/{trackId}/original/source.flac
+tracks/{trackId}/original/{uploadId}.{flac|wav|mp3}
 tracks/{trackId}/audio/64.aac
 tracks/{trackId}/audio/128.aac
 tracks/{trackId}/audio/256.aac

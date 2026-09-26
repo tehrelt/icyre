@@ -22,6 +22,7 @@
 
 - [x] EPIC-018 — MinIO / S3 foundation
 - [x] EPIC-017 — Stream Authorization (signed URL, аудио идёт браузер → MinIO напрямую)
+- [x] EPIC-019 — Media Ingest (upload session, presigned PUT с SHA-256, complete: размер/MIME/сигнатура → `track.uploaded` через outbox)
 
 Catalog Service — эталон для остальных сервисов (`services/catalog/README.md`).
 
@@ -75,5 +76,6 @@ Home и Album работают на реальных данных: Postgres → 
 
 1. Экран плейлиста и его редактирование (EPIC-050 BLOCKED — нет макета; BFF `GET /pages/playlists/{id}` уже есть,
    плеер играет плейлисты через неё, плейлисты — в поиске и в «Recently played»).
-2. EPIC-019/020 Media Ingest + Transcoder — заменят `seed-media` настоящим pipeline (presigned upload уже есть).
+2. EPIC-020 Transcoder — `track.uploaded` → AAC 64/128/256, заменит `seed-media` настоящим pipeline
+   (Media Ingest уже принимает мастер и публикует событие).
 3. Web BFF `GET /pages/search` (жанры, подборки до запроса) — нужен источник жанров/подборок; пока только в моках.

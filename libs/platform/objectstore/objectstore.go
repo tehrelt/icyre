@@ -126,6 +126,40 @@ func (s *Store) Stat(ctx context.Context, bucket, key string) (ObjectInfo, error
 	return ObjectInfo{Key: info.Key, Size: info.Size, ContentType: info.ContentType, ETag: info.ETag, LastModified: info.LastModified, SHA256: info.ChecksumSHA256}, nil
 }
 
+// ReadHead returns up to the first n bytes of an object (content sniffing),
+// or ErrNotFound.
+func (s *Store) ReadHead(ctx context.Context, bucket, key string, n int64) ([]byte, error) {
+	ctx, cancel := s.ctx(ctx)
+	defer cancel()
+	opts := minio.GetObjectOptions{}
+	if err := opts.SetRange(0, n-1); err != nil {
+		return nil, err
+	}
+	obj, err := s.cl.GetObject(ctx, bucket, key, opts)
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", key, err)
+	}
+	defer func() { _ = obj.Close() }()
+	b, err := io.ReadAll(io.LimitReader(obj, n))
+	if err != nil {
+		if minio.ToErrorResponse(err).StatusCode == http.StatusNotFound {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("read %s: %w", key, err)
+	}
+	return b, nil
+}
+
+// Remove deletes an object; a missing object is not an error.
+func (s *Store) Remove(ctx context.Context, bucket, key string) error {
+	ctx, cancel := s.ctx(ctx)
+	defer cancel()
+	if err := s.cl.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("remove %s: %w", key, err)
+	}
+	return nil
+}
+
 // PutOptions describe an uploaded object.
 type PutOptions struct {
 	ContentType  string

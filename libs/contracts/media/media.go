@@ -46,9 +46,12 @@ func TrackAudioKey(trackID string, q Quality) string {
 	return fmt.Sprintf("tracks/%s/audio/%d.aac", trackID, q)
 }
 
-// TrackOriginalKey is where an uploaded master lives: tracks/{trackId}/original/source.{ext}.
-func TrackOriginalKey(trackID, ext string) string {
-	return fmt.Sprintf("tracks/%s/original/source.%s", trackID, ext)
+// TrackOriginalKey is where an uploaded master lives:
+// tracks/{trackId}/original/{uploadId}.{ext}. Each upload gets its own
+// immutable object, so a re-upload or a rejected attempt never touches a
+// master the transcoder may be reading.
+func TrackOriginalKey(trackID, uploadID, ext string) string {
+	return fmt.Sprintf("tracks/%s/original/%s.%s", trackID, uploadID, ext)
 }
 
 // TrackCoverKey is the cover image: tracks/{trackId}/cover/cover.webp.
