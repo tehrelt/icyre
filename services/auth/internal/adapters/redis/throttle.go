@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"strconv"
 	"time"
 
@@ -38,7 +39,7 @@ func (t *LoginThrottle) key(email string) (string, time.Duration) {
 func (t *LoginThrottle) Allow(ctx context.Context, email string) (bool, time.Duration, error) {
 	key, resetIn := t.key(email)
 	n, err := t.cl.Get(ctx, key).Int64()
-	if err != nil && err != platformredis.Nil {
+	if err != nil && !errors.Is(err, platformredis.Nil) {
 		return true, 0, err
 	}
 	return n < t.max, resetIn, nil

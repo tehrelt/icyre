@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -68,7 +69,7 @@ func (t *tracer) TraceQueryEnd(ctx context.Context, _ *pgx.Conn, data pgx.TraceQ
 		return
 	}
 	result := "ok"
-	if data.Err != nil && data.Err != pgx.ErrNoRows {
+	if data.Err != nil && !errors.Is(data.Err, pgx.ErrNoRows) {
 		result = "error"
 		st.span.RecordError(data.Err)
 		st.span.SetStatus(codes.Error, "query failed")

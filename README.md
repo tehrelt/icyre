@@ -1,5 +1,7 @@
 # ICYRE
 
+[![CI](https://github.com/tehrelt/icyre/actions/workflows/ci.yml/badge.svg)](https://github.com/tehrelt/icyre/actions/workflows/ci.yml)
+
 Масштабируемый музыкальный стриминг-сервис: monorepo с Go-backend и React/Bun-frontend.
 
 | Источник правды | Где |
@@ -107,5 +109,10 @@ make help              # все цели
 make sync fmt vet test # Go
 make test-integration  # нужен `make up-core`
 make web-build web-test web-lint
+make lint              # golangci-lint (.golangci.yml) во всех модулях
 make check             # всё вместе
 ```
+
+CI — `.github/workflows/ci.yml` на push в `main` и на каждый PR: `go.work` и tidy модулей, gofmt, vet,
+unit-тесты и race detector, golangci-lint, web (lint, typecheck, test, build) и сборка каждого Docker-образа
+(buildx, кэш слоёв в GitHub Actions cache). Go-модули кэшируются `setup-go` по всем `go.sum`.

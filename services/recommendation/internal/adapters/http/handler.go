@@ -45,8 +45,8 @@ func NewHandler(app Recommendations, verifier *authn.Verifier, log *slog.Logger)
 // users without a personal set) get the popular set.
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("GET /api/v1/recommendations/home", h.verifier.Optional(http.HandlerFunc(h.home)))
-	mux.Handle("GET /api/v1/recommendations/tracks", h.verifier.Optional(http.HandlerFunc(h.list(func(r application.Result) []recommendation.Item { return r.Tracks }))))
-	mux.Handle("GET /api/v1/recommendations/artists", h.verifier.Optional(http.HandlerFunc(h.list(func(r application.Result) []recommendation.Item { return r.Artists }))))
+	mux.Handle("GET /api/v1/recommendations/tracks", h.verifier.Optional(h.list(func(r application.Result) []recommendation.Item { return r.Tracks })))
+	mux.Handle("GET /api/v1/recommendations/artists", h.verifier.Optional(h.list(func(r application.Result) []recommendation.Item { return r.Artists })))
 }
 
 type meta struct {
