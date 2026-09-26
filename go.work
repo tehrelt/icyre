@@ -17,6 +17,7 @@ use (
 	./services/search
 	./services/stream-auth
 	./services/user-profile
+	./tests/e2e
 	./workers/analytics
 	./workers/audio-analysis
 	./workers/metadata

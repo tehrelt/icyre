@@ -4,8 +4,8 @@ version: "2"
 
 run:
   timeout: 5m
-  # Integration tests are linted too.
-  build-tags: [integration]
+  # Integration and end-to-end tests are linted too.
+  build-tags: [integration, e2e]
 
 linters:
   # standard: errcheck, govet, ineffassign, staticcheck, unused.

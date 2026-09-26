@@ -1,6 +1,7 @@
 # CI (EPIC-036): Go workspace consistency, formatting, vet, unit tests with
 # and without the race detector, golangci-lint, the web app and every
-# Docker image. Integration tests against the compose stack — EPIC-037.
+# Docker image, and the integration tests against the compose infrastructure
+# (EPIC-037; end-to-end flows: e2e.yml).
 name: CI
 
 on:
@@ -55,6 +56,33 @@ jobs:
         run: make test
       - name: Race detector
         run: make test-race
+
+  # Integration tests (EPIC-037) against the same images and settings as the
+  # local stand: `docker compose up --wait` blocks on the compose
+  # healthchecks. The tests migrate their own throwaway schemas/databases
+  # and create their own buckets and topics, so no init jobs are needed.
+  integration:
+    name: integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache-dependency-path: "**/go.sum"
+      - name: Start PostgreSQL, Redis, Kafka, MinIO, OpenSearch, ClickHouse
+        run: make up-test-infra
+      - name: Integration tests
+        run: make test-integration
+      - name: Stand state on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --tail 200
+      - name: Stop the stand
+        if: always()
+        run: docker compose down -v
 
   lint:
     name: golangci-lint
