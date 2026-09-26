@@ -26,6 +26,7 @@
 - [x] EPIC-020 — Transcoder (`track.uploaded` → AAC 64/128/256 в MinIO → `track.transcoded`; provenance-идемпотентность, retry, DLQ)
 - [x] Catalog ← `media.events`: `track.uploaded` → `PROCESSING`, `track.transcoded` → `READY`, `media.transcode.failed` → `DRAFT`
 - [x] EPIC-021 — Metadata Worker (`track.uploaded` → ffprobe по presigned URL → `media_metadata` → `media.metadata_extracted` через outbox)
+- [x] EPIC-022 — Audio Analysis Worker (`track.uploaded` → ffmpeg: BPM, EBU R128 loudness, доля тишины → `audio_features` → `audio.features_extracted` через outbox)
 
 Catalog Service — эталон для остальных сервисов (`services/catalog/README.md`).
 

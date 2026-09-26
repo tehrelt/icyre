@@ -23,6 +23,10 @@ const (
 	// TypeMetadataExtracted: technical metadata of an uploaded master is
 	// stored (Metadata Worker, specs/workers/metadata.md).
 	TypeMetadataExtracted = "media.metadata_extracted"
+	// TypeAudioFeaturesExtracted: tempo and loudness features of an
+	// uploaded master are stored (Audio Analysis Worker,
+	// specs/workers/audio-analysis.md).
+	TypeAudioFeaturesExtracted = "audio.features_extracted"
 )
 
 // TrackUploaded is the payload of track.uploaded.
@@ -109,4 +113,29 @@ type MetadataExtracted struct {
 	SourceSHA256 string    `json:"sourceSha256"`
 	UploadedAt   time.Time `json:"uploadedAt"`
 	ExtractedAt  time.Time `json:"extractedAt"`
+}
+
+// AudioFeaturesExtracted is the payload of audio.features_extracted: what
+// the Audio Analysis Worker measured on the master of one upload.
+// BPM is nil when the track has no detectable tempo. Loudness follows
+// EBU R128: integrated loudness in LUFS, loudness range in LU, true peak
+// in dBTP; levels of silence are floored at -70.
+type AudioFeaturesExtracted struct {
+	UploadID string   `json:"uploadId"`
+	TrackID  string   `json:"trackId"`
+	BPM      *float64 `json:"bpm"`
+	// BPMConfidence is the tempo's periodicity strength in [0, 1].
+	BPMConfidence   float64 `json:"bpmConfidence"`
+	IntegratedLUFS  float64 `json:"integratedLufs"`
+	LoudnessRangeLU float64 `json:"loudnessRangeLu"`
+	TruePeakDBTP    float64 `json:"truePeakDbtp"`
+	// SilenceRatio is the share of the track below -60 dBFS, in [0, 1].
+	SilenceRatio float64 `json:"silenceRatio"`
+	AnalyzedMs   int64   `json:"analyzedMs"`
+	// AnalyzerVersion changes when the algorithms do; features of different
+	// versions are not comparable.
+	AnalyzerVersion string    `json:"analyzerVersion"`
+	SourceSHA256    string    `json:"sourceSha256"`
+	UploadedAt      time.Time `json:"uploadedAt"`
+	AnalyzedAt      time.Time `json:"analyzedAt"`
 }
