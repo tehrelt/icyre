@@ -52,6 +52,10 @@ Catalog Service — эталон для остальных сервисов (`se
 - [x] EPIC-024 — Search Indexer (catalog.events → OpenSearch, reindex с переключением алиасов)
 - [x] EPIC-025 — Search Service (`/search`, `/search/suggest`)
 
+## Backend — Analytics
+
+- [x] EPIC-027 — ClickHouse foundation (`playback_events`, дневные агрегаты по трекам/артистам/платформе, TTL 180 дней / 5 лет)
+
 ## Edge и агрегация
 
 - [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)

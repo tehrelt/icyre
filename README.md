@@ -24,10 +24,11 @@ services/playback/   Playback Service — телеметрия плеера → 
 services/history/    Listening History — playback.events → история прослушиваний, /me/history
 services/search/     Search Service — полнотекстовый поиск и autocomplete (OpenSearch)
 workers/search-indexer/ Search Indexer — catalog.events → OpenSearch, reindex с переключением алиасов
+workers/analytics/   Analytics Worker — схема ClickHouse (migrate); consumer и агрегаты — EPIC-028
 libs/platform/       инфраструктура: config, logger, httpserver, health, shutdown, postgres, redis, kafka,
-                     objectstore (S3/MinIO), opensearch, telemetry, authn
+                     objectstore (S3/MinIO), opensearch, clickhouse, telemetry, authn
 libs/contracts/      межсервисные контракты: Kafka envelope, event payloads, media object keys,
-                     поисковые документы и маппинги
+                     поисковые документы и маппинги, схема аналитики ClickHouse
 api/proto/           protobuf (gRPC, позже)
 deploy/              API gateway (nginx), Prometheus, Grafana, Kafka topics, MinIO bucket bootstrap
 scripts/             seed-скрипты (Bun): каталог из canvas, аудио-варианты
@@ -75,6 +76,7 @@ Go-модули и build cache лежат в общих BuildKit cache mounts (`
 | Search | http://localhost:8080/api/v1/search?q=nova · напрямую :8086 |
 | Library | http://localhost:8088/health/ready (API — через gateway, `/api/v1/me/library/*`) |
 | OpenSearch | http://localhost:9200 |
+| ClickHouse | http://localhost:8123/play (icyre / icyre) |
 | MinIO console | http://localhost:9001 (icyre / icyre-secret) |
 | Jaeger | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |

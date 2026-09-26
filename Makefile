@@ -5,6 +5,7 @@ GO_MODULES := $(shell go work edit -json | sed -n 's/.*"DiskPath": "\(.*\)".*/\1
 PG_TEST_DSN ?= postgres://icyre:icyre@localhost:5432/icyre?sslmode=disable
 KAFKA_TEST_BROKERS ?= localhost:9094
 OPENSEARCH_TEST_URL ?= http://localhost:9200
+CLICKHOUSE_TEST_ENV ?= CLICKHOUSE_URL=http://localhost:8123 CLICKHOUSE_USERNAME=icyre CLICKHOUSE_PASSWORD=icyre
 
 .PHONY: help
 help: ## Show available targets
@@ -57,6 +58,8 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd workers/audio-analysis && AUDIO_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
 	cd services/search && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
+	cd workers/analytics && $(CLICKHOUSE_TEST_ENV) go test -tags integration -count=1 ./...
+	cd libs/platform && $(CLICKHOUSE_TEST_ENV) go test -tags integration -count=1 ./clickhouse/...
 	cd libs/platform && OUTBOX_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./outbox/...
 	cd libs/platform && KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" REDIS_ADDR=localhost:6379 \
 		S3_ENDPOINT=localhost:9000 S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret \
@@ -84,6 +87,7 @@ build: ## Build service binaries into ./bin
 	cd workers/transcoder && go build -o ../../bin/transcoder ./cmd/transcoder
 	cd workers/metadata && go build -o ../../bin/metadata ./cmd/metadata
 	cd workers/audio-analysis && go build -o ../../bin/audio-analysis ./cmd/audio-analysis
+	cd workers/analytics && go build -o ../../bin/analytics ./cmd/analytics
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -96,6 +100,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/media-ingest migrate
 	cd workers/metadata && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/metadata migrate
 	cd workers/audio-analysis && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/audio-analysis migrate
+	cd workers/analytics && $(CLICKHOUSE_TEST_ENV) go run ./cmd/analytics migrate
 
 .PHONY: seed
 seed: ## Fill Catalog with the product-canvas content (needs a running Catalog)
@@ -176,8 +181,8 @@ images: ## Build the compose images 4 at a time (COMPOSE_BUILD_BATCH=n to change
 	bun scripts/compose-build.ts
 up: images ## docker compose up -d (everything), images built in batches
 	docker compose up -d
-up-core: ## Infrastructure only: PostgreSQL, Redis, Kafka, MinIO, OpenSearch (for go run / integration tests)
-	docker compose up -d postgres redis kafka kafka-init minio minio-init opensearch
+up-core: ## Infrastructure only: PostgreSQL, Redis, Kafka, MinIO, OpenSearch, ClickHouse (for go run / integration tests)
+	docker compose up -d postgres redis kafka kafka-init minio minio-init opensearch clickhouse
 down: ## Stop the stand
 	docker compose down
 logs: ## Follow logs
