@@ -84,6 +84,13 @@ scrape_configs:
         labels:
           service: library-service
 
+  - job_name: social-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["social:8080"]
+        labels:
+          service: social-service
+
   - job_name: playback-service
     metrics_path: /metrics
     static_configs:

@@ -21,6 +21,7 @@ services/auth/       Auth Service — аккаунты, сессии, JWT (EdDSA
 services/user-profile/ User Profile Service — публичный профиль, создаётся из user.registered
 services/stream-auth/ Stream Authorization — проверка трека и short-lived signed URL на аудио
 services/library/    Library Service — сохранённые треки и альбомы слушателя
+services/social/     Social Service — подписки на пользователей и артистов, счётчики → social.events
 services/playlist/   Playlist Service — плейлисты слушателя: CRUD, треки, reorder → playlist.events
 services/playback/   Playback Service — телеметрия плеера → playback.events (сессии и очередь — позже)
 services/history/    Listening History — playback.events → история прослушиваний, /me/history
@@ -79,6 +80,7 @@ Go-модули и build cache лежат в общих BuildKit cache mounts (`
 | Stream Authorization | http://localhost:8085/health/ready |
 | Search | http://localhost:8080/api/v1/search?q=nova · напрямую :8086 |
 | Library | http://localhost:8088/health/ready (API — через gateway, `/api/v1/me/library/*`) |
+| Social | http://localhost:8099/health/ready (API — через gateway, `/api/v1/{users,artists}/{id}/follow*`) |
 | OpenSearch | http://localhost:9200 |
 | Recommendations | http://localhost:8080/api/v1/recommendations/home · напрямую :8097 |
 | ClickHouse | http://localhost:8123/play (icyre / icyre) |

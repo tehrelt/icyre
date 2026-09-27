@@ -19,6 +19,7 @@ const (
 	TopicPlaybackEvents = "playback.events"
 	TopicPlaylistEvents = "playlist.events"
 	TopicMediaEvents    = "media.events"
+	TopicSocialEvents   = "social.events"
 )
 
 // Envelope wraps every event published to Kafka.
