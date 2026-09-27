@@ -34,6 +34,10 @@ Catalog Service — эталон для остальных сервисов (`se
 
 - [x] EPIC-014 — Library Service (сохранённые треки и альбомы, `library.events`; лайки в UI)
 
+## Backend — Social
+
+- [x] EPIC-015 — Social Service (follow users и artists, followers/following, денормализованные счётчики, `social.events`)
+
 ## Backend — Playback
 
 - [-] EPIC-016 — Playback Service (срез 1: телеметрия плеера → `playback.events`)

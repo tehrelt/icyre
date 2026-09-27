@@ -6,18 +6,18 @@
 
 ## Задачи
 
-- [ ] TASK-015.1 Follow user.
+- [x] TASK-015.1 Follow user.
 
-- [ ] TASK-015.2 Follow artist.
+- [x] TASK-015.2 Follow artist.
 
-- [ ] TASK-015.3 Unfollow.
+- [x] TASK-015.3 Unfollow.
 
-- [ ] TASK-015.4 Followers list.
+- [x] TASK-015.4 Followers list.
 
-- [ ] TASK-015.5 Following list.
+- [x] TASK-015.5 Following list.
 
-- [ ] TASK-015.6 Counters.
+- [x] TASK-015.6 Counters.
 
-- [ ] TASK-015.7 Публиковать social events.
+- [x] TASK-015.7 Публиковать social events.
 
 ---

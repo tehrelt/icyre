@@ -15,6 +15,7 @@ use (
 	./services/playlist
 	./services/recommendation
 	./services/search
+	./services/social
 	./services/stream-auth
 	./services/user-profile
 	./tests/e2e

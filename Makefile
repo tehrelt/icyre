@@ -62,6 +62,7 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/library && LIBRARY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/social && SOCIAL_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/history && HISTORY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/playlist && PLAYLIST_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/media-ingest && MEDIA_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
@@ -96,6 +97,7 @@ build: ## Build service binaries into ./bin
 	cd services/stream-auth && go build -o ../../bin/stream-auth ./cmd/stream-auth
 	cd services/search && go build -o ../../bin/search ./cmd/search
 	cd services/library && go build -o ../../bin/library ./cmd/library
+	cd services/social && go build -o ../../bin/social ./cmd/social
 	cd services/playback && go build -o ../../bin/playback ./cmd/playback
 	cd services/history && go build -o ../../bin/history ./cmd/history
 	cd services/playlist && go build -o ../../bin/playlist ./cmd/playlist
@@ -114,6 +116,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/auth && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/auth migrate
 	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/user-profile migrate
 	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/library migrate
+	cd services/social && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/social migrate
 	cd services/history && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/history migrate
 	cd services/playlist && DATABASE_URL="$(PG_TEST_DSN)" go run ./cmd/playlist migrate
 	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/media-ingest migrate
@@ -153,6 +156,10 @@ run-stream-auth: ## Run Stream Authorization locally on :8085 (Catalog :8081, Au
 .PHONY: run-library
 run-library: ## Run Library locally on :8088 (Catalog :8081, Auth :8083)
 	cd services/library && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8088 LOG_FORMAT=text go run ./cmd/library
+
+.PHONY: run-social
+run-social: ## Run Social locally on :8099 (User Profile :8084, Catalog :8081, Auth :8083)
+	cd services/social && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8099 LOG_FORMAT=text go run ./cmd/social
 
 .PHONY: run-media-ingest
 run-media-ingest: ## Run Media Ingest locally on :8092 (Catalog :8081, Auth :8083, MinIO :9000)
