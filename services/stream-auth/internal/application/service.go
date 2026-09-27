@@ -74,19 +74,36 @@ func (s *Service) Authorize(ctx context.Context, r Request) (domain.Grant, error
 	return grant, err
 }
 
-func (s *Service) authorize(ctx context.Context, trackID string, requested media.Quality) (domain.Grant, error) {
+// Choose runs the same checks as Authorize and returns the variant to play
+// without signing a URL: the media proxy (EPIC-038 experiment "audio through
+// the backend") streams that variant itself.
+func (s *Service) Choose(ctx context.Context, r Request) (media.Quality, error) {
+	requested := r.Quality
+	if requested == 0 {
+		requested = domain.DefaultQuality
+	}
+	q, err := s.choose(ctx, r.TrackID, requested)
+	s.audit.Record(ctx, Decision{UserID: r.UserID, SessionID: r.SessionID, TrackID: r.TrackID, Requested: requested, Granted: q, Err: err})
+	return q, err
+}
+
+func (s *Service) choose(ctx context.Context, trackID string, requested media.Quality) (media.Quality, error) {
 	status, err := s.tracks.Status(ctx, trackID)
 	if err != nil {
-		return domain.Grant{}, err
+		return 0, err
 	}
 	if err := domain.CheckPlayable(status); err != nil {
-		return domain.Grant{}, err
+		return 0, err
 	}
 	available, err := s.variants.Available(ctx, trackID)
 	if err != nil {
-		return domain.Grant{}, err
+		return 0, err
 	}
-	q, err := domain.ChooseVariant(requested, available)
+	return domain.ChooseVariant(requested, available)
+}
+
+func (s *Service) authorize(ctx context.Context, trackID string, requested media.Quality) (domain.Grant, error) {
+	q, err := s.choose(ctx, trackID, requested)
 	if err != nil {
 		return domain.Grant{}, err
 	}

@@ -64,3 +64,19 @@ func TestAuthorize(t *testing.T) {
 		t.Fatalf("audit %+v", *audit)
 	}
 }
+
+func TestChoose(t *testing.T) {
+	signer, audit := &fakeSigner{}, &auditLog{}
+	svc := New(fakeTracks{"ready": domain.StatusReady, "blocked": domain.StatusBlocked}, fakeVariants{"ready": {64, 128, 256}}, signer, audit, 5*time.Minute)
+	ctx := context.Background()
+
+	if q, err := svc.Choose(ctx, Request{UserID: "u1", TrackID: "ready", Quality: 256}); err != nil || q != 256 {
+		t.Fatalf("choose = %d, %v", q, err)
+	}
+	if _, err := svc.Choose(ctx, Request{UserID: "u1", TrackID: "blocked"}); !errors.Is(err, domain.ErrTrackBlocked) {
+		t.Fatalf("blocked: %v", err)
+	}
+	if signer.calls != 0 || len(*audit) != 2 || (*audit)[0].Granted != 256 {
+		t.Fatalf("signs %d, audit %+v", signer.calls, *audit)
+	}
+}

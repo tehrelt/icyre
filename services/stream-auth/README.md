@@ -48,6 +48,7 @@
 | `AUTH_JWKS_URL` | `http://localhost:8083/api/v1/auth/.well-known/jwks.json` | |
 | `REDIS_ADDR` | `localhost:6379` | |
 | `STREAM_URL_TTL` | `5m` | |
+| `MEDIA_PROXY_ENABLED` | `false` | `GET /api/v1/stream/proxy/{trackId}?quality=` — аудио через сервис; только для эксперимента EPIC-038 (`make load-media`) |
 
 ## Локально
 

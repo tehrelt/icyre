@@ -25,3 +25,7 @@
 ## Конфигурация
 
 `REDIS_ADDR` (список отозванных сессий), `KAFKA_BROKERS`, `AUTH_JWKS_URL`, общие `HTTP_*`, `LOG_*`, `OTEL_*`.
+
+`ANALYTICS_MODE` — `kafka` (по умолчанию) или `sync`. `sync` — только для эксперимента EPIC-038
+(`make load-analytics`): событие обогащается из Catalog (`CATALOG_URL`) и пишется в ClickHouse
+(`CLICKHOUSE_*`) прямо в запросе, в Kafka не попадает — History и рекомендации его не видят.

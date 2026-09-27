@@ -3,11 +3,14 @@ package storage
 import (
 	"context"
 	"errors"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/tehrelt/icyre/libs/contracts/media"
 	"github.com/tehrelt/icyre/libs/platform/objectstore"
+	"github.com/tehrelt/icyre/services/stream-auth/internal/domain"
 )
 
 type fakeStore struct {
@@ -27,6 +30,25 @@ func (f fakeStore) Stat(_ context.Context, _, key string) (objectstore.ObjectInf
 
 func (f fakeStore) PresignDownload(_ context.Context, bucket, key string, ttl time.Duration, o objectstore.DownloadOptions) (objectstore.SignedURL, error) {
 	return objectstore.SignedURL{URL: "https://m/" + bucket + "/" + key + "?cc=" + o.CacheControl, ExpiresAt: time.Unix(0, 0).Add(ttl)}, nil
+}
+
+func (f fakeStore) Download(_ context.Context, _, key string, w io.Writer) (int64, error) {
+	if !f.objects[key] {
+		return 0, objectstore.ErrNotFound
+	}
+	n, err := io.Copy(w, strings.NewReader("adts:"+key))
+	return n, err
+}
+
+func TestStream(t *testing.T) {
+	m := New(fakeStore{objects: map[string]bool{"tracks/t1/audio/128.aac": true}}, "icyre-media")
+	var b strings.Builder
+	if n, err := m.Stream(context.Background(), "t1", media.Quality128, &b); err != nil || n == 0 || b.String() != "adts:tracks/t1/audio/128.aac" {
+		t.Fatal(n, err, b.String())
+	}
+	if _, err := m.Stream(context.Background(), "t1", media.Quality256, io.Discard); !errors.Is(err, domain.ErrNoVariant) {
+		t.Fatalf("missing variant: %v", err)
+	}
 }
 
 func TestAvailableAndSign(t *testing.T) {

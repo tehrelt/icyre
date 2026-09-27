@@ -1,0 +1,27 @@
+# Load-testing overlay (EPIC-038). Used by `make load-*` on top of the stand:
+#   docker compose -f docker-compose.yml -f deploy/load/compose.yml ...
+# The experiment toggles are variables of docker-compose.yml:
+#   CATALOG_CACHE_ENABLED, PLAYBACK_ANALYTICS_MODE, STREAM_MEDIA_PROXY.
+services:
+  catalog:
+    # Replicas cannot share a host port; the gateway balances over them
+    # through Docker DNS (resolver valid=10s).
+    ports: !reset []
+
+  gateway:
+    volumes:
+      - ./deploy/load/ratelimit-exempt.conf:/etc/nginx/ratelimit-exempt.conf:ro
+
+  k6:
+    image: grafana/k6:1.3.0
+    profiles: [load]
+    working_dir: /scripts
+    volumes:
+      - ./tests/load:/scripts:ro
+      - ./tests/load/results:/results
+    environment:
+      BASE_URL: http://gateway:8080
+      # Presigned URLs name the browser-facing endpoint; k6 reaches MinIO
+      # inside the network and keeps the signed Host header.
+      MEDIA_ORIGIN: http://minio:9000
+    # No depends_on: `run` would (re)start the whole stand behind the gateway.

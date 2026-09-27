@@ -20,8 +20,10 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/logger"
 	"github.com/tehrelt/icyre/libs/platform/outbox"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
+	platformredis "github.com/tehrelt/icyre/libs/platform/redis"
 	"github.com/tehrelt/icyre/libs/platform/shutdown"
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
+	cacheadapter "github.com/tehrelt/icyre/services/catalog/internal/adapters/cache"
 	httpadapter "github.com/tehrelt/icyre/services/catalog/internal/adapters/http"
 	kafkaadapter "github.com/tehrelt/icyre/services/catalog/internal/adapters/kafka"
 	pgadapter "github.com/tehrelt/icyre/services/catalog/internal/adapters/postgres"
@@ -116,11 +118,29 @@ func run(args []string) error {
 	}
 
 	// 5. Repositories and application.
+	var (
+		artists ports.ArtistRepository = pgadapter.NewArtistRepository(pool)
+		albums  ports.AlbumRepository  = pgadapter.NewAlbumRepository(pool)
+		tracks  ports.TrackRepository  = pgadapter.NewTrackRepository(pool)
+		genres  ports.GenreRepository  = pgadapter.NewGenreRepository(pool)
+	)
+	if cfg.Cache.Enabled {
+		rdb, err := platformredis.Open(ctx, cfg.Cache.Redis)
+		if err != nil {
+			return err
+		}
+		closers.Add("redis", func(context.Context) error { return rdb.Close() })
+		checks.Add("redis", platformredis.Check(rdb))
+		c := cacheadapter.New(rdb, cfg.Cache.TTL, log, platformredis.NewCacheMetrics(reg))
+		artists, albums = cacheadapter.NewArtists(artists, c), cacheadapter.NewAlbums(albums, c)
+		tracks, genres = cacheadapter.NewTracks(tracks, c), cacheadapter.NewGenres(genres, c)
+		log.Info("redis cache enabled", "ttl", cfg.Cache.TTL)
+	}
 	app := application.New(application.Deps{
-		Artists:   pgadapter.NewArtistRepository(pool),
-		Albums:    pgadapter.NewAlbumRepository(pool),
-		Tracks:    pgadapter.NewTrackRepository(pool),
-		Genres:    pgadapter.NewGenreRepository(pool),
+		Artists:   artists,
+		Albums:    albums,
+		Tracks:    tracks,
+		Genres:    genres,
 		Publisher: publisher,
 		Tx:        postgres.Transactor{Pool: pool},
 		Log:       log,

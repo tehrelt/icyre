@@ -7,6 +7,7 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/config"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
+	"github.com/tehrelt/icyre/libs/platform/redis"
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
 )
 
@@ -28,7 +29,16 @@ type Config struct {
 	// MigrateOnStart applies migrations before serving (handy locally).
 	MigrateOnStart bool
 	Kafka          Kafka
+	Cache          Cache
 	Tracing        telemetry.TracingConfig
+}
+
+// Cache settings: the Redis read-through cache of the repositories
+// (EPIC-038 experiment "with / without Redis").
+type Cache struct {
+	Enabled bool
+	TTL     time.Duration
+	Redis   redis.Config
 }
 
 // Kafka settings.
@@ -64,6 +74,11 @@ func Load() (Config, error) {
 		Kafka: Kafka{
 			Enabled: env.Bool("KAFKA_ENABLED", true),
 			Brokers: env.Strings("KAFKA_BROKERS", []string{"localhost:9094"}),
+		},
+		Cache: Cache{
+			Enabled: env.Bool("CACHE_ENABLED", false),
+			TTL:     env.Duration("CACHE_TTL", 30*time.Second),
+			Redis:   redis.Config{Addr: env.String("REDIS_ADDR", "localhost:6379"), Password: env.String("REDIS_PASSWORD", "")},
 		},
 		Tracing: telemetry.TracingConfig{
 			ServiceName:  ServiceName,
