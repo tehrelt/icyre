@@ -75,6 +75,33 @@ func TestLikesIgnoreStaleEvents(t *testing.T) {
 	}
 }
 
+func TestFollowsLastWriterWins(t *testing.T) {
+	r := newRepo(t)
+	ctx := context.Background()
+	user, artist := uuid.New(), uuid.New()
+	t0 := time.Now().UTC().Truncate(time.Microsecond)
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	must(r.SaveFollow(ctx, user, artist, t0))
+	must(r.RemoveFollow(ctx, user, artist, t0.Add(-time.Minute))) // stale: ignored
+	follows, err := r.Follows(ctx)
+	must(err)
+	if !follows[user][artist] {
+		t.Fatalf("follows %v", follows)
+	}
+	must(r.RemoveFollow(ctx, user, artist, t0.Add(time.Minute)))
+	must(r.SaveFollow(ctx, user, artist, t0)) // redrive after the unfollow
+	follows, err = r.Follows(ctx)
+	must(err)
+	if follows[user][artist] {
+		t.Fatal("stale follow resurrected an unfollow")
+	}
+}
+
 func TestFeaturesKeepLatestMaster(t *testing.T) {
 	r := newRepo(t)
 	ctx := context.Background()

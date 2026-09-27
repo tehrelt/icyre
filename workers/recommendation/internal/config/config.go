@@ -15,7 +15,7 @@ import (
 // ServiceName identifies the worker.
 const ServiceName = "recommendation-worker"
 
-// ConsumerGroup consumes library.events and media.events.
+// ConsumerGroup consumes library.events, social.events and media.events.
 const ConsumerGroup = "recommendation"
 
 // Config is the complete worker configuration.

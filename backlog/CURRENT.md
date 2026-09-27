@@ -63,7 +63,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 ## Backend — Recommendations
 
-- [x] EPIC-029 — Recommendation Worker + Service (history, likes, popularity, audio features → MVP scoring → Redis; `/recommendations/home|tracks|artists`, fallback popular; follows — после EPIC-015)
+- [x] EPIC-029 — Recommendation Worker + Service (history, likes, popularity, audio features → MVP scoring → Redis; `/recommendations/home|tracks|artists`, fallback popular; follows артистов из `social.events`)
 
 ## Edge и агрегация
 

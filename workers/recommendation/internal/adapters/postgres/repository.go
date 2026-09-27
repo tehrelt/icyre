@@ -1,4 +1,4 @@
-// Package postgres stores the worker's taste signals (likes, audio
+// Package postgres stores the worker's taste signals (likes, follows, audio
 // features) with pgx.
 package postgres
 
@@ -36,40 +36,52 @@ type Repository struct{ pool *pgxpool.Pool }
 // New returns a Repository.
 func New(pool *pgxpool.Pool) *Repository { return &Repository{pool: pool} }
 
-// Like kinds: tracks and albums.
+// Signal kinds: liked tracks and albums, followed artists.
 const (
-	KindTrack = "track"
-	KindAlbum = "album"
+	KindTrack  = "track"
+	KindAlbum  = "album"
+	KindArtist = "artist"
 )
 
-// tables by like kind; fixed identifiers, never user input.
-var likeTables = map[string]struct{ table, column string }{
-	KindTrack: {"recommendation.liked_tracks", "track_id"},
-	KindAlbum: {"recommendation.liked_albums", "album_id"},
+// tables by signal kind; fixed identifiers, never user input.
+var signalTables = map[string]struct{ table, column, flag string }{
+	KindTrack:  {"recommendation.liked_tracks", "track_id", "liked"},
+	KindAlbum:  {"recommendation.liked_albums", "album_id", "liked"},
+	KindArtist: {"recommendation.followed_artists", "artist_id", "followed"},
 }
 
-// SaveLike records a like.
+// SaveLike records a like of a track or album.
 func (r *Repository) SaveLike(ctx context.Context, kind string, user, id uuid.UUID, at time.Time) error {
-	return r.setLike(ctx, kind, user, id, true, at)
+	return r.set(ctx, kind, user, id, true, at)
 }
 
 // RemoveLike records a removal.
 func (r *Repository) RemoveLike(ctx context.Context, kind string, user, id uuid.UUID, at time.Time) error {
-	return r.setLike(ctx, kind, user, id, false, at)
+	return r.set(ctx, kind, user, id, false, at)
 }
 
-// setLike applies a save or removal unless a newer one is already stored:
+// SaveFollow records that user follows artist.
+func (r *Repository) SaveFollow(ctx context.Context, user, artist uuid.UUID, at time.Time) error {
+	return r.set(ctx, KindArtist, user, artist, true, at)
+}
+
+// RemoveFollow records an unfollow.
+func (r *Repository) RemoveFollow(ctx context.Context, user, artist uuid.UUID, at time.Time) error {
+	return r.set(ctx, KindArtist, user, artist, false, at)
+}
+
+// set applies a save or removal unless a newer one is already stored:
 // the last event by time wins whatever the delivery order.
-func (r *Repository) setLike(ctx context.Context, kind string, user, id uuid.UUID, liked bool, at time.Time) error {
-	t, ok := likeTables[kind]
+func (r *Repository) set(ctx context.Context, kind string, user, id uuid.UUID, on bool, at time.Time) error {
+	t, ok := signalTables[kind]
 	if !ok {
-		return fmt.Errorf("unknown like kind %q", kind)
+		return fmt.Errorf("unknown signal kind %q", kind)
 	}
-	_, err := r.pool.Exec(ctx, `INSERT INTO `+t.table+` (user_id, `+t.column+`, liked, changed_at) VALUES ($1, $2, $3, $4)
-ON CONFLICT (user_id, `+t.column+`) DO UPDATE SET liked = excluded.liked, changed_at = excluded.changed_at
-WHERE excluded.changed_at >= `+t.table+`.changed_at`, user, id, liked, at)
+	_, err := r.pool.Exec(ctx, `INSERT INTO `+t.table+` (user_id, `+t.column+`, `+t.flag+`, changed_at) VALUES ($1, $2, $3, $4)
+ON CONFLICT (user_id, `+t.column+`) DO UPDATE SET `+t.flag+` = excluded.`+t.flag+`, changed_at = excluded.changed_at
+WHERE excluded.changed_at >= `+t.table+`.changed_at`, user, id, on, at)
 	if err != nil {
-		return fmt.Errorf("set %s like: %w", kind, err)
+		return fmt.Errorf("set %s signal: %w", kind, err)
 	}
 	return nil
 }
@@ -134,6 +146,11 @@ func (r *Repository) Likes(ctx context.Context) (tracks, albums map[uuid.UUID]ma
 		return nil, nil, err
 	}
 	return tracks, albums, nil
+}
+
+// Follows returns every user's followed artists.
+func (r *Repository) Follows(ctx context.Context) (map[uuid.UUID]map[uuid.UUID]bool, error) {
+	return r.likes(ctx, `SELECT user_id, artist_id FROM recommendation.followed_artists WHERE followed`)
 }
 
 func (r *Repository) likes(ctx context.Context, q string) (map[uuid.UUID]map[uuid.UUID]bool, error) {

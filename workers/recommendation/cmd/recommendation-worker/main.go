@@ -121,7 +121,7 @@ func run(args []string) error {
 	// the latest master, so redelivery is harmless.
 	consumer, err := platformkafka.NewConsumer(platformkafka.ConsumerConfig{
 		Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName, Group: config.ConsumerGroup,
-		Topics: []string{events.TopicLibraryEvents, events.TopicMediaEvents}, MaxRetries: cfg.MaxRetries, RetryBackoff: cfg.RetryBackoff, DLQ: true,
+		Topics: []string{events.TopicLibraryEvents, events.TopicSocialEvents, events.TopicMediaEvents}, MaxRetries: cfg.MaxRetries, RetryBackoff: cfg.RetryBackoff, DLQ: true,
 	}, kafkaadapter.Handler(repo), log, platformkafka.NewConsumerMetrics(reg))
 	if err != nil {
 		return err

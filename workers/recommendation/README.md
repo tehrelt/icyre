@@ -5,7 +5,7 @@
 ## Команды
 
 ```text
-recommendation-worker          consumer library.events + media.events, сборка каждые RECOMMENDATION_BUILD_EVERY
+recommendation-worker          consumer library.events + social.events + media.events, сборка каждые RECOMMENDATION_BUILD_EVERY
 recommendation-worker migrate  миграции схемы recommendation
 recommendation-worker build    одна сборка всех наборов
 ```
@@ -14,9 +14,9 @@ recommendation-worker build    одна сборка всех наборов
 
 - `internal/domain` — модель и скоринг (чистые функции, покрыты тестами).
 - `internal/application` — сборка: каталог + популярность + история + лайки + features → наборы.
-- `internal/adapters` — Catalog (REST), ClickHouse (история, популярность), Postgres (лайки, features),
-  Kafka (сигналы), Redis (публикация наборов, pipeline).
-- Consumer идемпотентен: лайки сравнивают время события (устаревшее удаление не стирает новый лайк),
+- `internal/adapters` — Catalog (REST), ClickHouse (история, популярность), Postgres (лайки, подписки на артистов,
+  features), Kafka (сигналы), Redis (публикация наборов, pipeline).
+- Consumer идемпотентен: лайки и подписки сравнивают время события (устаревшее удаление не стирает новый лайк),
   features хранят последний master.
 
 ## Конфигурация

@@ -29,8 +29,9 @@
 
 - `workers/recommendation`: history и popularity из ClickHouse, likes из `library.events`, audio features из
   `audio.features_extracted` (своя схема Postgres), каталог/жанры/релизы из Catalog.
-- Follows: в модели и скоринге учтены (`FollowedArtists`, +3 к artist affinity), источника пока нет — Social Service
-  (EPIC-015) не реализован.
+- Follows: подписки на артистов из `social.events` (EPIC-015) → `recommendation.followed_artists` (last writer wins,
+  tombstone при отписке) → `FollowedArtists`, +3 к artist affinity; одной подписки достаточно для персонального набора.
+  Подписки на пользователей пока не дают сигнала.
 - MVP scoring: `style·0.35 + artist·0.30 + popularity·0.20 + freshness·0.15`, style — жанры + звучание;
   исключение лайкнутого и пропускаемого, штраф дослушанному, причины рекомендаций.
 - Redis: `recommendations:user:{id}` и `recommendations:popular` (контракт `libs/contracts/recommendation`), TTL 24 ч,

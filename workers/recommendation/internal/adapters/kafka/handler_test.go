@@ -12,6 +12,7 @@ import (
 	"github.com/tehrelt/icyre/libs/contracts/events"
 	"github.com/tehrelt/icyre/libs/contracts/events/libraryv1"
 	"github.com/tehrelt/icyre/libs/contracts/events/mediav1"
+	"github.com/tehrelt/icyre/libs/contracts/events/socialv1"
 	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
 	"github.com/tehrelt/icyre/workers/recommendation/internal/adapters/postgres"
 )
@@ -34,6 +35,16 @@ func (f *fakeStore) SaveLike(_ context.Context, kind string, user, id uuid.UUID,
 
 func (f *fakeStore) RemoveLike(_ context.Context, kind string, user, id uuid.UUID, at time.Time) error {
 	f.calls = append(f.calls, call{"remove", kind, user, id, at})
+	return nil
+}
+
+func (f *fakeStore) SaveFollow(_ context.Context, user, artist uuid.UUID, at time.Time) error {
+	f.calls = append(f.calls, call{"save", "artist", user, artist, at})
+	return nil
+}
+
+func (f *fakeStore) RemoveFollow(_ context.Context, user, artist uuid.UUID, at time.Time) error {
+	f.calls = append(f.calls, call{"remove", "artist", user, artist, at})
 	return nil
 }
 
@@ -99,5 +110,30 @@ func TestHandlerRejectsMalformed(t *testing.T) {
 		if err := h(context.Background(), r); !errors.Is(err, platformkafka.ErrPermanent) {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+}
+
+func TestHandlerKeepsArtistFollows(t *testing.T) {
+	s := &fakeStore{}
+	h := Handler(s)
+	ctx := context.Background()
+	user, artist := uuid.New(), uuid.New()
+	at := time.Date(2026, 9, 27, 10, 0, 0, 0, time.UTC)
+	for _, r := range []platformkafka.Record{
+		rec(t, socialv1.TypeFollowed, socialv1.Followed{FollowerID: user.String(), TargetType: socialv1.TargetArtist, TargetID: artist.String(), FollowedAt: at}),
+		rec(t, socialv1.TypeUnfollowed, socialv1.Unfollowed{FollowerID: user.String(), TargetType: socialv1.TargetArtist, TargetID: artist.String(), UnfollowedAt: at.Add(time.Hour)}),
+		rec(t, socialv1.TypeFollowed, socialv1.Followed{FollowerID: user.String(), TargetType: socialv1.TargetUser, TargetID: uuid.NewString(), FollowedAt: at}),
+	} {
+		if err := h(ctx, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []call{{"save", "artist", user, artist, at}, {"remove", "artist", user, artist, at.Add(time.Hour)}}
+	if len(s.calls) != len(want) || s.calls[0] != want[0] || s.calls[1] != want[1] {
+		t.Fatalf("calls %+v", s.calls)
+	}
+	bad := rec(t, socialv1.TypeFollowed, socialv1.Followed{FollowerID: "x", TargetType: socialv1.TargetArtist, TargetID: artist.String(), FollowedAt: at})
+	if err := h(ctx, bad); !errors.Is(err, platformkafka.ErrPermanent) {
+		t.Fatalf("malformed: %v", err)
 	}
 }
