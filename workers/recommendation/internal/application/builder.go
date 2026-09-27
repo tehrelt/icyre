@@ -1,5 +1,5 @@
 // Package application builds recommendation sets: it gathers the catalog,
-// popularity, history, likes and audio features, scores the catalog for
+// popularity, history, likes, follows and audio features, scores the catalog for
 // every user with signals and publishes the sets.
 package application
 
@@ -26,9 +26,10 @@ type Analytics interface {
 	History(ctx context.Context, days int) (map[uuid.UUID]map[uuid.UUID]domain.Interaction, error)
 }
 
-// SignalStore holds likes and audio features.
+// SignalStore holds likes, artist follows and audio features.
 type SignalStore interface {
 	Likes(ctx context.Context) (tracks, albums map[uuid.UUID]map[uuid.UUID]bool, err error)
+	Follows(ctx context.Context) (map[uuid.UUID]map[uuid.UUID]bool, error)
 	Sounds(ctx context.Context) (map[uuid.UUID]*domain.Sound, error)
 }
 
@@ -100,6 +101,10 @@ func (b *Builder) Build(ctx context.Context) (Stats, error) {
 	if err != nil {
 		return Stats{}, err
 	}
+	follows, err := b.signals.Follows(ctx)
+	if err != nil {
+		return Stats{}, err
+	}
 
 	sets := map[string]recommendation.Set{}
 	pt, pa := cat.Popular(b.opts.Tracks, b.opts.Artists)
@@ -115,9 +120,12 @@ func (b *Builder) Build(ctx context.Context) (Stats, error) {
 	for u := range likedAlbums {
 		users[u] = true
 	}
+	for u := range follows {
+		users[u] = true
+	}
 	personal := 0
 	for u := range users {
-		s := domain.Signals{UserID: u, History: history[u], LikedTracks: likedTracks[u], LikedAlbums: likedAlbums[u]}
+		s := domain.Signals{UserID: u, History: history[u], LikedTracks: likedTracks[u], LikedAlbums: likedAlbums[u], FollowedArtists: follows[u]}
 		if s.Empty() {
 			continue
 		}

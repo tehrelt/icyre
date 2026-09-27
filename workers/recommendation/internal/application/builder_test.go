@@ -19,6 +19,7 @@ type fakes struct {
 	plays   map[uuid.UUID]uint64
 	history map[uuid.UUID]map[uuid.UUID]domain.Interaction
 	liked   map[uuid.UUID]map[uuid.UUID]bool
+	follows map[uuid.UUID]map[uuid.UUID]bool
 	sounds  map[uuid.UUID]*domain.Sound
 	err     error
 	out     map[string]recommendation.Set
@@ -34,6 +35,9 @@ func (f *fakes) History(context.Context, int) (map[uuid.UUID]map[uuid.UUID]domai
 func (f *fakes) Likes(context.Context) (map[uuid.UUID]map[uuid.UUID]bool, map[uuid.UUID]map[uuid.UUID]bool, error) {
 	return f.liked, nil, nil
 }
+func (f *fakes) Follows(context.Context) (map[uuid.UUID]map[uuid.UUID]bool, error) {
+	return f.follows, nil
+}
 func (f *fakes) Sounds(context.Context) (map[uuid.UUID]*domain.Sound, error) { return f.sounds, nil }
 func (f *fakes) Publish(_ context.Context, sets map[string]recommendation.Set) error {
 	f.out = sets
@@ -43,7 +47,7 @@ func (f *fakes) Publish(_ context.Context, sets map[string]recommendation.Set) e
 func TestBuildPublishesPopularAndPersonalSets(t *testing.T) {
 	artist := uuid.New()
 	t1, t2, t3 := uuid.New(), uuid.New(), uuid.New()
-	listener, liker, stranger := uuid.New(), uuid.New(), uuid.New()
+	listener, liker, fan, stranger := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	f := &fakes{
 		tracks: []domain.Track{
 			{ID: t1, ArtistIDs: []uuid.UUID{artist}},
@@ -53,6 +57,7 @@ func TestBuildPublishesPopularAndPersonalSets(t *testing.T) {
 		plays:   map[uuid.UUID]uint64{t3: 100},
 		history: map[uuid.UUID]map[uuid.UUID]domain.Interaction{listener: {t1: {Plays: 1, Completions: 1}}},
 		liked:   map[uuid.UUID]map[uuid.UUID]bool{liker: {t2: true}},
+		follows: map[uuid.UUID]map[uuid.UUID]bool{fan: {artist: true}},
 		sounds:  map[uuid.UUID]*domain.Sound{t1: domain.NewSound("v1", nil, -10, 5, 0)},
 	}
 	b := NewBuilder(f, f, f, f, Options{Tracks: 2, Artists: 2}, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -60,7 +65,7 @@ func TestBuildPublishesPopularAndPersonalSets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Users != 2 || st.Candidates != 3 || len(f.out) != 3 {
+	if st.Users != 3 || st.Candidates != 3 || len(f.out) != 4 {
 		t.Fatalf("stats %+v sets %d", st, len(f.out))
 	}
 	pop := f.out[recommendation.PopularKey]
@@ -76,6 +81,10 @@ func TestBuildPublishesPopularAndPersonalSets(t *testing.T) {
 	}
 	if _, ok := f.out[recommendation.UserKey(liker.String())]; !ok {
 		t.Fatal("likes alone must personalise")
+	}
+	// Follows alone personalise too: the followed artist outranks the popular track.
+	if set := f.out[recommendation.UserKey(fan.String())]; len(set.Tracks) == 0 || set.Tracks[0].ID == t3.String() {
+		t.Fatalf("fan set %+v", set)
 	}
 }
 

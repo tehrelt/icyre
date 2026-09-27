@@ -184,7 +184,7 @@ analytics-report: ## Print today's analytics report (plays, listeners, completio
 	cd workers/analytics && LOG_FORMAT=text go run ./cmd/analytics report
 
 .PHONY: run-recommendation-worker recommendations-build run-recommendation
-run-recommendation-worker: ## Run the Recommendation Worker locally (library/media events, ClickHouse, Catalog :8081)
+run-recommendation-worker: ## Run the Recommendation Worker locally (library/social/media events, ClickHouse, Catalog :8081)
 	cd workers/recommendation && DATABASE_URL="$(PG_TEST_DSN)" $(CLICKHOUSE_TEST_ENV) HTTP_ADDR=:8098 LOG_FORMAT=text go run ./cmd/recommendation-worker
 recommendations-build: ## Build every recommendation set once into Redis
 	cd workers/recommendation && DATABASE_URL="$(PG_TEST_DSN)" $(CLICKHOUSE_TEST_ENV) LOG_FORMAT=text go run ./cmd/recommendation-worker build

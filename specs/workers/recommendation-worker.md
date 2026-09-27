@@ -8,7 +8,7 @@
 |---|---|---|
 | listening history (plays, completions, skips) | ClickHouse `playback_events`, окно 90 дней | читается при сборке |
 | likes (треки, альбомы) | `library.events` | `recommendation.liked_tracks`, `liked_albums` |
-| follows | Social Service (EPIC-015) — ещё нет; в модели предусмотрены (`FollowedArtists`) | — |
+| follows артистов | `social.events` (`social.followed` / `social.unfollowed`, `targetType = artist`) | `recommendation.followed_artists` |
 | audio features | `media.events` → `audio.features_extracted` | `recommendation.track_features` (последний master) |
 | popularity | ClickHouse `daily_track_stats`, окно 30 дней | читается при сборке |
 | каталог, жанры, дата релиза | Catalog REST (альбомы → треки `READY`) | читается при сборке |
