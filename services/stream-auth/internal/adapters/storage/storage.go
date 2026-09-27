@@ -5,17 +5,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
 	"github.com/tehrelt/icyre/libs/contracts/media"
 	"github.com/tehrelt/icyre/libs/platform/objectstore"
+	"github.com/tehrelt/icyre/services/stream-auth/internal/domain"
 )
 
 // Store is the part of objectstore.Store used here.
 type Store interface {
 	Stat(ctx context.Context, bucket, key string) (objectstore.ObjectInfo, error)
 	PresignDownload(ctx context.Context, bucket, key string, ttl time.Duration, o objectstore.DownloadOptions) (objectstore.SignedURL, error)
+	Download(ctx context.Context, bucket, key string, w io.Writer) (int64, error)
 }
 
 // Media implements application.Variants and application.Signer.
@@ -54,4 +57,14 @@ func (m *Media) Sign(ctx context.Context, trackID string, q media.Quality, ttl t
 		return "", time.Time{}, err
 	}
 	return u.URL, u.ExpiresAt, nil
+}
+
+// Stream copies one variant into w (the media proxy experiment); a missing
+// variant is domain.ErrNoVariant.
+func (m *Media) Stream(ctx context.Context, trackID string, q media.Quality, w io.Writer) (int64, error) {
+	n, err := m.store.Download(ctx, m.bucket, media.TrackAudioKey(trackID, q), w)
+	if errors.Is(err, objectstore.ErrNotFound) {
+		return n, domain.ErrNoVariant
+	}
+	return n, err
 }

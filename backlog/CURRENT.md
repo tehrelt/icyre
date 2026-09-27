@@ -70,6 +70,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 - [x] EPIC-036 — CI (GitHub Actions: go.work, tidy, gofmt, vet, unit + race, golangci-lint, web, сборка всех образов)
 - [x] EPIC-037 — Integration testing (make test-integration в CI на compose-инфраструктуре, e2e Catalog / Media / Playback через gateway)
+- [x] EPIC-038 — Load testing (k6 в контейнере, `make load-*`: baseline, Redis-кэш Catalog, реплики, Kafka vs sync ClickHouse, media proxy vs signed URL; CPU/память, PostgreSQL, Kafka lag)
 
 ## Frontend
 

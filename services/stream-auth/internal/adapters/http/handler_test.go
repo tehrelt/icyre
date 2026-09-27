@@ -5,6 +5,8 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/tehrelt/icyre/libs/contracts/media"
 	"github.com/tehrelt/icyre/libs/platform/authn"
 	"github.com/tehrelt/icyre/services/stream-auth/internal/application"
 	"github.com/tehrelt/icyre/services/stream-auth/internal/domain"
@@ -40,10 +43,19 @@ func (f *fakeApp) Authorize(_ context.Context, r application.Request) (domain.Gr
 }
 
 func setup(t *testing.T) (http.Handler, *fakeApp, string) {
+	return setupWith(t, nil)
+}
+
+// setupWith mounts the handler, with the media proxy when proxy is not nil.
+func setupWith(t *testing.T, proxy Proxy) (http.Handler, *fakeApp, string) {
 	pub, priv, _ := ed25519.GenerateKey(rand.Reader)
 	app := &fakeApp{}
 	mux := http.NewServeMux()
-	NewHandler(app, authn.NewVerifier(authn.StaticKeys{"k1": pub}, nil)).Register(mux)
+	h := NewHandler(app, authn.NewVerifier(authn.StaticKeys{"k1": pub}, nil))
+	if proxy != nil {
+		h.WithProxy(proxy, slog.New(slog.DiscardHandler))
+	}
+	h.Register(mux)
 	tok := jwt.NewWithClaims(jwt.SigningMethodEdDSA, authn.Claims{SessionID: "s1", RegisteredClaims: jwt.RegisteredClaims{
 		Subject: "u1", Issuer: authn.Issuer, Audience: jwt.ClaimStrings{authn.Audience}, ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
 	}})
@@ -91,6 +103,67 @@ func TestAuthorize(t *testing.T) {
 	for body, want := range cases {
 		if rec := post(h, tok, body); rec.Code != want {
 			t.Errorf("%s: %d, want %d (%s)", body, rec.Code, want, rec.Body)
+		}
+	}
+}
+
+type fakeProxy struct{ last application.Request }
+
+func (f *fakeProxy) Choose(_ context.Context, r application.Request) (media.Quality, error) {
+	f.last = r
+	switch r.TrackID {
+	case readyID:
+		return 128, nil
+	case blockedID:
+		return 0, domain.ErrTrackBlocked
+	}
+	return 0, domain.ErrTrackNotFound
+}
+
+func (f *fakeProxy) Stream(_ context.Context, trackID string, q media.Quality, w io.Writer) (int64, error) {
+	n, err := io.WriteString(w, "adts:"+trackID+":"+q.String())
+	return int64(n), err
+}
+
+func get(h http.Handler, token, path string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestProxyDisabledByDefault(t *testing.T) {
+	h, _, tok := setup(t)
+	if rec := get(h, tok, "/api/v1/stream/proxy/"+readyID); rec.Code != http.StatusNotFound {
+		t.Fatalf("proxy off: %d", rec.Code)
+	}
+}
+
+func TestProxy(t *testing.T) {
+	proxy := &fakeProxy{}
+	h, _, tok := setupWith(t, proxy)
+	if rec := get(h, "", "/api/v1/stream/proxy/"+readyID); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous: %d", rec.Code)
+	}
+	rec := get(h, tok, "/api/v1/stream/proxy/"+readyID+"?quality=128")
+	if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != media.AudioContentType ||
+		rec.Header().Get("X-Audio-Quality") != "128" || rec.Body.String() != "adts:"+readyID+":128" {
+		t.Fatalf("%d %v %q", rec.Code, rec.Header(), rec.Body)
+	}
+	if proxy.last.UserID != "u1" || proxy.last.Quality != 128 {
+		t.Fatalf("request %+v", proxy.last)
+	}
+	for path, want := range map[string]int{
+		"/api/v1/stream/proxy/nope":                       http.StatusUnprocessableEntity,
+		"/api/v1/stream/proxy/" + readyID + "?quality=96": http.StatusUnprocessableEntity,
+		"/api/v1/stream/proxy/" + blockedID:               http.StatusForbidden,
+		"/api/v1/stream/proxy/" + brokenID:                http.StatusNotFound,
+	} {
+		if rec := get(h, tok, path); rec.Code != want {
+			t.Errorf("%s: %d, want %d", path, rec.Code, want)
 		}
 	}
 }

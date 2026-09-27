@@ -255,11 +255,16 @@ services:
     image: icyre/catalog:local
     # Built by the migrate job above; never pulled from a registry.
     pull_policy: never
-    environment: *catalog-env
+    environment:
+      <<: *catalog-env
+      # Redis read-through cache (EPIC-038: `make load-redis` compares both).
+      CACHE_ENABLED: ${CATALOG_CACHE_ENABLED:-false}
+      REDIS_ADDR: redis:6379
     ports: ["8081:8080"]
     depends_on:
       catalog-migrate: { condition: service_completed_successfully }
       kafka-init: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
     restart: unless-stopped
 
   bff:
@@ -418,6 +423,14 @@ services:
       REDIS_ADDR: redis:6379
       KAFKA_BROKERS: kafka:9092
       AUTH_JWKS_URL: http://auth:8080/api/v1/auth/.well-known/jwks.json
+      # kafka (default) or sync: straight to ClickHouse in the request
+      # (EPIC-038: `make load-analytics` compares both).
+      ANALYTICS_MODE: ${PLAYBACK_ANALYTICS_MODE:-kafka}
+      CATALOG_URL: http://catalog:8080
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USERNAME: icyre
+      CLICKHOUSE_PASSWORD: icyre
+      CLICKHOUSE_DATABASE: icyre
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     ports: ["8089:8080"]
@@ -470,6 +483,9 @@ services:
       S3_PUBLIC_ENDPOINT: localhost:9000
       S3_ACCESS_KEY: icyre
       S3_SECRET_KEY: icyre-secret
+      # Audio through the service (EPIC-038: `make load-media` compares it
+      # with signed URLs to object storage).
+      MEDIA_PROXY_ENABLED: ${STREAM_MEDIA_PROXY:-false}
       OTEL_ENABLED: "true"
       OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4318
     ports: ["8085:8080"]

@@ -58,7 +58,7 @@ test-race: ## Unit tests with the race detector
 
 .PHONY: test-integration
 test-integration: ## Integration tests (needs `make up-core`)
-	cd services/catalog && CATALOG_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/catalog && CATALOG_TEST_DATABASE_DSN="$(PG_TEST_DSN)" REDIS_ADDR=localhost:6379 go test -tags integration -count=1 ./...
 	cd services/auth && AUTH_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/user-profile && PROFILE_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/library && LIBRARY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
@@ -223,6 +223,28 @@ down: ## Stop the stand
 	docker compose down
 logs: ## Follow logs
 	docker compose logs -f
+
+# --- Load testing (EPIC-038) -----------------------------------------------
+# k6 runs in a container against the gateway of the `make up` stand (seeded:
+# `make seed`, `make seed-media` for load-media). LOAD_ARGS tunes the load,
+# e.g. LOAD_ARGS="--profile 1000" or LOAD_ARGS="--vus 200 --duration 2m".
+# Reports: tests/load/results/<experiment>-<time>.md
+
+LOAD_ARGS ?=
+
+.PHONY: load-baseline load-redis load-replicas load-analytics load-media load-all
+load-baseline: ## Load: Catalog baseline through the gateway
+	bun scripts/load-run.ts baseline $(LOAD_ARGS)
+load-redis: ## Load: Catalog without vs with the Redis cache
+	bun scripts/load-run.ts redis $(LOAD_ARGS)
+load-replicas: ## Load: Catalog 1 vs N replicas (LOAD_ARGS="--replicas 3")
+	bun scripts/load-run.ts replicas $(LOAD_ARGS)
+load-analytics: ## Load: playback events via Kafka vs sync ClickHouse writes
+	bun scripts/load-run.ts analytics $(LOAD_ARGS)
+load-media: ## Load: audio from object storage (signed URL) vs through the backend
+	bun scripts/load-run.ts media $(LOAD_ARGS)
+load-all: ## Load: every experiment in a row
+	bun scripts/load-run.ts all $(LOAD_ARGS)
 
 # --- Everything -------------------------------------------------------------
 

@@ -2,7 +2,8 @@
 
 ## Инструмент
 
-k6.
+k6 (в контейнере, `deploy/load/compose.yml`). Сценарии, запуск и сбор метрик — `tests/load/README.md`,
+команды — `make load-baseline|load-redis|load-replicas|load-analytics|load-media`.
 
 ## Цели исследования
 

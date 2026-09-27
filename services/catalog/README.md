@@ -75,6 +75,7 @@ application, репозитории берут транзакцию из ctx), �
 | `DATABASE_MAX_CONNS`, `DATABASE_STATEMENT_TIMEOUT`, … | `10`, `5s` |
 | `MIGRATE_ON_START` | `false` |
 | `KAFKA_ENABLED` / `KAFKA_BROKERS` | `true` / `localhost:9094` |
+| `CACHE_ENABLED` / `CACHE_TTL` / `REDIS_ADDR` | `false` / `30s` / `localhost:6379` |
 | `OTEL_ENABLED` / `OTEL_EXPORTER_OTLP_ENDPOINT` | `false` / `localhost:4318` |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `json` |
 
@@ -86,3 +87,12 @@ go test ./...                                                         # unit
 CATALOG_TEST_DATABASE_DSN=postgres://icyre:icyre@localhost:5432/icyre?sslmode=disable \
   go test -tags integration ./...                                     # на реальном PostgreSQL
 ```
+
+## Redis-кэш (EPIC-038)
+
+`CACHE_ENABLED=true` включает read-through кэш репозиториев (`internal/adapters/cache`): artist, album,
+track по ID, треки альбома и список жанров, TTL `CACHE_TTL`. Запись (создание/обновление трека)
+инвалидирует ключи трека и треков альбома внутри транзакции записи, поэтому читатель, успевший между
+инвалидацией и commit, может закешировать старую версию — устаревание ограничено TTL.
+`GetForUpdate` и batch-запросы (`?ids=`) всегда идут в PostgreSQL. На стенде выключен
+(`CATALOG_CACHE_ENABLED`), сравнение — `make load-redis`.

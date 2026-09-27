@@ -32,7 +32,10 @@ type Config struct {
 	// URLTTL is the lifetime of issued stream URLs (spec: 1–10 minutes).
 	URLTTL         time.Duration
 	StatusCacheTTL time.Duration
-	Tracing        telemetry.TracingConfig
+	// MediaProxy enables GET /stream/proxy/{trackId}: audio through the
+	// service (EPIC-038 experiment only).
+	MediaProxy bool
+	Tracing    telemetry.TracingConfig
 }
 
 // Load reads and validates the configuration.
@@ -65,6 +68,7 @@ func Load() (Config, error) {
 		JWKSURL:        env.String("AUTH_JWKS_URL", "http://localhost:8083/api/v1/auth/.well-known/jwks.json"),
 		URLTTL:         env.Duration("STREAM_URL_TTL", 5*time.Minute),
 		StatusCacheTTL: env.Duration("STREAM_STATUS_CACHE_TTL", 10*time.Second),
+		MediaProxy:     env.Bool("MEDIA_PROXY_ENABLED", false),
 		Tracing: telemetry.TracingConfig{
 			ServiceName:  ServiceName,
 			Enabled:      env.Bool("OTEL_ENABLED", false),

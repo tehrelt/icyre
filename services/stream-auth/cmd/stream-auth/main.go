@@ -98,7 +98,12 @@ func run() error {
 	mux := http.NewServeMux()
 	checks.Register(mux)
 	mux.Handle("GET /metrics", telemetry.MetricsHandler(reg))
-	httpadapter.NewHandler(app, verifier).Register(mux)
+	api := httpadapter.NewHandler(app, verifier)
+	if cfg.MediaProxy {
+		api.WithProxy(mediaProxy{app, mediaStore}, log)
+		log.Warn("media proxy enabled: audio passes through the service (experiment only)")
+	}
+	api.Register(mux)
 	handler := httpserver.Standard(mux, httpserver.StandardOptions{
 		Service: config.ServiceName, Log: log, Metrics: httpserver.NewHTTPMetrics(reg), RequestTimeout: cfg.HTTP.RequestTimeout,
 	})
@@ -116,4 +121,10 @@ func run() error {
 	}
 	log.Info("stream authorization service stopped")
 	return nil
+}
+
+// mediaProxy joins the checks of the use case with the object storage stream.
+type mediaProxy struct {
+	*application.Service
+	*storage.Media
 }

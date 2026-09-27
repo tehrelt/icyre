@@ -7,6 +7,7 @@ toolchain go1.26.8
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/prometheus/client_golang v1.24.1
 	github.com/tehrelt/icyre/libs/contracts v0.0.0
 	github.com/tehrelt/icyre/libs/platform v0.0.0
 	go.opentelemetry.io/otel/trace v1.46.0
@@ -28,10 +29,10 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pierrec/lz4/v4 v4.1.30 // indirect
 	github.com/pressly/goose/v3 v3.28.0 // indirect
-	github.com/prometheus/client_golang v1.24.1 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
+	github.com/redis/go-redis/v9 v9.22.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/twmb/franz-go v1.22.0 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.14.0 // indirect
@@ -43,6 +44,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.46.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect

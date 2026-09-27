@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/tehrelt/icyre/libs/platform/authn"
+	"github.com/tehrelt/icyre/libs/platform/clickhouse"
 	"github.com/tehrelt/icyre/libs/platform/health"
 	"github.com/tehrelt/icyre/libs/platform/httpclient"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
@@ -21,6 +22,7 @@ import (
 	platformredis "github.com/tehrelt/icyre/libs/platform/redis"
 	"github.com/tehrelt/icyre/libs/platform/shutdown"
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
+	analyticsadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/analytics"
 	httpadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/http"
 	kafkaadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/kafka"
 	"github.com/tehrelt/icyre/services/playback/internal/application"
@@ -70,18 +72,28 @@ func run() error {
 		return err
 	}
 	closers.Add("redis", func(context.Context) error { return rdb.Close() })
-	producer, err := platformkafka.NewProducer(platformkafka.ProducerConfig{Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName}, reg)
-	if err != nil {
-		return err
-	}
-	closers.Add("kafka producer", producer.Close)
-
 	checks := health.New(0)
 	checks.Add("redis", platformredis.Check(rdb))
-	checks.Add("kafka", producer.Ping)
 
-	// 5. Application.
-	app := application.New(kafkaadapter.NewPublisher(producer, config.ServiceName))
+	// 5. Application: events go to Kafka, or straight to ClickHouse in the
+	// sync analytics experiment.
+	var publisher application.Publisher
+	switch cfg.Analytics.Mode {
+	case config.AnalyticsSync:
+		ch := clickhouse.New(cfg.Analytics.ClickHouse, httpclient.New(httpclient.Config{Timeout: cfg.Analytics.ClickHouse.Timeout}))
+		checks.Add("clickhouse", ch.Check)
+		publisher = analyticsadapter.New(cfg.Analytics.CatalogURL, httpclient.New(httpclient.Config{Timeout: cfg.Analytics.CatalogTimeout}), ch)
+		log.Warn("sync analytics mode: events go to ClickHouse, not Kafka (history and recommendations miss them)")
+	default:
+		producer, err := platformkafka.NewProducer(platformkafka.ProducerConfig{Brokers: cfg.KafkaBrokers, ClientID: config.ServiceName}, reg)
+		if err != nil {
+			return err
+		}
+		closers.Add("kafka producer", producer.Close)
+		checks.Add("kafka", producer.Ping)
+		publisher = kafkaadapter.NewPublisher(producer, config.ServiceName)
+	}
+	app := application.New(publisher)
 
 	// 6. Handlers. Access tokens are verified against Auth's JWKS.
 	keys := authn.NewRemoteKeys(cfg.JWKSURL, httpclient.New(httpclient.Config{Timeout: 3 * time.Second}))
