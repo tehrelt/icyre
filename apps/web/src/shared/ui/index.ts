@@ -8,8 +8,22 @@ export type { BadgeTone } from './display';
 export { Checkbox, Radio, SearchInput, Slider, Switch } from './forms';
 export { Breadcrumb, MobileNavItem, SegmentedControl, SidebarItem, Tabs, TopNavItem } from './nav';
 export type { SegmentOption, TabItem } from './nav';
-export { AlbumCard, ArtistCard, FeaturedCard, MediaCard, PlaylistCard, TrackListHeader, TrackRow } from './media';
+export { AlbumCard, ArtistCard, FeaturedCard, MediaCard, PlaylistCard, QueueItem, TrackListHeader, TrackRow } from './media';
 export type { CardState, TrackRowState } from './media';
+export {
+  ContextMenu,
+  Drawer,
+  Dropdown,
+  Menu,
+  MenuDivider,
+  MenuHeading,
+  MenuItem,
+  Modal,
+  Popover,
+  Toast,
+  Tooltip,
+} from './overlays';
+export type { ToastTone } from './overlays';
 export { PlaybackState, PlayerButton, ProgressBar, TimeLabel, VolumeSlider } from './player';
 export type { RepeatMode } from './player';
 export type { IconName } from './icons';

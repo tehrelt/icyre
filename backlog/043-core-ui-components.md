@@ -30,7 +30,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [ ] TASK-043.10 Input, Textarea — вместе с первой формой (Auth UI / Create playlist).
 
-- [ ] TASK-043.8 Tooltip, Menu/Dropdown/ContextMenu, Popover, Modal, Drawer, Toast, QueueItem.
+- [x] TASK-043.8 Tooltip, Menu/Dropdown/ContextMenu, Popover, Modal, Drawer, Toast, QueueItem.
 
 - [x] TASK-043.9 Checkbox, Radio, Switch, Divider, Progress, TopNavItem.
 

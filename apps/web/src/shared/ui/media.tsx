@@ -368,3 +368,59 @@ export function TrackListHeader({ showCover = true, albumLabel = 'Album' }: Trac
     </div>
   );
 }
+
+/* ---------- QueueItem ---------- */
+export interface QueueItemProps {
+  title: string;
+  artist: string;
+  duration: number;
+  cover?: string | null;
+  art?: number;
+  state?: 'default' | 'current' | 'played';
+  playbackState?: 'playing' | 'paused' | 'buffering';
+  draggable?: boolean;
+  onPlay?: () => void;
+  onRemove?: () => void;
+}
+
+export function QueueItem({
+  title,
+  artist,
+  duration,
+  cover,
+  art = 0,
+  state = 'default',
+  playbackState = 'playing',
+  draggable,
+  onPlay,
+  onRemove,
+}: QueueItemProps) {
+  const current = state === 'current';
+  return (
+    <div
+      className={cx('ic-queue', current && 'is-current', state === 'played' && 'is-played')}
+      role="listitem"
+      aria-current={current ? 'true' : undefined}
+    >
+      <span className="ic-queue-grip" aria-hidden="true">
+        {draggable ? <Icon name="grip" size={16} /> : null}
+      </span>
+      <button type="button" className="ic-queue-art" aria-label={`${current && playbackState === 'playing' ? 'Pause' : 'Play'} ${title}`} onClick={onPlay}>
+        <Artwork src={cover} art={art} alt="" />
+        {current ? (
+          <span className="ic-queue-eq">
+            <PlaybackState state={playbackState} size="sm" />
+          </span>
+        ) : null}
+      </button>
+      <span className="ic-queue-text">
+        <span className="ic-queue-title">{title}</span>
+        <span className="ic-queue-artist">{artist}</span>
+      </span>
+      <span className="ic-time ic-time-tertiary">{formatTime(duration)}</span>
+      <span className="ic-queue-remove">
+        <IconButton icon="close" label={`Remove ${title} from queue`} size="sm" onClick={onRemove} />
+      </span>
+    </div>
+  );
+}
