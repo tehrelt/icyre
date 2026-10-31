@@ -1,5 +1,5 @@
 // Ported from the ICYRE Design System (components/src/display.tsx).
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import { useControlled } from '@/shared/hooks/useControlled';
 import { cx } from '@/shared/lib/cx';
@@ -125,5 +125,60 @@ export function Skeleton({ shape = 'text', width, height, radius }: SkeletonProp
       style={{ width, height }}
       aria-hidden="true"
     />
+  );
+}
+
+/* ---------- Divider ---------- */
+export interface DividerProps {
+  orientation?: 'horizontal' | 'vertical';
+  tone?: 'subtle' | 'default';
+  label?: string;
+}
+
+export function Divider({ orientation = 'horizontal', tone = 'subtle', label }: DividerProps) {
+  if (label) {
+    return (
+      <div className="ic-divider-labeled" role="separator" aria-label={label}>
+        {label}
+      </div>
+    );
+  }
+  return <hr className={cx('ic-divider', `ic-divider-${orientation}`, `ic-divider-${tone}`)} aria-orientation={orientation} />;
+}
+
+/* ---------- Progress ---------- */
+export interface ProgressProps {
+  value?: number;
+  max?: number;
+  label: string;
+  valueText?: string;
+  tone?: 'neutral' | 'iridescent';
+  size?: 'sm' | 'md';
+}
+
+export function Progress({ value, max = 100, label, valueText, tone = 'neutral', size = 'md' }: ProgressProps) {
+  const determinate = value != null && Number.isFinite(value);
+  const safeMax = max > 0 ? max : 100;
+  const safeValue = determinate ? Math.max(0, Math.min(safeMax, value)) : 0;
+  const percent = (safeValue / safeMax) * 100;
+  const displayValue = valueText ?? (determinate ? `${Math.round(percent)}%` : undefined);
+  return (
+    <div className="ic-progress-wrap">
+      <div className="ic-progress-head">
+        <span className="t-body-sm">{label}</span>
+        {displayValue ? <span className="ic-meta">{displayValue}</span> : null}
+      </div>
+      <div
+        className={cx('ic-progress', `ic-progress-${size}`, `ic-progress-${tone}`, !determinate && 'is-indeterminate')}
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={determinate ? 0 : undefined}
+        aria-valuemax={determinate ? safeMax : undefined}
+        aria-valuenow={determinate ? safeValue : undefined}
+        aria-valuetext={valueText}
+      >
+        <div className="ic-progress-bar" style={determinate ? ({ width: `${percent}%` } as CSSProperties) : undefined} />
+      </div>
+    </div>
   );
 }

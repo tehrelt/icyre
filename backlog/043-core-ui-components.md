@@ -32,7 +32,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [ ] TASK-043.8 Tooltip, Menu/Dropdown/ContextMenu, Popover, Modal, Drawer, Toast, QueueItem.
 
-- [ ] TASK-043.9 Checkbox, Radio, Switch, Divider, Progress, TopNavItem.
+- [x] TASK-043.9 Checkbox, Radio, Switch, Divider, Progress, TopNavItem.
 
 ## Definition of Done
 

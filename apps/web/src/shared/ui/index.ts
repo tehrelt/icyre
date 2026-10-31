@@ -3,10 +3,10 @@ import './styles/components.css';
 
 export { Artwork, Button, Icon, IconButton, Logo, Spinner, Surface } from './core';
 export type { ButtonVariant, IconButtonVariant, Size } from './core';
-export { Avatar, Badge, Chip, ExplicitMark, Skeleton, Tag } from './display';
+export { Avatar, Badge, Chip, Divider, ExplicitMark, Progress, Skeleton, Tag } from './display';
 export type { BadgeTone } from './display';
-export { SearchInput, Slider } from './forms';
-export { Breadcrumb, MobileNavItem, SegmentedControl, SidebarItem, Tabs } from './nav';
+export { Checkbox, Radio, SearchInput, Slider, Switch } from './forms';
+export { Breadcrumb, MobileNavItem, SegmentedControl, SidebarItem, Tabs, TopNavItem } from './nav';
 export type { SegmentOption, TabItem } from './nav';
 export { AlbumCard, ArtistCard, FeaturedCard, MediaCard, PlaylistCard, TrackListHeader, TrackRow } from './media';
 export type { CardState, TrackRowState } from './media';

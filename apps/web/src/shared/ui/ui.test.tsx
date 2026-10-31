@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { Button, Chip, IconButton, PlayerButton, SegmentedControl, TrackRow } from './index';
+import { Button, Checkbox, Chip, Divider, IconButton, PlayerButton, Progress, Radio, SegmentedControl, Switch, TopNavItem, TrackRow } from './index';
 
 describe('Design System components', () => {
   it('Button renders variant classes and disables while loading', () => {
@@ -66,5 +66,58 @@ describe('Design System components', () => {
     render(<TrackRow index={9} title="Northern Index" artist="Nova Hale" duration={219} state="unavailable" />);
     expect(screen.queryByRole('button', { name: /play/i })).not.toBeInTheDocument();
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
+  });
+
+  it('Checkbox reports native changes', async () => {
+    const onChange = vi.fn();
+    render(<Checkbox label="Download over Wi-Fi" description="Saves mobile data" onChange={onChange} />);
+    const checkbox = screen.getByRole('checkbox', { name: 'Download over Wi-Fi' });
+    expect(checkbox).toHaveAccessibleDescription('Saves mobile data');
+    await userEvent.click(checkbox);
+    expect(onChange).toHaveBeenCalledWith(true);
+    expect(checkbox).toBeChecked();
+  });
+
+  it('Checkbox exposes mixed state', () => {
+    render(<Checkbox label="Select all" indeterminate />);
+    expect(screen.getByRole('checkbox', { name: 'Select all' })).toHaveAttribute('aria-checked', 'mixed');
+  });
+
+  it('Radio preserves native grouping', async () => {
+    render(
+      <>
+        <Radio name="quality" value="high" label="High quality" defaultChecked />
+        <Radio name="quality" value="low" label="Low quality" />
+      </>,
+    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Low quality' }));
+    expect(screen.getByRole('radio', { name: 'High quality' })).not.toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Low quality' })).toBeChecked();
+  });
+
+  it('Switch exposes switch semantics', async () => {
+    const onChange = vi.fn();
+    render(<Switch label="Autoplay" onChange={onChange} />);
+    await userEvent.click(screen.getByRole('switch', { name: 'Autoplay' }));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('Progress supports both modes', () => {
+    const { rerender } = render(<Progress label="Upload" value={25} />);
+    expect(screen.getByRole('progressbar', { name: 'Upload' })).toHaveAttribute('aria-valuenow', '25');
+    expect(screen.getByText('25%')).toBeInTheDocument();
+    rerender(<Progress label="Processing" />);
+    expect(screen.getByRole('progressbar', { name: 'Processing' })).not.toHaveAttribute('aria-valuenow');
+  });
+
+  it('Divider and TopNavItem expose navigation state', () => {
+    render(
+      <>
+        <Divider label="Library" />
+        <TopNavItem label="Discover" active />
+      </>,
+    );
+    expect(screen.getByRole('separator', { name: 'Library' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page');
   });
 });

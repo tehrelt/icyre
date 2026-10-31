@@ -142,6 +142,32 @@ export function SidebarItem({ icon, label, active, disabled, count, art, to, for
   );
 }
 
+/* ---------- TopNavItem ---------- */
+export interface TopNavItemProps {
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  to?: string;
+  forceState?: 'hover';
+  onClick?: () => void;
+}
+
+export function TopNavItem({ label, active, disabled, to, forceState, onClick }: TopNavItemProps) {
+  const className = cx('ic-topnav', active && 'is-active', disabled && 'is-disabled', forceState && `is-${forceState}`);
+  if (to && !disabled) {
+    return (
+      <Link to={to} aria-current={active ? 'page' : undefined} className={className} onClick={onClick}>
+        {label}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" disabled={disabled} aria-current={active ? 'page' : undefined} className={className} onClick={onClick}>
+      {label}
+    </button>
+  );
+}
+
 /* ---------- MobileNavItem ---------- */
 export interface MobileNavItemProps {
   icon: IconName;
