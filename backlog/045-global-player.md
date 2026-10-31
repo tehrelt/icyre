@@ -24,11 +24,11 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-045.5 Play для карточек/строк: `usePlayCollection`, `usePlayTrackList`, playing-состояния карточек и строк.
 
-- [ ] TASK-045.6 Stream Authorization API (EPIC-017) вместо mock `/playback/tracks/{id}/stream`.
+- [x] TASK-045.6 Stream Authorization API (EPIC-017) вместо mock `/playback/tracks/{id}/stream`.
 
 - [ ] TASK-045.7 Queue drawer, like, device picker, expanded player (нужны макеты).
 
-- [ ] TASK-045.8 Media Session API, горячие клавиши, сохранение громкости.
+- [x] TASK-045.8 Media Session API, горячие клавиши, сохранение громкости.
 
 ## Definition of Done
 
