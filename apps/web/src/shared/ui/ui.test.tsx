@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import { Button, Checkbox, Chip, Divider, IconButton, PlayerButton, Progress, Radio, SegmentedControl, Switch, TopNavItem, TrackRow } from './index';
+import { createRef } from 'react';
+
+import { Button, Checkbox, Chip, Divider, IconButton, Input, PlayerButton, Progress, Radio, SegmentedControl, Switch, Textarea, TopNavItem, TrackRow } from './index';
 
 describe('Design System components', () => {
   it('Button renders variant classes and disables while loading', () => {
@@ -119,5 +121,33 @@ describe('Design System components', () => {
     );
     expect(screen.getByRole('separator', { name: 'Library' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Discover' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('Input associates label, hint, error, and forwards ref', async () => {
+    const ref = createRef<HTMLInputElement>();
+    const { rerender } = render(<Input ref={ref} label="Playlist name" hint="Visible on your profile" size="lg" iconStart="search" />);
+    const input = screen.getByRole('textbox', { name: 'Playlist name' });
+    expect(ref.current).toBe(input);
+    expect(input).toHaveAccessibleDescription('Visible on your profile');
+    expect(input.closest('.ic-field')).toHaveClass('ic-field-lg');
+
+    await userEvent.type(input, 'Night');
+    expect(input).toHaveValue('Night');
+
+    rerender(<Input ref={ref} label="Playlist name" error="Name is required" />);
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription('Name is required');
+    expect(screen.getByRole('alert')).toHaveTextContent('Name is required');
+    expect(input.closest('.ic-field')).toHaveClass('is-error');
+  });
+
+  it('Textarea tracks character counter and error state', async () => {
+    const ref = createRef<HTMLTextAreaElement>();
+    render(<Textarea ref={ref} label="Bio" maxLength={100} defaultValue="Hi" />);
+    const area = screen.getByRole('textbox', { name: 'Bio' });
+    expect(ref.current).toBe(area);
+    expect(screen.getByText('2/100')).toBeInTheDocument();
+    await userEvent.type(area, '!');
+    expect(screen.getByText('3/100')).toBeInTheDocument();
   });
 });

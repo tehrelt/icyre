@@ -2,7 +2,7 @@
 
 > Проект: **Исследование архитектурных подходов и реализация масштабируемого музыкального стриминг-сервиса**
 
-**Status:** [-] IN PROGRESS
+**Status:** [x] DONE
 
 **Priority:** P0
 
@@ -28,7 +28,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-043.7 SearchInput (forwardRef, Enter/Escape), Tabs (roving focus, счётчики), TrackListHeader — для Search и Album.
 
-- [ ] TASK-043.10 Input, Textarea — вместе с первой формой (Auth UI / Create playlist).
+- [x] TASK-043.10 Input, Textarea (`shared/ui/forms.tsx`).
 
 - [x] TASK-043.8 Tooltip, Menu/Dropdown/ContextMenu, Popover, Modal, Drawer, Toast, QueueItem.
 

@@ -80,7 +80,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 - [x] EPIC-041 — Frontend Foundation
 - [x] EPIC-042 — Design Tokens
-- [-] EPIC-043 — Core UI Components
+- [x] EPIC-043 — Core UI Components
 - [x] EPIC-044 — Application Shell
 - [-] EPIC-045 — Global Player
 - [x] EPIC-046 — Home
