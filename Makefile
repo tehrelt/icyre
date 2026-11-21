@@ -202,7 +202,7 @@ run-search: ## Run the Search Service locally on :8086
 
 # --- Frontend (Bun) ---------------------------------------------------------
 
-.PHONY: web-install web-dev web-build web-test web-lint scripts-typecheck
+.PHONY: web-install web-dev web-build web-test web-e2e web-lint scripts-typecheck
 web-install: ## bun install
 	bun install
 web-dev: ## Vite dev server for apps/web
@@ -211,6 +211,8 @@ web-build: ## Typecheck + build apps/web
 	bun run build
 web-test: ## Vitest
 	bun run test
+web-e2e: ## Playwright e2e tests for apps/web
+	bun run --filter @icyre/web test:e2e
 web-lint: ## ESLint
 	bun run lint
 scripts-typecheck: ## Typecheck scripts/*.ts
