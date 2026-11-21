@@ -2,10 +2,12 @@
 package config
 
 import (
+	"errors"
 	"time"
 
 	"github.com/tehrelt/icyre/libs/platform/config"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
+	"github.com/tehrelt/icyre/libs/platform/objectstore"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
 	"github.com/tehrelt/icyre/libs/platform/redis"
 	"github.com/tehrelt/icyre/libs/platform/telemetry"
@@ -19,18 +21,23 @@ const ConsumerGroup = "user-profile"
 
 // Config is the complete service configuration.
 type Config struct {
-	Env             string
-	Version         string
-	LogLevel        string
-	LogFormat       string
-	HTTP            httpserver.Config
-	ShutdownTimeout time.Duration
-	Postgres        postgres.Config
-	MigrateOnStart  bool
-	Redis           redis.Config
-	KafkaEnabled    bool
-	KafkaBrokers    []string
-	Tracing         telemetry.TracingConfig
+	Env                  string
+	Version              string
+	LogLevel             string
+	LogFormat            string
+	HTTP                 httpserver.Config
+	ShutdownTimeout      time.Duration
+	Postgres             postgres.Config
+	MigrateOnStart       bool
+	Redis                redis.Config
+	KafkaEnabled         bool
+	KafkaBrokers         []string
+	Storage              objectstore.Config
+	S3Bucket             string
+	AvatarMaxBytes       int64
+	AvatarUploadURLTTL   time.Duration
+	AvatarDownloadURLTTL time.Duration
+	Tracing              telemetry.TracingConfig
 	// JWKSURL is where Auth publishes its signing keys.
 	JWKSURL string
 }
@@ -59,7 +66,21 @@ func Load() (Config, error) {
 		Redis:          redis.Config{Addr: env.String("REDIS_ADDR", "localhost:6379"), Password: env.String("REDIS_PASSWORD", "")},
 		KafkaEnabled:   env.Bool("KAFKA_ENABLED", true),
 		KafkaBrokers:   env.Strings("KAFKA_BROKERS", []string{"localhost:9094"}),
-		JWKSURL:        env.String("AUTH_JWKS_URL", "http://localhost:8083/api/v1/auth/.well-known/jwks.json"),
+		Storage: objectstore.Config{
+			Endpoint:       env.String("S3_ENDPOINT", "localhost:9000"),
+			Secure:         env.Bool("S3_SECURE", false),
+			PublicEndpoint: env.String("S3_PUBLIC_ENDPOINT", ""),
+			PublicSecure:   env.Bool("S3_PUBLIC_SECURE", false),
+			AccessKey:      env.String("S3_ACCESS_KEY", ""),
+			SecretKey:      env.String("S3_SECRET_KEY", ""),
+			Region:         env.String("S3_REGION", "us-east-1"),
+			Timeout:        env.Duration("S3_TIMEOUT", 5*time.Second),
+		},
+		S3Bucket:             env.String("S3_MEDIA_BUCKET", "icyre-media"),
+		AvatarMaxBytes:       int64(env.Int("AVATAR_MAX_BYTES", 5<<20)),
+		AvatarUploadURLTTL:   env.Duration("AVATAR_UPLOAD_URL_TTL", 15*time.Minute),
+		AvatarDownloadURLTTL: env.Duration("AVATAR_DOWNLOAD_URL_TTL", 15*time.Minute),
+		JWKSURL:              env.String("AUTH_JWKS_URL", "http://localhost:8083/api/v1/auth/.well-known/jwks.json"),
 		Tracing: telemetry.TracingConfig{
 			ServiceName:  ServiceName,
 			Enabled:      env.Bool("OTEL_ENABLED", false),
@@ -69,5 +90,17 @@ func Load() (Config, error) {
 		},
 	}
 	cfg.Tracing.Version, cfg.Tracing.Environment = cfg.Version, cfg.Env
-	return cfg, env.Err()
+	if err := env.Err(); err != nil {
+		return cfg, err
+	}
+	if cfg.AvatarMaxBytes <= 0 {
+		return cfg, errors.New("AVATAR_MAX_BYTES must be positive")
+	}
+	if cfg.AvatarUploadURLTTL < time.Minute || cfg.AvatarUploadURLTTL > 12*time.Hour {
+		return cfg, errors.New("AVATAR_UPLOAD_URL_TTL must be between 1m and 12h")
+	}
+	if cfg.AvatarDownloadURLTTL < time.Minute || cfg.AvatarDownloadURLTTL > 12*time.Hour {
+		return cfg, errors.New("AVATAR_DOWNLOAD_URL_TTL must be between 1m and 12h")
+	}
+	return cfg, nil
 }

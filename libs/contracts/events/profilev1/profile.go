@@ -10,6 +10,9 @@ const Version = 1
 // TypeProfileUpdated is raised after a profile changes (including creation).
 const TypeProfileUpdated = "profile.updated"
 
+// TypeAvatarChanged is raised when a user's avatar is set, replaced, or removed.
+const TypeAvatarChanged = "avatar.changed"
+
 // ProfileUpdated carries the public state of the profile after the change.
 type ProfileUpdated struct {
 	UserID      string    `json:"userId"`
@@ -19,4 +22,11 @@ type ProfileUpdated struct {
 	Country     string    `json:"country,omitempty"`
 	Language    string    `json:"language,omitempty"`
 	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
+// AvatarChanged carries the updated avatar key (empty when removed).
+type AvatarChanged struct {
+	UserID    string    `json:"userId"`
+	AvatarKey string    `json:"avatarKey,omitempty"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }

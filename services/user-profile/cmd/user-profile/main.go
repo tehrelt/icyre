@@ -20,6 +20,7 @@ import (
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	platformkafka "github.com/tehrelt/icyre/libs/platform/kafka"
 	"github.com/tehrelt/icyre/libs/platform/logger"
+	"github.com/tehrelt/icyre/libs/platform/objectstore"
 	"github.com/tehrelt/icyre/libs/platform/outbox"
 	"github.com/tehrelt/icyre/libs/platform/postgres"
 	platformredis "github.com/tehrelt/icyre/libs/platform/redis"
@@ -28,6 +29,7 @@ import (
 	httpadapter "github.com/tehrelt/icyre/services/user-profile/internal/adapters/http"
 	kafkaadapter "github.com/tehrelt/icyre/services/user-profile/internal/adapters/kafka"
 	pgadapter "github.com/tehrelt/icyre/services/user-profile/internal/adapters/postgres"
+	"github.com/tehrelt/icyre/services/user-profile/internal/adapters/storage"
 	"github.com/tehrelt/icyre/services/user-profile/internal/application"
 	"github.com/tehrelt/icyre/services/user-profile/internal/config"
 )
@@ -122,6 +124,20 @@ func run(args []string) error {
 
 	// 5. Application.
 	app := application.New(pgadapter.New(pool), publisher, postgres.Transactor{Pool: pool}, log)
+	if cfg.Storage.AccessKey != "" && cfg.Storage.SecretKey != "" {
+		store, err := objectstore.New(cfg.Storage)
+		if err != nil {
+			return err
+		}
+		checks.Add("minio", store.Check(cfg.S3Bucket))
+		app.WithAvatarStorage(storage.New(store, cfg.S3Bucket), application.AvatarLimits{
+			MaxSize:        cfg.AvatarMaxBytes,
+			UploadURLTTL:   cfg.AvatarUploadURLTTL,
+			DownloadURLTTL: cfg.AvatarDownloadURLTTL,
+		})
+	} else {
+		log.Warn("avatar storage disabled: S3_ACCESS_KEY or S3_SECRET_KEY is not set")
+	}
 
 	// 6. Consumers: auth.events → profile creation. Runs until shutdown;
 	// offsets are committed only after the profile is stored.

@@ -16,7 +16,7 @@
 ## Backend — Identity
 
 - [x] EPIC-011 — Auth Service (Argon2id, EdDSA JWT + JWKS, rotating refresh cookie, reuse detection, sessions)
-- [-] EPIC-012 — User Profile Service (осталось: аватары — хранилище есть, нужен upload flow)
+- [x] EPIC-012 — User Profile Service (профили, `profile.updated`, upload/complete/delete аватаров через MinIO и `avatarUrl`)
 
 ## Backend — Media delivery
 

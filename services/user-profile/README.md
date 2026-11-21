@@ -10,16 +10,19 @@ email, пароли и сессии здесь не хранятся.
 | GET | `/{id}` | публичный профиль `{id, username, displayName, avatarUrl, bio, country}` |
 | GET | `/me` | свой профиль + `language`, `createdAt`, `updatedAt` (Bearer) |
 | PATCH | `/me` | частичное обновление `username`, `displayName`, `bio`, `country`, `language`; 422, 409 `USERNAME_TAKEN` |
+| POST | `/me/avatar/uploads` | открыть сессию загрузки аватара (`image/jpeg`, `image/png`, `image/webp`) → presigned PUT (Bearer) |
+| POST | `/me/avatar/uploads/{id}/complete` | проверить объект (размер, MIME, SHA-256, magic bytes) и обновить `avatar_key` (Bearer) |
+| DELETE | `/me/avatar` | удалить текущий аватар (Bearer) |
 
 Сразу после регистрации `GET /me` может кратко отвечать 404 `PROFILE_NOT_FOUND` — профиль создаётся асинхронно из события.
-`avatarUrl` пока всегда `null`: загрузка аватаров ждёт EPIC-018 (MinIO).
+`avatarUrl` подписывается через MinIO/S3 (`PresignDownload`), если задан `avatar_key` и настроены `S3_ACCESS_KEY`/`S3_SECRET_KEY`.
 
 ## События
 
 - Потребляет `auth.events` → `user.registered` (group `user-profile`, 5 retries, затем `auth.events.dlq`).
   Идемпотентно: повторная доставка находит профиль (`ON CONFLICT (user_id) DO NOTHING`) и ничего не публикует.
   Username выводится из email; при коллизии — `rin2`, `rin3`, …
-- Публикует `profile.events` → `profile.updated` (`libs/contracts/events/profilev1`) при создании и реальном изменении
+- Публикует `profile.events` → `profile.updated` и `avatar.changed` (`libs/contracts/events/profilev1`) при создании и реальном изменении
   через transactional outbox (`profile.outbox`, миграция 00002): событие коммитится вместе с профилем, relay
   отправляет его в Kafka. Каждая попытка подобрать username — отдельная транзакция (конфликт её обрывает); сбой
   записи события возвращает ошибку consumer'у, и `user.registered` обрабатывается повторно.
@@ -27,7 +30,9 @@ email, пароли и сессии здесь не хранятся.
 ## Конфигурация
 
 `DATABASE_URL` (обязателен), `REDIS_ADDR`, `KAFKA_BROKERS`, `KAFKA_ENABLED`,
-`AUTH_JWKS_URL` (по умолчанию `http://localhost:8083/api/v1/auth/.well-known/jwks.json`), общие `HTTP_ADDR`, `LOG_*`, `OTEL_*`.
+`AUTH_JWKS_URL` (по умолчанию `http://localhost:8083/api/v1/auth/.well-known/jwks.json`),
+`S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_MEDIA_BUCKET`,
+`AVATAR_MAX_BYTES`, `AVATAR_UPLOAD_URL_TTL`, `AVATAR_DOWNLOAD_URL_TTL`, общие `HTTP_ADDR`, `LOG_*`, `OTEL_*`.
 
 ## Запуск
 

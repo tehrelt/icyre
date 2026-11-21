@@ -147,7 +147,7 @@ run-auth: ## Run Auth locally on :8083 (ephemeral signing key)
 
 .PHONY: run-user-profile
 run-user-profile: ## Run User Profile locally on :8084 against Auth on :8083
-	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" HTTP_ADDR=:8084 LOG_FORMAT=text go run ./cmd/user-profile
+	cd services/user-profile && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8084 LOG_FORMAT=text go run ./cmd/user-profile
 
 .PHONY: run-stream-auth
 run-stream-auth: ## Run Stream Authorization locally on :8085 (Catalog :8081, Auth :8083)
