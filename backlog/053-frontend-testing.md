@@ -22,9 +22,14 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-053.4 Интеграция через memory router: Home, shell, Album, Search (все состояния, recent searches, шорткат).
 
-- [ ] TASK-053.5 Playwright e2e (сценарий: открыть Home → Play album → перейти на другую страницу).
+- [x] TASK-053.5 Playwright e2e (сценарий: открыть Home → Play album → перейти на другую страницу).
 
 - [ ] TASK-053.6 Visual regression против canvas.
+
+## Прогресс
+
+- `TASK-053.5`: добавлен Playwright (`apps/web/playwright.config.ts`, `apps/web/e2e/playback.spec.ts`, `make web-e2e`): сценарий Home → Play album → Search → Album с сохранением воспроизведения, поиск и очистка запроса, проверка отсутствия горизонтального скролла на 1440/900/390px.
+- `TASK-053.6`: visual regression против canvas остаётся открытой.
 
 ## Definition of Done
 
