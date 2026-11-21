@@ -67,7 +67,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 ## Edge и агрегация
 
-- [-] EPIC-032 — API Gateway (nginx: routing catalog/bff/auth/users, request ID, rate limits, access logs; осталось CORS, TLS)
+- [x] EPIC-032 — API Gateway (nginx: routing, CORS с credentials и preflight, production TLS 1.2/1.3 + HSTS, request ID, rate limits, access logs)
 - [-] EPIC-033 — Web BFF (home, album и playlist pages, user context → liked и Recently played с альбомами и плейлистами; осталось artist page — нет макета)
 
 ## Качество
