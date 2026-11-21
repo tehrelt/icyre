@@ -12,8 +12,12 @@ func valid() Event {
 }
 
 func TestValidate(t *testing.T) {
-	if err := valid().Validate(); err != nil {
-		t.Fatal(err)
+	for _, kind := range []Kind{Started, Progress, Finished, Skipped} {
+		e := valid()
+		e.Kind = kind
+		if err := e.Validate(); err != nil {
+			t.Fatalf("%s: %v", kind, err)
+		}
 	}
 	cases := map[string]func(*Event){
 		"type":       func(e *Event) { e.Kind = "paused" },

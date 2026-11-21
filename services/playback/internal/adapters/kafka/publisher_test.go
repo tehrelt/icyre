@@ -37,4 +37,12 @@ func TestPublish(t *testing.T) {
 	if err := env.DecodePayload(&p); err != nil || p.ListenedMs != 12000 || p.Source != "album:x" || p.PlaybackID != e.PlaybackID.String() {
 		t.Fatalf("payload %+v %v", p, err)
 	}
+
+	e.Kind = domain.Progress
+	if err := NewPublisher(c, "playback-service").Publish(context.Background(), e); err != nil {
+		t.Fatal(err)
+	}
+	if got := c.msgs[1].Headers["event-type"]; got != playbackv1.TypeProgress {
+		t.Fatalf("progress event-type = %q", got)
+	}
 }

@@ -65,8 +65,12 @@ type row struct {
 	At         string   `json:"at"`
 }
 
-// Publish enriches the event from Catalog and inserts it.
+// Publish enriches the event from Catalog and inserts it. Progress events
+// are skipped in sync mode to match the Analytics Worker.
 func (p *Publisher) Publish(ctx context.Context, e domain.Event) error {
+	if e.Kind == domain.Progress {
+		return nil
+	}
 	t, err := p.track(ctx, e.TrackID)
 	if err != nil {
 		return err

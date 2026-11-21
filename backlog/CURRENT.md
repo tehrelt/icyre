@@ -40,7 +40,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 ## Backend — Playback
 
-- [-] EPIC-016 — Playback Service (срез 1: телеметрия плеера → `playback.events`)
+- [x] EPIC-016 — Playback Service (сессии, очередь, shuffle/repeat в Redis, `POST /sessions`, `GET /session`, `PUT /queue`, `PATCH /state`, `playback.progress` с throttle)
 
 ## Backend — Playlists
 
