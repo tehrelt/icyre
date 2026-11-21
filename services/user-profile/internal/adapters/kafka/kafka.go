@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel/trace"
@@ -66,16 +67,12 @@ func NewPublisher(p Producer, source string) *Publisher {
 	return &Publisher{producer: p, source: source}
 }
 
-// ProfileUpdated publishes profile.updated keyed by user ID.
-func (p *Publisher) ProfileUpdated(ctx context.Context, pr domain.Profile) error {
+func (p *Publisher) publish(ctx context.Context, userID uuid.UUID, typ string, at time.Time, payload any) error {
 	traceID := ""
 	if sc := trace.SpanContextFromContext(ctx); sc.HasTraceID() {
 		traceID = sc.TraceID().String()
 	}
-	env, err := events.New(profilev1.TypeProfileUpdated, profilev1.Version, p.source, traceID, pr.UpdatedAt, profilev1.ProfileUpdated{
-		UserID: pr.UserID.String(), Username: pr.Username, DisplayName: pr.DisplayName,
-		AvatarKey: pr.AvatarKey, Country: pr.Country, Language: pr.Language, UpdatedAt: pr.UpdatedAt,
-	})
+	env, err := events.New(typ, profilev1.Version, p.source, traceID, at, payload)
 	if err != nil {
 		return err
 	}
@@ -84,8 +81,23 @@ func (p *Publisher) ProfileUpdated(ctx context.Context, pr domain.Profile) error
 		return err
 	}
 	return p.producer.Publish(ctx, platformkafka.Message{
-		Topic: events.TopicProfileEvents, Key: []byte(pr.UserID.String()), Value: value,
-		Headers: map[string]string{"event-type": profilev1.TypeProfileUpdated, "event-version": fmt.Sprint(profilev1.Version), "content-type": "application/json"},
+		Topic: events.TopicProfileEvents, Key: []byte(userID.String()), Value: value,
+		Headers: map[string]string{"event-type": typ, "event-version": fmt.Sprint(profilev1.Version), "content-type": "application/json"},
+	})
+}
+
+// ProfileUpdated publishes profile.updated keyed by user ID.
+func (p *Publisher) ProfileUpdated(ctx context.Context, pr domain.Profile) error {
+	return p.publish(ctx, pr.UserID, profilev1.TypeProfileUpdated, pr.UpdatedAt, profilev1.ProfileUpdated{
+		UserID: pr.UserID.String(), Username: pr.Username, DisplayName: pr.DisplayName,
+		AvatarKey: pr.AvatarKey, Country: pr.Country, Language: pr.Language, UpdatedAt: pr.UpdatedAt,
+	})
+}
+
+// AvatarChanged publishes avatar.changed keyed by user ID.
+func (p *Publisher) AvatarChanged(ctx context.Context, userID uuid.UUID, avatarKey string, at time.Time) error {
+	return p.publish(ctx, userID, profilev1.TypeAvatarChanged, at, profilev1.AvatarChanged{
+		UserID: userID.String(), AvatarKey: avatarKey, UpdatedAt: at.UTC(),
 	})
 }
 
@@ -94,3 +106,6 @@ type NopPublisher struct{}
 
 // ProfileUpdated implements application.Publisher.
 func (NopPublisher) ProfileUpdated(context.Context, domain.Profile) error { return nil }
+
+// AvatarChanged implements application.Publisher.
+func (NopPublisher) AvatarChanged(context.Context, uuid.UUID, string, time.Time) error { return nil }

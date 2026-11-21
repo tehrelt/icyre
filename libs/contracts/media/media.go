@@ -58,3 +58,10 @@ func TrackOriginalKey(trackID, uploadID, ext string) string {
 func TrackCoverKey(trackID string) string {
 	return fmt.Sprintf("tracks/%s/cover/cover.webp", trackID)
 }
+
+// UserAvatarKey is the object key of an uploaded user avatar:
+// users/{userId}/avatars/{uploadId}.{ext}. Each upload gets its own immutable
+// object so replacing an avatar never overwrites the previous one in place.
+func UserAvatarKey(userID, uploadID, ext string) string {
+	return fmt.Sprintf("users/%s/avatars/%s.%s", userID, uploadID, ext)
+}

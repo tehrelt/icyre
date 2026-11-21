@@ -77,12 +77,23 @@ func TestRepository(t *testing.T) {
 	if _, err := a.Apply(domain.Changes{DisplayName: &name, Country: &country}, now.Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
+	avatarKey := "users/" + a.UserID.String() + "/avatars/1.png"
+	if err := repo.SetAvatarKey(ctx, a.UserID, avatarKey, now.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
 	if err := repo.Update(ctx, a); err != nil {
 		t.Fatal(err)
 	}
 	got, err := repo.Get(ctx, a.UserID)
-	if err != nil || got.DisplayName != "Rin Aoki" || got.Country != "JP" || !got.UpdatedAt.Equal(now.Add(time.Hour)) {
+	if err != nil || got.DisplayName != "Rin Aoki" || got.Country != "JP" || got.AvatarKey != avatarKey || !got.UpdatedAt.Equal(now.Add(time.Hour)) {
 		t.Fatalf("get %+v %v", got, err)
+	}
+	if err := repo.SetAvatarKey(ctx, a.UserID, "", now.Add(2*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = repo.Get(ctx, a.UserID)
+	if got.AvatarKey != "" {
+		t.Fatalf("expected cleared avatar key, got %q", got.AvatarKey)
 	}
 	b.Username = "rin"
 	if err := repo.Update(ctx, b); !errors.Is(err, domain.ErrUsernameTaken) {
@@ -93,5 +104,39 @@ func TestRepository(t *testing.T) {
 	}
 	if err := repo.Update(ctx, domain.Profile{UserID: uuid.New(), Username: "ghost", DisplayName: "G"}); !errors.Is(err, domain.ErrProfileNotFound) {
 		t.Fatalf("update missing: %v", err)
+	}
+
+	// Avatar uploads.
+	up := domain.AvatarUpload{
+		ID:          uuid.New(),
+		UserID:      a.UserID,
+		ContentType: "image/png",
+		SizeBytes:   128,
+		SHA256:      make([]byte, 32),
+		Key:         "users/" + a.UserID.String() + "/avatars/up.png",
+		Status:      domain.AvatarStatusPending,
+		CreatedAt:   now,
+		ExpiresAt:   now.Add(15 * time.Minute),
+	}
+	if err := repo.CreateAvatarUpload(ctx, up); err != nil {
+		t.Fatal(err)
+	}
+	gotUp, err := repo.GetAvatarUpload(ctx, up.ID)
+	if err != nil || gotUp.Key != up.Key || gotUp.Status != domain.AvatarStatusPending || gotUp.CompletedAt != nil {
+		t.Fatalf("get upload: %+v %v", gotUp, err)
+	}
+	failed := up.Settle(domain.ReasonSizeMismatch, now.Add(time.Minute))
+	if ok, err := repo.SettleAvatarUpload(ctx, failed); !ok || err != nil {
+		t.Fatalf("settle: %v %v", ok, err)
+	}
+	if ok, err := repo.SettleAvatarUpload(ctx, up.Settle("", now.Add(2*time.Minute))); ok || err != nil {
+		t.Fatalf("second settle must be no-op: %v %v", ok, err)
+	}
+	gotUp, _ = repo.GetAvatarUpload(ctx, up.ID)
+	if gotUp.Status != domain.AvatarStatusFailed || gotUp.FailureReason != domain.ReasonSizeMismatch || gotUp.CompletedAt == nil {
+		t.Fatalf("settled upload: %+v", gotUp)
+	}
+	if _, err := repo.GetAvatarUpload(ctx, uuid.New()); !errors.Is(err, domain.ErrAvatarUploadNotFound) {
+		t.Fatalf("missing upload: %v", err)
 	}
 }

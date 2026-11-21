@@ -12,6 +12,9 @@ func TestKeys(t *testing.T) {
 	if got := TrackCoverKey("t1"); got != "tracks/t1/cover/cover.webp" {
 		t.Fatal(got)
 	}
+	if got := UserAvatarKey("usr1", "up1", "webp"); got != "users/usr1/avatars/up1.webp" {
+		t.Fatal(got)
+	}
 }
 
 func TestParseQuality(t *testing.T) {
