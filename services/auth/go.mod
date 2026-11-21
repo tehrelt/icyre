@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/redis/go-redis/v9 v9.22.0
 	github.com/tehrelt/icyre/libs/contracts v0.0.0
 	github.com/tehrelt/icyre/libs/platform v0.0.0
 	go.opentelemetry.io/otel/trace v1.46.0
@@ -34,7 +35,6 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
-	github.com/redis/go-redis/v9 v9.22.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
 	github.com/twmb/franz-go v1.22.0 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.14.0 // indirect

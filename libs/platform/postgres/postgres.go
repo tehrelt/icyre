@@ -5,6 +5,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -25,6 +26,25 @@ type Config struct {
 	StatementTimeout time.Duration
 	// ApplicationName shows up in pg_stat_activity.
 	ApplicationName string
+}
+
+// LogValue implements slog.LogValuer, redacting DSN credentials.
+func (c Config) LogValue() slog.Value {
+	dsn := ""
+	if c.DSN != "" {
+		dsn = "[REDACTED]"
+	}
+	return slog.GroupValue(
+		slog.String("dsn", dsn),
+		slog.Int("max_conns", int(c.MaxConns)),
+		slog.Int("min_conns", int(c.MinConns)),
+		slog.Duration("max_conn_lifetime", c.MaxConnLifetime),
+		slog.Duration("max_conn_idle_time", c.MaxConnIdleTime),
+		slog.Duration("health_check_period", c.HealthCheckPeriod),
+		slog.Duration("connect_timeout", c.ConnectTimeout),
+		slog.Duration("statement_timeout", c.StatementTimeout),
+		slog.String("application_name", c.ApplicationName),
+	)
 }
 
 // Open creates a pool, verifies connectivity and optionally registers

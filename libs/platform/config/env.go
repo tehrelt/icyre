@@ -120,6 +120,40 @@ func (e *Env) Strings(key string, def []string) []string {
 	return out
 }
 
+// Secret holds a sensitive configuration value (password, signing key, token)
+// and redacts itself when formatted or marshaled as text.
+type Secret string
+
+// Redacted is the placeholder emitted when a Secret is formatted or logged.
+const Redacted = "[REDACTED]"
+
+// String implements fmt.Stringer.
+func (s Secret) String() string {
+	if s == "" {
+		return ""
+	}
+	return Redacted
+}
+
+// GoString implements fmt.GoStringer.
+func (s Secret) GoString() string { return s.String() }
+
+// MarshalText implements encoding.TextMarshaler.
+func (s Secret) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
+
+// Value returns the underlying secret string.
+func (s Secret) Value() string { return string(s) }
+
+// Secret returns the value of key as a Secret or def when unset or empty.
+func (e *Env) Secret(key, def string) Secret {
+	return Secret(e.String(key, def))
+}
+
+// RequiredSecret returns the value of key as a Secret and records an error when missing.
+func (e *Env) RequiredSecret(key string) Secret {
+	return Secret(e.RequiredString(key))
+}
+
 // Err returns all recorded problems joined, or nil.
 func (e *Env) Err() error {
 	return errors.Join(e.errs...)

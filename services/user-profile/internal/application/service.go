@@ -106,6 +106,9 @@ func New(repo Repository, pub Publisher, tx Transactor, log *slog.Logger) *Servi
 	if tx == nil {
 		tx = noTx{}
 	}
+	if log == nil {
+		log = slog.Default()
+	}
 	return &Service{
 		repo:         repo,
 		pub:          pub,
@@ -217,6 +220,7 @@ func (s *Service) CreateAvatarUpload(ctx context.Context, userID uuid.UUID, req 
 	if err := s.repo.CreateAvatarUpload(ctx, u); err != nil {
 		return CreatedAvatarUpload{}, err
 	}
+	s.log.InfoContext(ctx, "profile audit", "audit", "user_profile", "event", "avatar_upload_created", "upload_id", u.ID.String(), "user_id", userID.String())
 	return CreatedAvatarUpload{Upload: u, URL: url}, nil
 }
 
@@ -288,11 +292,13 @@ func (s *Service) settleAvatar(ctx context.Context, u domain.AvatarUpload, reaso
 		if reason != domain.ReasonExpired {
 			s.removeBestEffort(ctx, u.Key, "rejected avatar not removed")
 		}
+		s.log.WarnContext(ctx, "profile audit", "audit", "user_profile", "event", "avatar_rejected", "upload_id", u.ID.String(), "user_id", u.UserID.String(), "reason", reason)
 		return domain.Profile{}, &domain.AvatarRejectedError{Reason: reason}
 	}
 	if oldKey != "" && oldKey != profile.AvatarKey {
 		s.removeBestEffort(ctx, oldKey, "previous avatar not removed")
 	}
+	s.log.InfoContext(ctx, "profile audit", "audit", "user_profile", "event", "avatar_updated", "upload_id", u.ID.String(), "user_id", u.UserID.String())
 	return profile, nil
 }
 
@@ -363,8 +369,11 @@ func (s *Service) DeleteAvatar(ctx context.Context, userID uuid.UUID) (domain.Pr
 	if err != nil {
 		return domain.Profile{}, err
 	}
-	if oldKey != "" && s.store != nil {
-		s.removeBestEffort(ctx, oldKey, "deleted avatar not removed")
+	if oldKey != "" {
+		if s.store != nil {
+			s.removeBestEffort(ctx, oldKey, "deleted avatar not removed")
+		}
+		s.log.InfoContext(ctx, "profile audit", "audit", "user_profile", "event", "avatar_deleted", "user_id", userID.String())
 	}
 	return p, nil
 }

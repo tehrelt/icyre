@@ -6,6 +6,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -26,6 +27,26 @@ type Config struct {
 	WriteTimeout time.Duration
 	// PoolTimeout bounds waiting for a free connection.
 	PoolTimeout time.Duration
+}
+
+// LogValue implements slog.LogValuer, redacting Password.
+func (c Config) LogValue() slog.Value {
+	password := ""
+	if c.Password != "" {
+		password = "[REDACTED]"
+	}
+	return slog.GroupValue(
+		slog.String("addr", c.Addr),
+		slog.String("username", c.Username),
+		slog.String("password", password),
+		slog.Int("db", c.DB),
+		slog.Int("pool_size", c.PoolSize),
+		slog.Int("min_idle_conns", c.MinIdleConns),
+		slog.Duration("dial_timeout", c.DialTimeout),
+		slog.Duration("read_timeout", c.ReadTimeout),
+		slog.Duration("write_timeout", c.WriteTimeout),
+		slog.Duration("pool_timeout", c.PoolTimeout),
+	)
 }
 
 // Client is the go-redis client used across services.

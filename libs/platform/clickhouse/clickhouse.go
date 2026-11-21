@@ -11,11 +11,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
+
+var tableName = regexp.MustCompile(`^[a-z_][a-z0-9_]*(\.[a-z_][a-z0-9_]*)?$`)
 
 // Config configures a Client.
 type Config struct {
@@ -27,6 +31,21 @@ type Config struct {
 	Database string
 	// Timeout bounds each request.
 	Timeout time.Duration
+}
+
+// LogValue implements slog.LogValuer, redacting Password.
+func (c Config) LogValue() slog.Value {
+	password := ""
+	if c.Password != "" {
+		password = "[REDACTED]"
+	}
+	return slog.GroupValue(
+		slog.String("url", c.URL),
+		slog.String("username", c.Username),
+		slog.String("password", password),
+		slog.String("database", c.Database),
+		slog.Duration("timeout", c.Timeout),
+	)
 }
 
 // Client talks to one server (or a load balancer in front of replicas).
@@ -92,6 +111,9 @@ func (c *Client) Query(ctx context.Context, query string, params Params, scan fu
 // A non-empty dedupToken makes a retried insert of the same batch a no-op on
 // replicated and non-replicated MergeTree tables (insert deduplication).
 func (c *Client) Insert(ctx context.Context, table string, rows []any, dedupToken string) error {
+	if !tableName.MatchString(table) {
+		return fmt.Errorf("clickhouse: invalid table name %q", table)
+	}
 	if len(rows) == 0 {
 		return nil
 	}

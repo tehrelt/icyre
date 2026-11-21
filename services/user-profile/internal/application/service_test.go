@@ -1,6 +1,7 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -437,5 +439,77 @@ func TestAvatarURL(t *testing.T) {
 	store.presignErr = errors.New("minio down")
 	if u, err := svc.AvatarURL(context.Background(), "users/1/avatars/2.png"); err != nil || u != nil {
 		t.Fatalf("presign error must degrade to nil: %v %v", u, err)
+	}
+}
+
+func TestAuditLoggingAndNilLoggerDefault(t *testing.T) {
+	nilSvc := New(newMemRepo(), &pubRecorder{}, nil, nil)
+	if nilSvc.log == nil {
+		t.Fatal("expected nil logger to default to slog.Default()")
+	}
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	repo, store, pub := newMemRepo(), newMemStore(), &pubRecorder{}
+	now := time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC)
+	svc := New(repo, pub, nil, logger).
+		WithAvatarStorage(store, AvatarLimits{MaxSize: 1 << 20, UploadURLTTL: 15 * time.Minute, DownloadURLTTL: 10 * time.Minute})
+	svc.now = func() time.Time { return now }
+
+	ctx := context.Background()
+	userID := uuid.New()
+	email := "audit-profile@example.com"
+	if err := svc.CreateForNewUser(ctx, userID, email); err != nil {
+		t.Fatal(err)
+	}
+
+	c1, err := svc.CreateAvatarUpload(ctx, userID, avatarReq("image/png", pngBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.put(c1.Upload.Key, "image/png", pngBytes)
+	if _, err := svc.CompleteAvatarUpload(ctx, userID, c1.Upload.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	c2, err := svc.CreateAvatarUpload(ctx, userID, avatarReq("image/png", pngBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.put(c2.Upload.Key, "image/jpeg", pngBytes)
+	if _, err := svc.CompleteAvatarUpload(ctx, userID, c2.Upload.ID); err == nil {
+		t.Fatal("expected rejection")
+	}
+
+	if _, err := svc.DeleteAvatar(ctx, userID); err != nil {
+		t.Fatal(err)
+	}
+	// Second delete is a no-op and should not emit another avatar_deleted event.
+	if _, err := svc.DeleteAvatar(ctx, userID); err != nil {
+		t.Fatal(err)
+	}
+
+	logs := buf.String()
+	for _, want := range []string{
+		`"audit":"user_profile"`,
+		`"event":"avatar_upload_created"`,
+		`"event":"avatar_updated"`,
+		`"event":"avatar_rejected"`,
+		`"event":"avatar_deleted"`,
+		`"upload_id":"` + c1.Upload.ID.String() + `"`,
+		`"user_id":"` + userID.String() + `"`,
+		`"reason":"CONTENT_TYPE_MISMATCH"`,
+	} {
+		if !strings.Contains(logs, want) {
+			t.Fatalf("missing %s in logs:\n%s", want, logs)
+		}
+	}
+	if strings.Count(logs, `"event":"avatar_deleted"`) != 1 {
+		t.Fatalf("expected exactly 1 avatar_deleted event, logs:\n%s", logs)
+	}
+	for _, forbidden := range []string{email, c1.URL.URL, c2.URL.URL} {
+		if strings.Contains(logs, forbidden) {
+			t.Fatalf("sensitive value %q leaked in logs:\n%s", forbidden, logs)
+		}
 	}
 }

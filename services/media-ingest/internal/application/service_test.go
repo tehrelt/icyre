@@ -1,6 +1,7 @@
 package application
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -206,5 +208,114 @@ func TestChecksumAndExpiry(t *testing.T) {
 	}
 	if len(f.pub.failed) != 2 {
 		t.Fatal(len(f.pub.failed))
+	}
+}
+
+func TestAuditLoggingAndNilLoggerDefault(t *testing.T) {
+	nilSvc := New(&memRepo{ups: map[uuid.UUID]domain.Upload{}}, fakeCatalog{}, &memStore{objs: map[string]object{}}, &recPub{}, nil, Limits{MaxSize: 1 << 20, URLTTL: 15 * time.Minute}, nil)
+	if nilSvc.log == nil {
+		t.Fatal("expected nil logger to default to slog.Default()")
+	}
+
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	repo := &memRepo{ups: map[uuid.UUID]domain.Upload{}}
+	store := &memStore{objs: map[string]object{}}
+	pub := &recPub{}
+	svc := New(repo, fakeCatalog{}, store, pub, nil, Limits{MaxSize: 1 << 20, URLTTL: 15 * time.Minute}, logger)
+	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
+	svc.now = func() time.Time { return now }
+
+	ctx := context.Background()
+	artist := Actor{ID: uuid.New(), Artist: true}
+
+	c1, err := svc.Create(ctx, artist, request(flac))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.put(c1.Upload.Key, "audio/flac", flac)
+	if _, err := svc.Complete(ctx, artist, c1.Upload.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	c2, err := svc.Create(ctx, artist, request(flac))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.put(c2.Upload.Key, "audio/mpeg", flac)
+	if _, err := svc.Complete(ctx, artist, c2.Upload.ID); err == nil {
+		t.Fatal("expected rejection")
+	}
+
+	logs := buf.String()
+	for _, want := range []string{
+		`"audit":"media_ingest"`,
+		`"event":"upload_created"`,
+		`"event":"upload_completed"`,
+		`"event":"upload_rejected"`,
+		`"upload_id":"` + c1.Upload.ID.String() + `"`,
+		`"track_id":"` + c1.Upload.TrackID.String() + `"`,
+		`"uploader_id":"` + artist.ID.String() + `"`,
+		`"reason":"CONTENT_TYPE_MISMATCH"`,
+	} {
+		if !strings.Contains(logs, want) {
+			t.Fatalf("missing %s in logs:\n%s", want, logs)
+		}
+	}
+	if strings.Contains(logs, c1.URL.URL) || strings.Contains(logs, c2.URL.URL) {
+		t.Fatalf("presigned URL leaked in logs:\n%s", logs)
+	}
+}
+
+func TestAuditLoggingAdminCompletesOtherUsersUpload(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	repo := &memRepo{ups: map[uuid.UUID]domain.Upload{}}
+	store := &memStore{objs: map[string]object{}}
+	pub := &recPub{}
+	svc := New(repo, fakeCatalog{}, store, pub, nil, Limits{MaxSize: 1 << 20, URLTTL: 15 * time.Minute}, logger)
+	now := time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
+	svc.now = func() time.Time { return now }
+
+	ctx := context.Background()
+	artist := Actor{ID: uuid.New(), Artist: true}
+	admin := Actor{ID: uuid.New(), Admin: true}
+
+	c1, err := svc.Create(ctx, artist, request(flac))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.put(c1.Upload.Key, "audio/flac", flac)
+	if _, err := svc.Complete(ctx, admin, c1.Upload.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	c2, err := svc.Create(ctx, artist, request(flac))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.put(c2.Upload.Key, "audio/mpeg", flac)
+	if _, err := svc.Complete(ctx, admin, c2.Upload.ID); err == nil {
+		t.Fatal("expected rejection")
+	}
+
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
+	if len(lines) != 4 {
+		t.Fatalf("expected 4 audit log lines, got %d:\n%s", len(lines), buf.String())
+	}
+	for _, idx := range []int{1, 3} {
+		line := lines[idx]
+		if !strings.Contains(line, `"uploader_id":"`+artist.ID.String()+`"`) {
+			t.Fatalf("expected uploader_id=%s in %s", artist.ID, line)
+		}
+		if !strings.Contains(line, `"actor_id":"`+admin.ID.String()+`"`) {
+			t.Fatalf("expected actor_id=%s in %s", admin.ID, line)
+		}
+	}
+	if !strings.Contains(lines[1], `"event":"upload_completed"`) {
+		t.Fatalf("expected upload_completed in %s", lines[1])
+	}
+	if !strings.Contains(lines[3], `"event":"upload_rejected"`) {
+		t.Fatalf("expected upload_rejected in %s", lines[3])
 	}
 }

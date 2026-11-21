@@ -320,3 +320,80 @@ func TestLogoutAndSessions(t *testing.T) {
 		t.Fatalf("active sessions left: %d", len(list))
 	}
 }
+
+func TestAuditLoggingAndNilLoggerDefault(t *testing.T) {
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&buf, nil))
+	accounts := memAccounts{}
+	sessions := memSessions{}
+	revoked := memRevocations{}
+	pub := &recorder{}
+	now := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+
+	svc, err := New(Deps{
+		Accounts: accounts, Sessions: sessions, Hasher: fakeHasher{}, Tokens: fakeTokens{}, Refresh: &seqRefresh{},
+		Revocation: revoked, Throttle: &memThrottle{failures: map[string]int{}}, Publisher: pub,
+		Log: logger, SessionTTL: 24 * time.Hour, Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if svc.d.Log != logger {
+		t.Fatal("expected provided logger")
+	}
+
+	nilLogSvc, err := New(Deps{
+		Accounts: memAccounts{}, Sessions: memSessions{}, Hasher: fakeHasher{}, Tokens: fakeTokens{}, Refresh: &seqRefresh{},
+		Revocation: memRevocations{}, Throttle: &memThrottle{failures: map[string]int{}}, Publisher: &recorder{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nilLogSvc.d.Log == nil {
+		t.Fatal("expected nil logger to default to slog.Default()")
+	}
+
+	ctx := context.Background()
+	email := "audit-secret@example.com"
+	reg, err := svc.Register(ctx, email, pw, Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	loginRes, err := svc.Login(ctx, email, pw, Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 3 {
+		_, _ = svc.Login(ctx, email, "wrong password!", Client{})
+	}
+	_, _ = svc.Login(ctx, email, pw, Client{})
+
+	rotated, err := svc.Refresh(ctx, reg.RefreshToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = svc.Refresh(ctx, reg.RefreshToken)
+	_ = svc.Logout(ctx, loginRes.RefreshToken)
+
+	logs := buf.String()
+	for _, want := range []string{
+		`"audit":"auth"`,
+		`"event":"register"`,
+		`"event":"login_succeeded"`,
+		`"event":"login_failed"`,
+		`"event":"login_throttled"`,
+		`"event":"refresh_reuse_revoked"`,
+		`"event":"session_revoked"`,
+		`"user_id":"` + reg.Account.ID.String() + `"`,
+		`"session_id":"` + rotated.SessionID.String() + `"`,
+	} {
+		if !strings.Contains(logs, want) {
+			t.Fatalf("missing %s in logs:\n%s", want, logs)
+		}
+	}
+	for _, forbidden := range []string{email, pw, reg.RefreshToken, reg.Access.Token, loginRes.RefreshToken, loginRes.Access.Token} {
+		if strings.Contains(logs, forbidden) {
+			t.Fatalf("sensitive value %q leaked in logs:\n%s", forbidden, logs)
+		}
+	}
+}

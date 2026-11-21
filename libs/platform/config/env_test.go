@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -53,5 +54,22 @@ func TestEnvCollectsAllErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), key) {
 			t.Errorf("error %q does not mention %s", err, key)
 		}
+	}
+}
+
+func TestSecretRedactsFormatting(t *testing.T) {
+	env := NewFromMap(map[string]string{"API_SECRET": "super-secret-value"})
+	sec := env.RequiredSecret("API_SECRET")
+	if sec.Value() != "super-secret-value" {
+		t.Fatalf("Value = %q", sec.Value())
+	}
+	if got := fmt.Sprintf("%s %v %#v", sec, sec, sec); strings.Contains(got, "super-secret-value") {
+		t.Fatalf("secret leaked in formatting: %q", got)
+	}
+	if raw, err := sec.MarshalText(); err != nil || string(raw) != Redacted {
+		t.Fatalf("MarshalText = %q, %v", raw, err)
+	}
+	if empty := env.Secret("MISSING_SECRET", ""); empty.String() != "" {
+		t.Fatalf("empty secret String = %q", empty.String())
 	}
 }

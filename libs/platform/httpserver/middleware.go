@@ -217,8 +217,21 @@ type StandardOptions struct {
 	RequestTimeout time.Duration
 }
 
+// SecurityHeaders sets baseline HTTP security headers on every response.
+func SecurityHeaders() Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("X-Frame-Options", "DENY")
+			h.Set("Referrer-Policy", "no-referrer")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // Standard wraps mux with the default ICYRE middleware stack:
-// request ID → tracing → access log → recovery → timeout → route metrics.
+// request ID → security headers → tracing → access log → recovery → timeout → route metrics.
 func Standard(mux *http.ServeMux, o StandardOptions) http.Handler {
 	var inner http.Handler = mux
 	if o.Metrics != nil {
@@ -226,6 +239,7 @@ func Standard(mux *http.ServeMux, o StandardOptions) http.Handler {
 	}
 	return Chain(inner,
 		RequestID(),
+		SecurityHeaders(),
 		Tracing(o.Service),
 		AccessLog(o.Log),
 		Recover(o.Log),
