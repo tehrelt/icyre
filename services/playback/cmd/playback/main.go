@@ -25,6 +25,7 @@ import (
 	analyticsadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/analytics"
 	httpadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/http"
 	kafkaadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/kafka"
+	redisadapter "github.com/tehrelt/icyre/services/playback/internal/adapters/redis"
 	"github.com/tehrelt/icyre/services/playback/internal/application"
 	"github.com/tehrelt/icyre/services/playback/internal/config"
 )
@@ -93,7 +94,7 @@ func run() error {
 		checks.Add("kafka", producer.Ping)
 		publisher = kafkaadapter.NewPublisher(producer, config.ServiceName)
 	}
-	app := application.New(publisher)
+	app := application.New(publisher).WithStateStore(redisadapter.NewStore(rdb, cfg.SessionTTL), cfg.ProgressInterval, log)
 
 	// 6. Handlers. Access tokens are verified against Auth's JWKS.
 	keys := authn.NewRemoteKeys(cfg.JWKSURL, httpclient.New(httpclient.Config{Timeout: 3 * time.Second}))

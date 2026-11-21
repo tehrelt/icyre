@@ -17,17 +17,19 @@ const ServiceName = "playback-service"
 
 // Config is the complete service configuration.
 type Config struct {
-	Env             string
-	Version         string
-	LogLevel        string
-	LogFormat       string
-	HTTP            httpserver.Config
-	ShutdownTimeout time.Duration
-	Redis           redis.Config
-	KafkaBrokers    []string
-	JWKSURL         string
-	Analytics       Analytics
-	Tracing         telemetry.TracingConfig
+	Env              string
+	Version          string
+	LogLevel         string
+	LogFormat        string
+	HTTP             httpserver.Config
+	ShutdownTimeout  time.Duration
+	Redis            redis.Config
+	SessionTTL       time.Duration
+	ProgressInterval time.Duration
+	KafkaBrokers     []string
+	JWKSURL          string
+	Analytics        Analytics
+	Tracing          telemetry.TracingConfig
 }
 
 // Analytics modes: where a playback event goes before the request returns.

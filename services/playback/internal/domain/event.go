@@ -14,6 +14,7 @@ type Kind string
 // Kinds.
 const (
 	Started  Kind = "started"
+	Progress Kind = "progress"
 	Finished Kind = "finished"
 	Skipped  Kind = "skipped"
 )
@@ -49,9 +50,9 @@ type Event struct {
 func (e Event) Validate() error {
 	f := map[string]string{}
 	switch e.Kind {
-	case Started, Finished, Skipped:
+	case Started, Progress, Finished, Skipped:
 	default:
-		f["type"] = "must be started, finished or skipped"
+		f["type"] = "must be started, progress, finished or skipped"
 	}
 	if e.PlaybackID == uuid.Nil {
 		f["playbackId"] = "must be a UUID"

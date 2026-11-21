@@ -10,6 +10,7 @@ const Version = 1
 // Event types (specs/services/playback.md).
 const (
 	TypeStarted  = "playback.started"
+	TypeProgress = "playback.progress"
 	TypeFinished = "playback.finished"
 	TypeSkipped  = "playback.skipped"
 )

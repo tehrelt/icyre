@@ -32,6 +32,7 @@ func NewPublisher(p Producer, source string) *Publisher {
 
 var types = map[domain.Kind]string{
 	domain.Started:  playbackv1.TypeStarted,
+	domain.Progress: playbackv1.TypeProgress,
 	domain.Finished: playbackv1.TypeFinished,
 	domain.Skipped:  playbackv1.TypeSkipped,
 }
