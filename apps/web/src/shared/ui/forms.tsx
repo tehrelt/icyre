@@ -1,5 +1,4 @@
-// Ported from the ICYRE Design System (components/src/forms.tsx) — the
-// controls needed so far. Input, Checkbox, Switch… arrive with their screens.
+// Ported from the ICYRE Design System (components/src/forms.tsx).
 
 import {
   forwardRef,
@@ -7,16 +6,19 @@ import {
   useId,
   useImperativeHandle,
   useRef,
+  useState,
   type CSSProperties,
   type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
+  type TextareaHTMLAttributes,
 } from 'react';
 
 import { useControlled } from '@/shared/hooks/useControlled';
 import { cx } from '@/shared/lib/cx';
 
-import { Icon, IconButton } from './core';
+import { Icon, IconButton, type Size } from './core';
+import type { IconName } from './icons';
 
 interface ChoiceProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'children' | 'onChange' | 'type'> {
   label: ReactNode;
@@ -249,6 +251,146 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(functi
       ) : shortcut ? (
         <kbd className="ic-kbd">{shortcut}</kbd>
       ) : null}
+    </div>
+  );
+});
+
+/* ---------- Input & Textarea ---------- */
+interface FieldHelpProps {
+  id: string;
+  hint?: ReactNode;
+  error?: ReactNode;
+  counter?: string;
+}
+
+function FieldHelp({ id, hint, error, counter }: FieldHelpProps) {
+  if (error == null && hint == null && counter == null) return null;
+  return (
+    <div className="ic-help">
+      {error != null ? (
+        <span id={id} className="ic-help-error" role="alert">
+          <Icon name="alert" size={14} />
+          {error}
+        </span>
+      ) : hint != null ? (
+        <span id={id}>{hint}</span>
+      ) : (
+        <span />
+      )}
+      {counter != null ? <span className="ic-help-counter">{counter}</span> : null}
+    </div>
+  );
+}
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  label?: ReactNode;
+  hint?: ReactNode;
+  error?: ReactNode;
+  size?: Size;
+  iconStart?: IconName;
+  iconEnd?: IconName;
+  forceState?: 'hover' | 'focus';
+}
+
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { label, hint, error, size = 'md', iconStart, iconEnd, forceState, disabled, className, id, 'aria-describedby': describedBy, ...inputProps },
+  forwarded,
+) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const helpId = `${inputId}-help`;
+  const hasHelp = error != null || hint != null;
+  const mergedDescribedBy = [describedBy, hasHelp ? helpId : undefined].filter(Boolean).join(' ') || undefined;
+
+  return (
+    <div className={cx('ic-fieldwrap', className)}>
+      {label != null ? (
+        <label className="ic-label" htmlFor={inputId}>
+          {label}
+        </label>
+      ) : null}
+      <div className={cx('ic-field', `ic-field-${size}`, error != null && 'is-error', disabled && 'is-disabled', forceState && `is-${forceState}`)}>
+        {iconStart ? <Icon name={iconStart} size={16} className="ic-field-icon" /> : null}
+        <input
+          {...inputProps}
+          ref={forwarded}
+          id={inputId}
+          className="ic-field-input"
+          disabled={disabled}
+          aria-invalid={error != null ? true : undefined}
+          aria-describedby={mergedDescribedBy}
+        />
+        {iconEnd ? <Icon name={iconEnd} size={16} className="ic-field-icon" /> : null}
+      </div>
+      <FieldHelp id={helpId} hint={hint} error={error} />
+    </div>
+  );
+});
+
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: ReactNode;
+  hint?: ReactNode;
+  error?: ReactNode;
+  showCount?: boolean;
+  forceState?: 'hover' | 'focus';
+}
+
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
+  {
+    label,
+    hint,
+    error,
+    showCount,
+    forceState,
+    disabled,
+    className,
+    id,
+    rows = 3,
+    maxLength,
+    value,
+    defaultValue,
+    onChange,
+    'aria-describedby': describedBy,
+    ...textareaProps
+  },
+  forwarded,
+) {
+  const generatedId = useId();
+  const textareaId = id ?? generatedId;
+  const helpId = `${textareaId}-help`;
+  const [uncontrolledLen, setUncontrolledLen] = useState(() => (defaultValue != null ? String(defaultValue).length : 0));
+  const currentLen = value != null ? String(value).length : uncontrolledLen;
+  const counter = maxLength != null && showCount !== false ? `${currentLen}/${maxLength}` : undefined;
+  const hasHelp = error != null || hint != null;
+  const mergedDescribedBy = [describedBy, hasHelp ? helpId : undefined].filter(Boolean).join(' ') || undefined;
+
+  return (
+    <div className={cx('ic-fieldwrap', className)}>
+      {label != null ? (
+        <label className="ic-label" htmlFor={textareaId}>
+          {label}
+        </label>
+      ) : null}
+      <div className={cx('ic-field', 'ic-field-area', error != null && 'is-error', disabled && 'is-disabled', forceState && `is-${forceState}`)}>
+        <textarea
+          {...textareaProps}
+          ref={forwarded}
+          id={textareaId}
+          className="ic-field-input"
+          rows={rows}
+          maxLength={maxLength}
+          value={value}
+          defaultValue={defaultValue}
+          disabled={disabled}
+          aria-invalid={error != null ? true : undefined}
+          aria-describedby={mergedDescribedBy}
+          onChange={(e) => {
+            if (value == null) setUncontrolledLen(e.target.value.length);
+            onChange?.(e);
+          }}
+        />
+      </div>
+      <FieldHelp id={helpId} hint={hint} error={error} counter={counter} />
     </div>
   );
 });
