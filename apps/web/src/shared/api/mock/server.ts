@@ -2,7 +2,7 @@
  * In-process mock of the public API (/api/v1) for development and tests.
  * It returns the same status codes and error envelope as the real gateway.
  */
-import { search, searchAlbums, searchArtists, searchBrowsePage, searchPlaylists, type SearchType } from './searchIndex';
+import { search, searchAlbums, searchArtists, searchBrowsePage, searchPlaylists, searchTracks, type SearchType } from './searchIndex';
 import { currentUser, generatedAlbumPage, generatedTracks, homeFeed, librarySummary, prismHoursPage } from './fixtures';
 
 interface MockResponse {
@@ -45,9 +45,25 @@ export const mockAccounts = new Map<string, MockAccount>([
   ],
 ]);
 
-/** Saved tracks of the mock listener (Library Service), seeded from the fixtures' liked flags. */
+/** Saved tracks, albums and followed artists of the mock listener (Library & Social Services). */
 const likedFixtures = [...prismHoursPage.tracks, ...homeFeed.trending.today, ...homeFeed.trending.week].flatMap((t) => (t?.liked ? [t.id] : []));
-export const mockLibrary = { tracks: new Set<string>(likedFixtures), initial: new Set(likedFixtures).size };
+const savedAlbumFixtures = [
+  'alb-prism-hours',
+  'alb-salt-lanterns',
+  'alb-hollow-signal',
+  'alb-winter-index',
+  'alb-lowlight-atlas',
+  'alb-quiet-machines',
+];
+const followedArtistFixtures = homeFeed.followedArtists.map((a) => a.id);
+
+export const mockLibrary = {
+  tracks: new Set<string>(likedFixtures),
+  initial: new Set(likedFixtures).size,
+  albums: new Set<string>(savedAlbumFixtures),
+  initialAlbums: savedAlbumFixtures.length,
+  followedArtists: new Set<string>(followedArtistFixtures),
+};
 
 const unauthorized = (code: string, message: string): MockResponse => ({ status: 401, json: { error: { code, message, requestId: 'mock-auth' } } });
 
@@ -174,6 +190,138 @@ function collectionIndex(): Map<string, CollectionInfo> {
 
 const collections = collectionIndex();
 
+interface CatalogArtistDTO {
+  id: string;
+  name: string;
+  listeners?: string;
+  coverUrl: null;
+  art: number;
+}
+
+interface CatalogAlbumDTO {
+  id: string;
+  title: string;
+  albumType: 'ALBUM' | 'EP' | 'SINGLE' | 'COMPILATION';
+  releaseDate: string;
+  artistIds: string[];
+  explicit: boolean;
+  coverUrl: null;
+  art: number;
+}
+
+interface CatalogTrackDTO {
+  id: string;
+  albumId: string;
+  artistIds: string[];
+  title: string;
+  durationMs: number;
+  trackNumber: number;
+  discNumber: number;
+  explicit: boolean;
+  status: 'READY' | 'BLOCKED';
+  coverUrl: null;
+  art: number;
+}
+
+function buildCatalogIndex() {
+  const artists = new Map<string, CatalogArtistDTO>();
+  const artistByName = new Map<string, string>();
+  const albums = new Map<string, CatalogAlbumDTO>();
+  const tracks = new Map<string, CatalogTrackDTO>();
+
+  const ensureArtist = (name: string, id?: string, art = 0, listeners?: string): string => {
+    const existingId = id ?? artistByName.get(name);
+    if (existingId && artists.has(existingId)) return existingId;
+    const resolvedId = id ?? `art-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`;
+    artists.set(resolvedId, { id: resolvedId, name, listeners, coverUrl: null, art });
+    artistByName.set(name, resolvedId);
+    return resolvedId;
+  };
+
+  [...homeFeed.followedArtists, ...searchArtists].forEach((a) => {
+    ensureArtist(a.name, a.id, a.art, a.listeners);
+  });
+  ensureArtist(prismHoursPage.artist.name, prismHoursPage.artist.id, prismHoursPage.artist.art);
+
+  const addAlbum = (a: {
+    id: string;
+    title: string;
+    artistName: string;
+    year?: number;
+    releaseDate?: string;
+    albumType?: string;
+    explicit?: boolean;
+    art: number;
+  }) => {
+    if (albums.has(a.id)) return;
+    const artistIds = a.artistName.split(' · ').map((n) => ensureArtist(n.trim(), undefined, a.art));
+    const albumType = (a.albumType === 'EP' || a.albumType === 'SINGLE' || a.albumType === 'COMPILATION' ? a.albumType : 'ALBUM') as CatalogAlbumDTO['albumType'];
+    albums.set(a.id, {
+      id: a.id,
+      title: a.title,
+      albumType,
+      releaseDate: a.releaseDate ?? `${a.year ?? 2025}-01-17`,
+      artistIds,
+      explicit: Boolean(a.explicit),
+      coverUrl: null,
+      art: a.art,
+    });
+  };
+
+  addAlbum({ ...prismHoursPage.album, artistName: prismHoursPage.artist.name });
+  addAlbum({ ...homeFeed.albumOfTheWeek.album, releaseDate: homeFeed.albumOfTheWeek.releaseDate });
+  [...homeFeed.recentlyPlayed, ...homeFeed.recommended.items, ...homeFeed.newReleases.items, ...prismHoursPage.moreByArtist, ...searchAlbums].forEach((item) => {
+    if (item.kind === 'album') addAlbum(item);
+  });
+
+  const addTrack = (
+    t: { id: string; title: string; artistName: string; albumId: string; albumTitle: string; durationSec: number; explicit?: boolean; available?: boolean; art: number },
+    index: number,
+  ) => {
+    if (tracks.has(t.id)) return;
+    if (!albums.has(t.albumId)) {
+      addAlbum({ id: t.albumId, title: t.albumTitle, artistName: t.artistName, art: t.art });
+    }
+    const artistIds = t.artistName.split(' · ').map((n) => ensureArtist(n.trim(), undefined, t.art));
+    tracks.set(t.id, {
+      id: t.id,
+      albumId: t.albumId,
+      artistIds,
+      title: t.title,
+      durationMs: t.durationSec * 1000,
+      trackNumber: index + 1,
+      discNumber: 1,
+      explicit: Boolean(t.explicit),
+      status: t.available === false ? 'BLOCKED' : 'READY',
+      coverUrl: null,
+      art: t.art,
+    });
+  };
+
+  [...prismHoursPage.tracks, ...homeFeed.trending.today, ...homeFeed.trending.week, ...searchTracks].forEach((t, i) => {
+    if (t) addTrack(t, i);
+  });
+
+  return { artists, albums, tracks };
+}
+
+const catalogIndex = buildCatalogIndex();
+
+function paginateMock<T>(items: T[], query: URLSearchParams) {
+  const limit = Math.min(100, Math.max(1, Number(query.get('limit') ?? 20) || 20));
+  const offset = Math.max(0, Number(query.get('cursor') ?? 0) || 0);
+  const slice = items.slice(offset, offset + limit);
+  const hasMore = offset + limit < items.length;
+  return {
+    data: slice,
+    pagination: { nextCursor: hasMore ? String(offset + limit) : null, hasMore },
+  };
+}
+
+function mockTimestamp(index: number): string {
+  return new Date(Date.UTC(2026, 10, 20, 12, 0, 0) - index * 3_600_000).toISOString();
+}
+
 function tracksOf(kind: string, id: string): MockResponse {
   const info = collections.get(id);
   if (!info) {
@@ -232,8 +380,23 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
   [
     'GET',
     '/me/library/summary',
-    // Canvas counters, moved by likes made during the session.
-    authed(() => ok({ tracks: librarySummary.likedTracksCount + mockLibrary.tracks.size - mockLibrary.initial, albums: librarySummary.savedCount })),
+    // Canvas counters, moved by likes and saved albums made during the session.
+    authed(() =>
+      ok({
+        tracks: librarySummary.likedTracksCount + mockLibrary.tracks.size - mockLibrary.initial,
+        albums: librarySummary.savedCount + mockLibrary.albums.size - mockLibrary.initialAlbums,
+      }),
+    ),
+  ],
+  [
+    'GET',
+    '/me/library/tracks',
+    authed((_p, q) => {
+      const items = Array.from(mockLibrary.tracks)
+        .reverse()
+        .map((trackId, i) => ({ trackId, savedAt: mockTimestamp(i) }));
+      return ok(paginateMock(items, q));
+    }),
   ],
   ['GET', '/me/library/tracks/contains', authed((_p, q) => ok({ data: (q.get('ids') ?? '').split(',').filter((id) => mockLibrary.tracks.has(id)) }))],
   [
@@ -252,8 +415,99 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
       return { status: 204, json: null };
     }),
   ],
+  [
+    'GET',
+    '/me/library/albums',
+    authed((_p, q) => {
+      const items = Array.from(mockLibrary.albums)
+        .reverse()
+        .map((albumId, i) => ({ albumId, savedAt: mockTimestamp(i) }));
+      return ok(paginateMock(items, q));
+    }),
+  ],
+  ['GET', '/me/library/albums/contains', authed((_p, q) => ok({ data: (q.get('ids') ?? '').split(',').filter((id) => mockLibrary.albums.has(id)) }))],
+  [
+    'PUT',
+    '/me/library/albums/:id',
+    authed((p) => {
+      mockLibrary.albums.add(p.id ?? '');
+      return { status: 204, json: null };
+    }),
+  ],
+  [
+    'DELETE',
+    '/me/library/albums/:id',
+    authed((p) => {
+      mockLibrary.albums.delete(p.id ?? '');
+      return { status: 204, json: null };
+    }),
+  ],
+  [
+    'GET',
+    '/users/:id/following',
+    (_p, q) => {
+      if (q.get('type') !== 'artist') return ok(paginateMock([], q));
+      const items = Array.from(mockLibrary.followedArtists)
+        .reverse()
+        .map((artistId, i) => ({ artistId, followedAt: mockTimestamp(i) }));
+      return ok(paginateMock(items, q));
+    },
+  ],
+  ['GET', '/me/following/contains', authed((_p, q) => ok({ data: (q.get('ids') ?? '').split(',').filter((id) => mockLibrary.followedArtists.has(id)) }))],
+  [
+    'PUT',
+    '/artists/:id/follow',
+    authed((p) => {
+      mockLibrary.followedArtists.add(p.id ?? '');
+      return { status: 204, json: null };
+    }),
+  ],
+  [
+    'DELETE',
+    '/artists/:id/follow',
+    authed((p) => {
+      mockLibrary.followedArtists.delete(p.id ?? '');
+      return { status: 204, json: null };
+    }),
+  ],
+  [
+    'GET',
+    '/albums/:id',
+    (p) => {
+      const album = catalogIndex.albums.get(p.id ?? '');
+      return album ? ok(album) : notFound('ALBUM_NOT_FOUND', 'Album not found');
+    },
+  ],
+  [
+    'GET',
+    '/tracks',
+    (_p, q) => {
+      const ids = (q.get('ids') ?? '').split(',').filter(Boolean);
+      return ok({ data: ids.map((id) => catalogIndex.tracks.get(id)).filter(Boolean) });
+    },
+  ],
+  [
+    'GET',
+    '/artists',
+    (_p, q) => {
+      const ids = (q.get('ids') ?? '').split(',').filter(Boolean);
+      return ok({ data: ids.map((id) => catalogIndex.artists.get(id)).filter(Boolean) });
+    },
+  ],
   ['POST', '/playback/events', authed(() => ({ status: 202, json: null }))],
-  ['GET', '/me/playlists', authed(() => ok({ data: librarySummary.playlists }))],
+  [
+    'GET',
+    '/me/playlists',
+    authed(() =>
+      ok({
+        data: librarySummary.playlists.map((p, i) => ({
+          ...p,
+          ownerId: currentUser.id,
+          updatedAt: mockTimestamp(i * 24),
+        })),
+      }),
+    ),
+  ],
   ['GET', '/pages/home', () => ok(homeFeed)],
   ['GET', '/pages/albums/:id', (p) => albumPage(p.id ?? '')],
   ['GET', '/pages/search', () => ok(searchBrowsePage)],

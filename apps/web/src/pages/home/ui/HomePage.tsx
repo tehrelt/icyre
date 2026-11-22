@@ -134,7 +134,7 @@ function HomeSections({ feed, filter }: { feed: HomeFeed; filter: Filter }) {
 
       {show('artist') && feed.followedArtists.length > 0 && (
         <section aria-labelledby="artists-title" className={styles.section}>
-          <SectionHeader titleId="artists-title" title="Artists you follow" action="Manage" onAction={() => navigate(routes.library)} />
+          <SectionHeader titleId="artists-title" title="Artists you follow" action="Manage" onAction={() => navigate(`${routes.library}?tab=artists`)} />
           <div className={styles.cardGrid}>
             {feed.followedArtists.map((item) => (
               <CollectionCard key={item.id} item={item} />

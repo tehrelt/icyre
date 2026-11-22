@@ -2,6 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { usePlayerStore } from '@/features/player';
+import { useAlbumSaveStore } from '@/features/save-album';
+import { mockLibrary } from '@/shared/api/mock/server';
 import { renderApp } from '@/test/render';
 
 describe('Album screen', () => {
@@ -64,5 +66,22 @@ describe('Album screen', () => {
     await userEvent.click(within(recent.closest('section')!).getByRole('link', { name: /^Prism Hours\s*Album/ }));
     expect(router.state.location.pathname).toBe('/album/alb-prism-hours');
     expect(await screen.findByRole('heading', { level: 1, name: 'Prism Hours' })).toBeInTheDocument();
+  });
+
+  it('saves and removes an album from library', async () => {
+    useAlbumSaveStore.setState({ overrides: {} });
+    mockLibrary.albums.delete('alb-prism-hours');
+    renderApp('/album/alb-prism-hours');
+    await screen.findByRole('heading', { level: 1, name: 'Prism Hours' });
+
+    const saveBtn = await screen.findByRole('button', { name: 'Save Prism Hours to library' });
+    await userEvent.click(saveBtn);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove Prism Hours from library' })).toHaveAttribute('aria-pressed', 'true'));
+    expect(mockLibrary.albums.has('alb-prism-hours')).toBe(true);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove Prism Hours from library' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save Prism Hours to library' })).toHaveAttribute('aria-pressed', 'false'));
+    expect(mockLibrary.albums.has('alb-prism-hours')).toBe(false);
   });
 });

@@ -1,0 +1,290 @@
+/* Library & Liked tracks (ICYRE Design System). */
+.page {
+  position: relative;
+  min-height: 100%;
+}
+
+.glow {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 360px;
+  background: var(--hero-glow);
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  padding: var(--space-8) var(--gutter-desktop) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: var(--container-max);
+}
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.filterField {
+  width: 320px;
+  max-width: 100%;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-bottom: var(--border-hairline) solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.controls :global(.ic-tabs) {
+  border-bottom: 0;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.controlsRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+/* Liked tracks spotlight on Overview tab */
+.spotlight {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: center;
+}
+
+.spotlightCopy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.spotlightActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.spotlightTracks {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Liked tracks dedicated hero (/liked) */
+.hero {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-10);
+}
+
+.likedCover {
+  width: 200px;
+  height: 200px;
+  flex: none;
+  padding: var(--space-1);
+  background: var(--surface-raised);
+  border: var(--border-hairline) solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-floating);
+}
+
+.likedCoverInner {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--iridescent-soft);
+  border: var(--border-hairline) solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand-primary);
+}
+
+.heroText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
+}
+
+.byline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ownerName {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.spacer {
+  flex-grow: 1;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns-desktop), minmax(0, 1fr));
+  gap: var(--gap-grid);
+}
+
+.cardWrap {
+  position: relative;
+  min-width: 0;
+}
+
+.cardMenu {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 4;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--easing-standard);
+}
+
+.cardMenu :global(.ic-iconbtn) {
+  background: var(--surface-raised);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-raised);
+}
+
+.cardWrap:hover .cardMenu,
+.cardWrap:focus-within .cardMenu {
+  opacity: 1;
+}
+
+.tracks {
+  display: flex;
+  flex-direction: column;
+}
+
+.tracks > :global(.ic-track-header) {
+  margin-bottom: var(--space-1);
+}
+
+.compact :global(.ic-track:not(.ic-track-header)) {
+  min-height: 40px;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+
+.compact :global(.ic-track-artist) {
+  display: none;
+}
+
+.loadMore {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-2);
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+@media (max-width: 1199px) {
+  .content {
+    padding: var(--space-6) var(--gutter-tablet) var(--space-12);
+  }
+  .spotlight {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-tablet), minmax(0, 1fr));
+    gap: 20px;
+  }
+  .hero {
+    gap: var(--space-6);
+  }
+  .likedCover {
+    width: 176px;
+    height: 176px;
+  }
+}
+
+@media (max-width: 767px) {
+  .content {
+    padding: var(--space-5) var(--gutter-mobile) var(--space-10);
+    gap: var(--space-6);
+  }
+  .head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filterField {
+    width: 100%;
+  }
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .likedCover {
+    width: 160px;
+    height: 160px;
+    align-self: center;
+  }
+  .cardGrid {
+    grid-template-columns: repeat(var(--grid-columns-mobile), minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .cardMenu {
+    opacity: 1;
+  }
+  .tracks :global(.ic-track),
+  .spotlightTracks :global(.ic-track) {
+    grid-template-columns: 32px 40px minmax(0, 1fr) 48px 32px;
+  }
+  .tracks :global(.ic-track-header) {
+    display: none;
+  }
+  .tracks :global(.ic-track-album),
+  .tracks :global(.ic-track-badge),
+  .tracks :global(.ic-track-like),
+  .spotlightTracks :global(.ic-track-album),
+  .spotlightTracks :global(.ic-track-badge),
+  .spotlightTracks :global(.ic-track-like) {
+    display: none;
+  }
+}
