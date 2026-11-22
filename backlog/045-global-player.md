@@ -10,7 +10,7 @@
 
 Плеер: UI → Player Store → Controller → Audio Engine → HTMLAudioElement. Аудио идёт из CDN по signed URL.
 
-Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM
+Design System: `design-system/`
 
 ## Задачи
 
