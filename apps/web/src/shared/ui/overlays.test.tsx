@@ -58,12 +58,14 @@ describe('overlay components', () => {
 
   it('opens and closes Popover', async () => {
     render(
-      <Popover trigger={<button type="button">Details</button>} title="Track details">
+      <Popover trigger={<button type="button">Details</button>} title="Track details" placement="top">
         Lossless audio
       </Popover>,
     );
     await userEvent.click(screen.getByRole('button', { name: 'Details' }));
-    expect(screen.getByRole('dialog', { name: 'Track details' })).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Track details' });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveClass('ic-dropdown-panel-top');
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

@@ -49,6 +49,11 @@ export class SimulatedAudioEngine extends BaseEngine {
     // Silent by design.
   }
 
+  async setOutputDevice(_deviceId: string): Promise<void> {
+    void _deviceId;
+    // Silent by design.
+  }
+
   override destroy(): void {
     this.stopClock();
     super.destroy();

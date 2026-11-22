@@ -68,6 +68,15 @@ export class HtmlAudioEngine extends BaseEngine {
     this.audio.muted = muted;
   }
 
+  async setOutputDevice(deviceId: string): Promise<void> {
+    const media = this.audio as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
+    if (typeof media.setSinkId !== 'function') {
+      if (deviceId !== 'default') throw new Error('Output switching is not supported in this browser');
+      return;
+    }
+    await media.setSinkId(deviceId === 'default' ? '' : deviceId);
+  }
+
   override destroy(): void {
     this.off.forEach((f) => f());
     this.audio.pause();
