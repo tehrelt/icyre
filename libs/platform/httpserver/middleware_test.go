@@ -86,3 +86,23 @@ func TestDecodeJSONRejectsUnknownFields(t *testing.T) {
 		t.Fatal("expected error for unknown field")
 	}
 }
+
+func TestStandardSetsSecurityHeaders(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /ping", func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	})
+	h := Standard(mux, StandardOptions{Service: "test", Log: discardLogger()})
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ping", nil))
+
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", rec.Header().Get("X-Content-Type-Options"))
+	}
+	if rec.Header().Get("X-Frame-Options") != "DENY" {
+		t.Fatalf("X-Frame-Options = %q", rec.Header().Get("X-Frame-Options"))
+	}
+	if rec.Header().Get("Referrer-Policy") != "no-referrer" {
+		t.Fatalf("Referrer-Policy = %q", rec.Header().Get("Referrer-Policy"))
+	}
+}

@@ -101,3 +101,21 @@ func TestLoadMigrationsRejectsBadNames(t *testing.T) {
 		}
 	}
 }
+
+func TestInsertRejectsInvalidTableName(t *testing.T) {
+	called := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}))
+	defer srv.Close()
+
+	c := New(Config{URL: srv.URL, Database: "icyre"}, srv.Client())
+	for _, table := range []string{"", "events; DROP TABLE x", "Events", "db.events.extra", "1bad"} {
+		if err := c.Insert(context.Background(), table, []any{map[string]int{"id": 1}}, ""); err == nil {
+			t.Errorf("table %q: want error, got nil", table)
+		}
+	}
+	if called {
+		t.Fatal("expected no HTTP request for invalid table names")
+	}
+}

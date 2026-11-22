@@ -89,6 +89,9 @@ func New(repo Repository, catalog Catalog, store Storage, pub Publisher, tx Tran
 	if tx == nil {
 		tx = noTx{}
 	}
+	if log == nil {
+		log = slog.Default()
+	}
 	return &Service{repo: repo, catalog: catalog, store: store, pub: pub, tx: tx, limits: limits, log: log, now: time.Now}
 }
 
@@ -130,6 +133,7 @@ func (s *Service) Create(ctx context.Context, actor Actor, req domain.Request) (
 	if err := s.repo.Create(ctx, u); err != nil {
 		return Created{}, err
 	}
+	s.log.InfoContext(ctx, "media ingest audit", "audit", "media_ingest", "event", "upload_created", "upload_id", u.ID.String(), "track_id", u.TrackID.String(), "uploader_id", actor.ID.String())
 	return Created{Upload: u, URL: url}, nil
 }
 
@@ -187,6 +191,11 @@ func (s *Service) Complete(ctx context.Context, actor Actor, id uuid.UUID) (doma
 		if err := s.store.Remove(ctx, u.Key); err != nil {
 			s.log.WarnContext(ctx, "rejected upload not removed", "upload_id", u.ID, "key", u.Key, "error", err)
 		}
+	}
+	if reason != "" {
+		s.log.WarnContext(ctx, "media ingest audit", "audit", "media_ingest", "event", "upload_rejected", "upload_id", u.ID.String(), "track_id", u.TrackID.String(), "uploader_id", u.UploaderID.String(), "actor_id", actor.ID.String(), "reason", reason)
+	} else {
+		s.log.InfoContext(ctx, "media ingest audit", "audit", "media_ingest", "event", "upload_completed", "upload_id", u.ID.String(), "track_id", u.TrackID.String(), "uploader_id", u.UploaderID.String(), "actor_id", actor.ID.String())
 	}
 	return outcome(settled)
 }

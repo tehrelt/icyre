@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -47,6 +48,39 @@ type Store struct {
 	timeout time.Duration
 }
 
+// ErrInvalidKey means an object key contains traversal, query, or control characters.
+var ErrInvalidKey = errors.New("invalid object key")
+
+func validateEndpoint(name, ep string) error {
+	if ep == "" || strings.ContainsAny(ep, "/?#@\\ \t\r\n") {
+		return fmt.Errorf("objectstore: invalid %s (expected host[:port])", name)
+	}
+	u, err := url.Parse("https://" + ep)
+	if err != nil || u.Host == "" || u.Host != ep || u.User != nil || u.Path != "" {
+		return fmt.Errorf("objectstore: invalid %s (expected host[:port])", name)
+	}
+	return nil
+}
+
+// ValidateKey rejects empty keys, leading slashes, path traversal (".."),
+// backslashes, query/fragment delimiters, and control characters.
+func ValidateKey(key string) error {
+	if key == "" || strings.HasPrefix(key, "/") || strings.ContainsAny(key, "\\?#") {
+		return ErrInvalidKey
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] < 0x20 || key[i] == 0x7f {
+			return ErrInvalidKey
+		}
+	}
+	for _, seg := range strings.Split(key, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return ErrInvalidKey
+		}
+	}
+	return nil
+}
+
 // New returns a Store. It does not touch the network.
 func New(cfg Config) (*Store, error) {
 	if cfg.Region == "" {
@@ -57,6 +91,12 @@ func New(cfg Config) (*Store, error) {
 	}
 	if cfg.PublicEndpoint == "" {
 		cfg.PublicEndpoint, cfg.PublicSecure = cfg.Endpoint, cfg.Secure
+	}
+	if err := validateEndpoint("endpoint", cfg.Endpoint); err != nil {
+		return nil, err
+	}
+	if err := validateEndpoint("public endpoint", cfg.PublicEndpoint); err != nil {
+		return nil, err
 	}
 	creds := credentials.NewStaticV4(cfg.AccessKey, cfg.SecretKey, "")
 	cl, err := minio.New(cfg.Endpoint, &minio.Options{Creds: creds, Secure: cfg.Secure, Region: cfg.Region, TrailingHeaders: true})
@@ -117,6 +157,9 @@ type ObjectInfo struct {
 
 // Stat returns object metadata, or ErrNotFound.
 func (s *Store) Stat(ctx context.Context, bucket, key string) (ObjectInfo, error) {
+	if err := ValidateKey(key); err != nil {
+		return ObjectInfo{}, err
+	}
 	ctx, cancel := s.ctx(ctx)
 	defer cancel()
 	info, err := s.cl.StatObject(ctx, bucket, key, minio.StatObjectOptions{Checksum: true})
@@ -141,6 +184,9 @@ func canonicalMetadata(m map[string]string) map[string]string {
 // Download streams an object into w, or returns ErrNotFound. The transfer
 // is bounded by ctx only (large objects outlive the per-call Timeout).
 func (s *Store) Download(ctx context.Context, bucket, key string, w io.Writer) (int64, error) {
+	if err := ValidateKey(key); err != nil {
+		return 0, err
+	}
 	obj, err := s.cl.GetObject(ctx, bucket, key, minio.GetObjectOptions{})
 	if err != nil {
 		return 0, fmt.Errorf("get %s: %w", key, err)
@@ -159,6 +205,9 @@ func (s *Store) Download(ctx context.Context, bucket, key string, w io.Writer) (
 // ReadHead returns up to the first n bytes of an object (content sniffing),
 // or ErrNotFound.
 func (s *Store) ReadHead(ctx context.Context, bucket, key string, n int64) ([]byte, error) {
+	if err := ValidateKey(key); err != nil {
+		return nil, err
+	}
 	ctx, cancel := s.ctx(ctx)
 	defer cancel()
 	opts := minio.GetObjectOptions{}
@@ -182,6 +231,9 @@ func (s *Store) ReadHead(ctx context.Context, bucket, key string, n int64) ([]by
 
 // Remove deletes an object; a missing object is not an error.
 func (s *Store) Remove(ctx context.Context, bucket, key string) error {
+	if err := ValidateKey(key); err != nil {
+		return err
+	}
 	ctx, cancel := s.ctx(ctx)
 	defer cancel()
 	if err := s.cl.RemoveObject(ctx, bucket, key, minio.RemoveObjectOptions{}); err != nil {
@@ -202,6 +254,9 @@ type PutOptions struct {
 // verifies on arrival. For service-side writes (workers, seeding); clients
 // upload with PresignUpload.
 func (s *Store) Put(ctx context.Context, bucket, key string, r io.Reader, size int64, o PutOptions) (ObjectInfo, error) {
+	if err := ValidateKey(key); err != nil {
+		return ObjectInfo{}, err
+	}
 	info, err := s.cl.PutObject(ctx, bucket, key, r, size, minio.PutObjectOptions{
 		ContentType: o.ContentType, CacheControl: o.CacheControl, UserMetadata: o.Metadata,
 		Checksum: minio.ChecksumSHA256,
@@ -230,6 +285,9 @@ type DownloadOptions struct {
 // PresignDownload signs a GET for the object. The URL carries no user data
 // and supports HTTP Range requests.
 func (s *Store) PresignDownload(ctx context.Context, bucket, key string, ttl time.Duration, o DownloadOptions) (SignedURL, error) {
+	if err := ValidateKey(key); err != nil {
+		return SignedURL{}, err
+	}
 	params := url.Values{}
 	if o.CacheControl != "" {
 		params.Set("response-cache-control", o.CacheControl)
@@ -252,6 +310,9 @@ type UploadOptions struct {
 
 // PresignUpload signs a PUT. The client must send the returned headers.
 func (s *Store) PresignUpload(ctx context.Context, bucket, key string, ttl time.Duration, o UploadOptions) (SignedURL, error) {
+	if err := ValidateKey(key); err != nil {
+		return SignedURL{}, err
+	}
 	headers := http.Header{}
 	if o.ContentType != "" {
 		headers.Set("Content-Type", o.ContentType)

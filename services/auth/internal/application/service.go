@@ -54,6 +54,9 @@ func New(d Deps) (*Service, error) {
 	if d.Tx == nil {
 		d.Tx = noTx{}
 	}
+	if d.Log == nil {
+		d.Log = slog.Default()
+	}
 	// Verifying against a dummy hash for unknown emails keeps login timing
 	// the same whether or not the account exists (no user enumeration).
 	dummy, err := d.Hasher.Hash("dummy-password-for-timing")
@@ -108,6 +111,7 @@ func (s *Service) Register(ctx context.Context, email, password string, c Client
 	if err != nil {
 		return Result{}, err
 	}
+	s.d.Log.InfoContext(ctx, "auth audit", "audit", "auth", "event", "register", "user_id", acc.ID.String(), "session_id", res.SessionID.String())
 	return res, nil
 }
 
@@ -117,6 +121,7 @@ func (s *Service) Login(ctx context.Context, email, password string, c Client) (
 	if ok, _, err := s.d.Throttle.Allow(ctx, email); err != nil {
 		s.d.Log.WarnContext(ctx, "login throttle unavailable", "error", err)
 	} else if !ok {
+		s.d.Log.WarnContext(ctx, "auth audit", "audit", "auth", "event", "login_throttled")
 		return Result{}, domain.ErrTooManyAttempts
 	}
 
@@ -135,6 +140,7 @@ func (s *Service) Login(ctx context.Context, email, password string, c Client) (
 		if ferr := s.d.Throttle.Failed(ctx, email); ferr != nil {
 			s.d.Log.WarnContext(ctx, "login throttle unavailable", "error", ferr)
 		}
+		s.d.Log.WarnContext(ctx, "auth audit", "audit", "auth", "event", "login_failed")
 		return Result{}, domain.ErrInvalidCredentials
 	}
 	_ = s.d.Throttle.Reset(ctx, email)
@@ -153,6 +159,7 @@ func (s *Service) Login(ctx context.Context, email, password string, c Client) (
 	if err != nil {
 		return Result{}, err
 	}
+	s.d.Log.InfoContext(ctx, "auth audit", "audit", "auth", "event", "login_succeeded", "user_id", acc.ID.String(), "session_id", res.SessionID.String())
 	return res, nil
 }
 
@@ -172,7 +179,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string) (Result, err
 			if err := s.revoke(ctx, reused, domain.RevokeTokenReuse); err != nil {
 				return Result{}, fmt.Errorf("revoke reused session: %w", err)
 			}
-			s.d.Log.WarnContext(ctx, "refresh token reuse: session revoked", "session_id", reused.ID.String())
+			s.d.Log.WarnContext(ctx, "refresh token reuse: session revoked", "audit", "auth", "event", "refresh_reuse_revoked", "user_id", reused.UserID.String(), "session_id", reused.ID.String())
 			return Result{}, domain.ErrRefreshReuse
 		}
 		return Result{}, domain.ErrInvalidRefresh
@@ -275,6 +282,7 @@ func (s *Service) revoke(ctx context.Context, sess domain.Session, reason string
 	if err != nil {
 		return err
 	}
+	s.d.Log.InfoContext(ctx, "auth audit", "audit", "auth", "event", "session_revoked", "user_id", sess.UserID.String(), "session_id", sess.ID.String(), "reason", reason)
 	if err := s.d.Revocation.Revoke(ctx, sess.ID.String(), s.d.Tokens.TTL()); err != nil {
 		// Access tokens then live until expiry (minutes); refresh is already dead.
 		s.d.Log.WarnContext(ctx, "revocation cache write failed", "error", err)

@@ -34,6 +34,10 @@ func New(cfg Config) *http.Client {
 	return &http.Client{
 		Timeout:   cfg.Timeout,
 		Transport: otelhttp.NewTransport(requestIDTransport{next: base}),
+		// Internal service clients never follow redirects (SSRF defense-in-depth).
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 }
 
