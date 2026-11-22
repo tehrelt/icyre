@@ -245,3 +245,72 @@ func TestListByArtistKeysetPagination(t *testing.T) {
 		t.Fatalf("ListByIDs = %+v, err = %v", found, err)
 	}
 }
+
+func TestTrackModerationAndListPage(t *testing.T) {
+	pool := newTestDB(t)
+	ctx := context.Background()
+	artists := NewArtistRepository(pool)
+	albums := NewAlbumRepository(pool)
+	tracks := NewTrackRepository(pool)
+
+	a, _ := domain.NewArtist(newID(), "Nova Hale", now)
+	if err := artists.Create(ctx, a); err != nil {
+		t.Fatal(err)
+	}
+	al, _ := domain.NewAlbum(domain.NewAlbumParams{
+		ID: newID(), Title: "Prism", Type: domain.AlbumTypeAlbum, ReleaseDate: now, ArtistIDs: []uuid.UUID{a.ID},
+	}, now)
+	if err := albums.Create(ctx, al); err != nil {
+		t.Fatal(err)
+	}
+
+	var created []domain.Track
+	for i := 1; i <= 3; i++ {
+		tr, _ := domain.NewTrack(domain.NewTrackParams{
+			ID: newID(), AlbumID: al.ID, ArtistIDs: []uuid.UUID{a.ID}, Title: fmt.Sprintf("T%d", i),
+			Duration: time.Minute, TrackNumber: i,
+		}, now.Add(time.Duration(i)*time.Minute))
+		if err := tracks.Create(ctx, tr); err != nil {
+			t.Fatal(err)
+		}
+		created = append(created, tr)
+	}
+	del := domain.TrackStatusDeleted
+	_, _ = created[1].Apply(domain.TrackChanges{Status: &del}, now.Add(5*time.Minute))
+	if err := tracks.Update(ctx, created[1]); err != nil {
+		t.Fatal(err)
+	}
+
+	page1, err := tracks.ListTracksPage(ctx, nil, nil, nil, 1)
+	if err != nil || len(page1) != 1 || page1[0].ID != created[2].ID {
+		t.Fatalf("page1 = %+v, err = %v", page1, err)
+	}
+	page2, err := tracks.ListTracksPage(ctx, nil, &page1[0].CreatedAt, &page1[0].ID, 10)
+	if err != nil || len(page2) != 1 || page2[0].ID != created[0].ID {
+		t.Fatalf("page2 = %+v, err = %v", page2, err)
+	}
+	delPage, err := tracks.ListTracksPage(ctx, &del, nil, nil, 10)
+	if err != nil || len(delPage) != 1 || delPage[0].ID != created[1].ID {
+		t.Fatalf("delPage = %+v, err = %v", delPage, err)
+	}
+
+	opID := newID()
+	if _, err := tracks.GetModerationReceipt(ctx, opID); !errors.Is(err, domain.ErrModerationReceiptNotFound) {
+		t.Fatalf("missing receipt: got %v", err)
+	}
+	rec := domain.ModerationReceipt{
+		OperationID: opID, TrackID: created[0].ID,
+		PreviousStatus: domain.TrackStatusReady, CurrentStatus: domain.TrackStatusBlocked,
+		Changed: true, CreatedAt: now,
+	}
+	if err := tracks.SaveModerationReceipt(ctx, rec); err != nil {
+		t.Fatal(err)
+	}
+	got, err := tracks.GetModerationReceipt(ctx, opID)
+	if err != nil || got.TrackID != rec.TrackID || got.CurrentStatus != domain.TrackStatusBlocked || !got.Changed {
+		t.Fatalf("got receipt = %+v, err = %v", got, err)
+	}
+	if err := tracks.SaveModerationReceipt(ctx, rec); !errors.Is(err, domain.ErrModerationConflict) {
+		t.Fatalf("duplicate receipt: got %v, want ErrModerationConflict", err)
+	}
+}

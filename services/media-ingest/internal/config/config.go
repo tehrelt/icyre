@@ -38,8 +38,12 @@ type Config struct {
 	JWKSURL        string
 	CatalogURL     string
 	CatalogTimeout time.Duration
+	InternalToken  config.Secret
 	Tracing        telemetry.TracingConfig
 }
+
+// Local reports a developer environment.
+func (c Config) Local() bool { return c.Env == "local" || c.Env == "test" }
 
 // Load reads and validates the configuration.
 func Load() (Config, error) {
@@ -88,6 +92,11 @@ func Load() (Config, error) {
 			Insecure:     env.Bool("OTEL_EXPORTER_OTLP_INSECURE", true),
 			SampleRatio:  1,
 		},
+	}
+	if cfg.Local() {
+		cfg.InternalToken = env.Secret("INTERNAL_SERVICE_TOKEN", "icyre-internal-dev-token")
+	} else {
+		cfg.InternalToken = env.RequiredSecret("INTERNAL_SERVICE_TOKEN")
 	}
 	cfg.Tracing.Version, cfg.Tracing.Environment = cfg.Version, cfg.Env
 	if err := env.Err(); err != nil {

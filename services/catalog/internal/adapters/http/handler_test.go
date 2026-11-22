@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/tehrelt/icyre/libs/platform/authn"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	"github.com/tehrelt/icyre/services/catalog/internal/application"
 	"github.com/tehrelt/icyre/services/catalog/internal/domain"
@@ -26,6 +27,8 @@ type stubCatalog struct {
 	artist         domain.Artist
 	album          domain.Album
 	track          domain.Track
+	tracksPage     []domain.Track
+	receipt        domain.ModerationReceipt
 	page           application.AlbumPage
 	err            error
 	gotCreateTrack application.CreateTrack
@@ -33,6 +36,13 @@ type stubCatalog struct {
 	gotList        application.ListArtistAlbums
 	gotAlbums      application.ListAlbums
 	gotIDs         []uuid.UUID
+	gotTrackStatus *domain.TrackStatus
+	gotTrackAfter  *time.Time
+	gotTrackAfterI *uuid.UUID
+	gotTrackLimit  int
+	gotModOpID     uuid.UUID
+	gotModTrackID  uuid.UUID
+	gotModBlocked  bool
 }
 
 func (s *stubCatalog) CreateArtist(_ context.Context, cmd application.CreateArtist) (domain.Artist, error) {
@@ -79,9 +89,22 @@ func (s *stubCatalog) ListTracks(_ context.Context, ids []uuid.UUID) ([]domain.T
 	}
 	return out, s.err
 }
+func (s *stubCatalog) ListTracksPage(_ context.Context, status *domain.TrackStatus, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Track, error) {
+	s.gotTrackStatus = status
+	s.gotTrackAfter = afterCreatedAt
+	s.gotTrackAfterI = afterID
+	s.gotTrackLimit = limit
+	return s.tracksPage, s.err
+}
 func (s *stubCatalog) UpdateTrack(_ context.Context, cmd application.UpdateTrack) (domain.Track, error) {
 	s.gotUpdate = cmd
 	return s.track, s.err
+}
+func (s *stubCatalog) ModerateTrack(_ context.Context, operationID, trackID uuid.UUID, blocked bool) (domain.ModerationReceipt, error) {
+	s.gotModOpID = operationID
+	s.gotModTrackID = trackID
+	s.gotModBlocked = blocked
+	return s.receipt, s.err
 }
 func (s *stubCatalog) ListGenres(context.Context) ([]domain.Genre, error) { return nil, s.err }
 
@@ -262,5 +285,154 @@ func TestBatchArtistsAndAlbumList(t *testing.T) {
 	rec = serve(t, stub, http.MethodGet, "/api/v1/albums?limit=3", "")
 	if rec.Code != http.StatusOK || stub.gotAlbums.Limit != 3 || !strings.Contains(rec.Body.String(), `"pagination"`) {
 		t.Fatalf("status = %d, q = %+v, body = %s", rec.Code, stub.gotAlbums, rec.Body)
+	}
+}
+
+func serveInternal(t *testing.T, app Catalog, token, method, path, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	mux := http.NewServeMux()
+	h := NewHandler(app, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	h.Register(mux)
+	h.RegisterInternal(mux, "secret-token")
+	chain := httpserver.Chain(mux, httpserver.RequestID())
+
+	var r io.Reader
+	if body != "" {
+		r = strings.NewReader(body)
+	}
+	req := httptest.NewRequest(method, path, r)
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if token != "" {
+		req.Header.Set(authn.InternalTokenHeader, token)
+	}
+	rec := httptest.NewRecorder()
+	chain.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestInternalModerationAuth(t *testing.T) {
+	stub := &stubCatalog{}
+	trackID := uuid.NewString()
+	for _, tc := range []struct {
+		name   string
+		method string
+		path   string
+		body   string
+		token  string
+		want   int
+	}{
+		{"list missing token", http.MethodGet, "/internal/v1/moderation/tracks", "", "", http.StatusUnauthorized},
+		{"list wrong token", http.MethodGet, "/internal/v1/moderation/tracks", "", "wrong", http.StatusForbidden},
+		{"patch missing token", http.MethodPatch, "/internal/v1/moderation/tracks/" + trackID, `{"operationId":"` + uuid.NewString() + `","blocked":true}`, "", http.StatusUnauthorized},
+		{"patch wrong token", http.MethodPatch, "/internal/v1/moderation/tracks/" + trackID, `{"operationId":"` + uuid.NewString() + `","blocked":true}`, "wrong", http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := serveInternal(t, stub, tc.token, tc.method, tc.path, tc.body)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d: %s", rec.Code, tc.want, rec.Body)
+			}
+		})
+	}
+}
+
+func TestInternalListModerationTracks(t *testing.T) {
+	t1 := sampleTrack()
+	t2 := sampleTrack()
+	t2.CreatedAt = t1.CreatedAt.Add(-time.Minute)
+	t3 := sampleTrack()
+	t3.CreatedAt = t1.CreatedAt.Add(-2 * time.Minute)
+
+	stub := &stubCatalog{tracksPage: []domain.Track{t1, t2, t3}}
+	rec := serveInternal(t, stub, "secret-token", http.MethodGet, "/internal/v1/moderation/tracks?status=ready&limit=2", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body)
+	}
+	if stub.gotTrackStatus == nil || *stub.gotTrackStatus != domain.TrackStatusReady || stub.gotTrackLimit != 3 {
+		t.Fatalf("query args: status=%v limit=%d", stub.gotTrackStatus, stub.gotTrackLimit)
+	}
+	var body listResponse[trackResponse]
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body.Data) != 2 || body.Pagination == nil || !body.Pagination.HasMore || body.Pagination.NextCursor == nil {
+		t.Fatalf("unexpected response: %+v", body)
+	}
+
+	// Cursor round-trip.
+	stub.tracksPage = []domain.Track{t3}
+	rec = serveInternal(t, stub, "secret-token", http.MethodGet, "/internal/v1/moderation/tracks?cursor="+*body.Pagination.NextCursor, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("cursor status = %d: %s", rec.Code, rec.Body)
+	}
+	if stub.gotTrackAfter == nil || !stub.gotTrackAfter.Equal(t2.CreatedAt) || stub.gotTrackAfterI == nil || *stub.gotTrackAfterI != t2.ID {
+		t.Fatalf("cursor mismatch: after=%v id=%v", stub.gotTrackAfter, stub.gotTrackAfterI)
+	}
+
+	// Validation and malformed cursor.
+	if rec := serveInternal(t, stub, "secret-token", http.MethodGet, "/internal/v1/moderation/tracks?status=LIVE", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("bad status = %d", rec.Code)
+	}
+	if rec := serveInternal(t, stub, "secret-token", http.MethodGet, "/internal/v1/moderation/tracks?limit=101", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("bad limit = %d", rec.Code)
+	}
+	if rec := serveInternal(t, stub, "secret-token", http.MethodGet, "/internal/v1/moderation/tracks?cursor=bad!", ""); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad cursor = %d", rec.Code)
+	}
+}
+
+func TestInternalModerateTrack(t *testing.T) {
+	opID := uuid.Must(uuid.NewV7())
+	trackID := uuid.Must(uuid.NewV7())
+	now := time.Date(2026, 9, 24, 12, 0, 0, 0, time.UTC)
+	stub := &stubCatalog{
+		receipt: domain.ModerationReceipt{
+			OperationID:    opID,
+			TrackID:        trackID,
+			PreviousStatus: domain.TrackStatusReady,
+			CurrentStatus:  domain.TrackStatusBlocked,
+			Changed:        true,
+			CreatedAt:      now,
+		},
+	}
+	rec := serveInternal(t, stub, "secret-token", http.MethodPatch, "/internal/v1/moderation/tracks/"+trackID.String(), `{"operationId":"`+opID.String()+`","blocked":true}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body)
+	}
+	if stub.gotModOpID != opID || stub.gotModTrackID != trackID || !stub.gotModBlocked {
+		t.Fatalf("args = %s %s %v", stub.gotModOpID, stub.gotModTrackID, stub.gotModBlocked)
+	}
+	var got moderationReceiptResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.OperationID != opID.String() || got.TrackID != trackID.String() || got.PreviousStatus != "READY" || got.CurrentStatus != "BLOCKED" || !got.Changed {
+		t.Fatalf("receipt = %+v", got)
+	}
+
+	for _, tc := range []struct {
+		name string
+		err  error
+		body string
+		want int
+		code string
+	}{
+		{"conflict", domain.ErrModerationConflict, `{"operationId":"` + opID.String() + `","blocked":false}`, http.StatusConflict, codeModerationConflict},
+		{"invalid transition", domain.ErrInvalidModerationTransition, `{"operationId":"` + opID.String() + `","blocked":true}`, http.StatusUnprocessableEntity, codeInvalidModerationTransition},
+		{"not found", domain.ErrTrackNotFound, `{"operationId":"` + opID.String() + `","blocked":true}`, http.StatusNotFound, codeTrackNotFound},
+		{"missing blocked", nil, `{"operationId":"` + opID.String() + `"}`, http.StatusUnprocessableEntity, httpserver.CodeValidation},
+		{"bad operationId", nil, `{"operationId":"nope","blocked":true}`, http.StatusUnprocessableEntity, httpserver.CodeValidation},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := &stubCatalog{err: tc.err}
+			r := serveInternal(t, s, "secret-token", http.MethodPatch, "/internal/v1/moderation/tracks/"+trackID.String(), tc.body)
+			if r.Code != tc.want {
+				t.Fatalf("status = %d, want %d: %s", r.Code, tc.want, r.Body)
+			}
+			if p := errorCode(t, r); p.Code != tc.code {
+				t.Fatalf("code = %s, want %s", p.Code, tc.code)
+			}
+		})
 	}
 }

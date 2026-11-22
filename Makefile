@@ -67,6 +67,7 @@ test-integration: ## Integration tests (needs `make up-core`)
 	cd services/history && HISTORY_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/playlist && PLAYLIST_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd services/media-ingest && MEDIA_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
+	cd services/admin && ADMIN_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/metadata && METADATA_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/audio-analysis && AUDIO_TEST_DATABASE_DSN="$(PG_TEST_DSN)" go test -tags integration -count=1 ./...
 	cd workers/search-indexer && OPENSEARCH_URL=$(OPENSEARCH_TEST_URL) go test -tags integration -count=1 ./...
@@ -110,6 +111,7 @@ build: ## Build service binaries into ./bin
 	cd workers/analytics && go build -o ../../bin/analytics ./cmd/analytics
 	cd workers/recommendation && go build -o ../../bin/recommendation-worker ./cmd/recommendation-worker
 	cd services/recommendation && go build -o ../../bin/recommendation ./cmd/recommendation
+	cd services/admin && go build -o ../../bin/admin ./cmd/admin
 
 .PHONY: migrate
 migrate: ## Apply all service migrations to the local database
@@ -121,6 +123,7 @@ migrate: ## Apply all service migrations to the local database
 	cd services/history && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/history migrate
 	cd services/playlist && DATABASE_URL="$(PG_TEST_DSN)" go run ./cmd/playlist migrate
 	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/media-ingest migrate
+	cd services/admin && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_ENABLED=false go run ./cmd/admin migrate
 	cd workers/metadata && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/metadata migrate
 	cd workers/audio-analysis && DATABASE_URL="$(PG_TEST_DSN)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret go run ./cmd/audio-analysis migrate
 	cd workers/analytics && $(CLICKHOUSE_TEST_ENV) go run ./cmd/analytics migrate
@@ -165,6 +168,10 @@ run-social: ## Run Social locally on :8099 (User Profile :8084, Catalog :8081, A
 .PHONY: run-media-ingest
 run-media-ingest: ## Run Media Ingest locally on :8092 (Catalog :8081, Auth :8083, MinIO :9000)
 	cd services/media-ingest && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" S3_ACCESS_KEY=icyre S3_SECRET_KEY=icyre-secret HTTP_ADDR=:8092 LOG_FORMAT=text go run ./cmd/media-ingest
+
+.PHONY: run-admin
+run-admin: ## Run Admin locally on :8100 (Catalog :8081, Auth :8083, Media Ingest :8092)
+	cd services/admin && DATABASE_URL="$(PG_TEST_DSN)" KAFKA_BROKERS="$(KAFKA_TEST_BROKERS)" INTERNAL_SERVICE_TOKEN=icyre-internal-dev-token HTTP_ADDR=:8100 LOG_FORMAT=text go run ./cmd/admin
 
 .PHONY: run-transcoder
 run-transcoder: ## Run the Transcoder locally (consumes media.events; needs ffmpeg, MinIO :9000)

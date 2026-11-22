@@ -25,6 +25,9 @@ type Repository interface {
 	// Settle stores a final status if the upload is still pending;
 	// false means another request settled it first.
 	Settle(ctx context.Context, u domain.Upload) (bool, error)
+	// List returns uploads ordered by (created_at DESC, id DESC) with optional
+	// trackID/status filters and keyset cursor.
+	List(ctx context.Context, trackID *uuid.UUID, status *domain.Status, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error)
 }
 
 // Catalog confirms that a track exists (domain.ErrTrackNotFound otherwise).
@@ -150,6 +153,46 @@ func (s *Service) Get(ctx context.Context, actor Actor, id uuid.UUID) (domain.Up
 	return u, nil
 }
 
+// Page limits for ListUploads.
+const (
+	DefaultPageSize = 20
+	MaxPageSize     = 100
+)
+
+// ListUploads returns a keyset-paginated slice of uploads ordered by
+// (created_at DESC, id DESC), optionally filtered by trackID and status.
+func (s *Service) ListUploads(ctx context.Context, trackID *uuid.UUID, status string, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error) {
+	var statusFilter *domain.Status
+	if status != "" {
+		st := domain.Status(status)
+		if !st.Valid() {
+			return nil, &domain.ValidationError{Fields: map[string]string{"status": "must be one of PENDING, COMPLETED, FAILED"}}
+		}
+		statusFilter = &st
+	}
+	if limit <= 0 {
+		limit = DefaultPageSize
+	}
+	if limit > MaxPageSize {
+		limit = MaxPageSize
+	}
+	return s.listUploads(ctx, trackID, statusFilter, afterCreatedAt, afterID, limit)
+}
+
+func (s *Service) listUploads(ctx context.Context, trackID *uuid.UUID, status *domain.Status, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error) {
+	if trackID != nil && *trackID == uuid.Nil {
+		return nil, &domain.ValidationError{Fields: map[string]string{"trackId": "must be a non-nil UUID"}}
+	}
+	if (afterCreatedAt == nil) != (afterID == nil) {
+		return nil, &domain.ValidationError{Fields: map[string]string{"cursor": "afterCreatedAt and afterID must both be set"}}
+	}
+	uploads, err := s.repo.List(ctx, trackID, status, afterCreatedAt, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list uploads: %w", err)
+	}
+	return uploads, nil
+}
+
 // Complete verifies the stored object (size, content type, checksum, magic
 // bytes) and settles the session: COMPLETED publishes track.uploaded,
 // anything else FAILED with media.ingest.failed and a *domain.RejectedError.
@@ -235,4 +278,35 @@ func (s *Service) verify(ctx context.Context, u domain.Upload) (string, error) {
 		return mediav1.ReasonUnrecognizedFormat, nil
 	}
 	return "", nil
+}
+
+// Moderation pagination bounds.
+const (
+	DefaultModerationLimit = 20
+	MaxModerationLimit     = 100
+)
+
+// ListModerationUploads returns uploads ordered by (created_at DESC, id DESC)
+// for internal moderation inspection.
+func (s *Service) ListModerationUploads(ctx context.Context, trackID *uuid.UUID, status *domain.Status, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error) {
+	if trackID != nil && *trackID == uuid.Nil {
+		return nil, &domain.ValidationError{Fields: map[string]string{"trackId": "must be a valid UUID"}}
+	}
+	if status != nil && !status.Valid() {
+		return nil, &domain.ValidationError{Fields: map[string]string{"status": "must be one of PENDING, COMPLETED, FAILED"}}
+	}
+	if (afterCreatedAt == nil) != (afterID == nil) {
+		return nil, &domain.ValidationError{Fields: map[string]string{"cursor": "afterCreatedAt and afterID must both be set"}}
+	}
+	if limit <= 0 {
+		limit = DefaultModerationLimit
+	}
+	if limit > MaxModerationLimit+1 {
+		limit = MaxModerationLimit + 1
+	}
+	uploads, err := s.repo.List(ctx, trackID, status, afterCreatedAt, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list moderation uploads: %w", err)
+	}
+	return uploads, nil
 }

@@ -139,3 +139,10 @@ scrape_configs:
       - targets: ["media-ingest:8080"]
         labels:
           service: media-ingest-service
+
+  - job_name: admin
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["admin:8080"]
+        labels:
+          service: admin

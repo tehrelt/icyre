@@ -45,8 +45,8 @@ func NewAccounts(pool *pgxpool.Pool) *Accounts { return &Accounts{pool} }
 // Create inserts an account.
 func (r *Accounts) Create(ctx context.Context, a domain.Account) error {
 	_, err := platformpg.Conn(ctx, r.pool).Exec(ctx,
-		`INSERT INTO auth.accounts (id, email, password_hash, roles, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)`,
-		a.ID, a.Email, a.PasswordHash, a.Roles, a.CreatedAt, a.UpdatedAt)
+		`INSERT INTO auth.accounts (id, email, password_hash, roles, blocked, blocked_at, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		a.ID, a.Email, a.PasswordHash, a.Roles, a.Blocked, a.BlockedAt, a.CreatedAt, a.UpdatedAt)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "accounts_email_key" {
 		return domain.ErrEmailTaken
@@ -57,11 +57,11 @@ func (r *Accounts) Create(ctx context.Context, a domain.Account) error {
 	return nil
 }
 
-const accountColumns = `id, email, password_hash, roles, created_at, updated_at`
+const accountColumns = `id, email, password_hash, roles, blocked, blocked_at, created_at, updated_at`
 
 func scanAccount(row pgx.Row) (domain.Account, error) {
 	var a domain.Account
-	err := row.Scan(&a.ID, &a.Email, &a.PasswordHash, &a.Roles, &a.CreatedAt, &a.UpdatedAt)
+	err := row.Scan(&a.ID, &a.Email, &a.PasswordHash, &a.Roles, &a.Blocked, &a.BlockedAt, &a.CreatedAt, &a.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.Account{}, domain.ErrAccountNotFound
 	}
@@ -79,6 +79,58 @@ func (r *Accounts) ByEmail(ctx context.Context, email string) (domain.Account, e
 // ByID loads an account.
 func (r *Accounts) ByID(ctx context.Context, id uuid.UUID) (domain.Account, error) {
 	return scanAccount(platformpg.Conn(ctx, r.pool).QueryRow(ctx, `SELECT `+accountColumns+` FROM auth.accounts WHERE id = $1`, id))
+}
+
+// ByIDForUpdate loads and locks an account row for update.
+func (r *Accounts) ByIDForUpdate(ctx context.Context, id uuid.UUID) (domain.Account, error) {
+	return scanAccount(platformpg.Conn(ctx, r.pool).QueryRow(ctx, `SELECT `+accountColumns+` FROM auth.accounts WHERE id = $1 FOR UPDATE`, id))
+}
+
+// ByEmailForUpdate loads and locks an account row by email for update.
+func (r *Accounts) ByEmailForUpdate(ctx context.Context, email string) (domain.Account, error) {
+	return scanAccount(platformpg.Conn(ctx, r.pool).QueryRow(ctx, `SELECT `+accountColumns+` FROM auth.accounts WHERE email = $1 FOR UPDATE`, email))
+}
+
+// ListAccounts returns accounts ordered by id ASC using keyset pagination.
+func (r *Accounts) ListAccounts(ctx context.Context, afterID *uuid.UUID, limit int, blocked *bool) ([]domain.Account, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, `
+		SELECT `+accountColumns+` FROM auth.accounts
+		WHERE ($1::uuid IS NULL OR id > $1)
+		  AND ($2::boolean IS NULL OR blocked = $2)
+		ORDER BY id ASC
+		LIMIT $3`, afterID, blocked, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list accounts: %w", err)
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Account, error) { return scanAccount(row) })
+}
+
+// SetBlocked updates the account's blocked status and timestamp.
+func (r *Accounts) SetBlocked(ctx context.Context, userID uuid.UUID, blocked bool, at *time.Time) error {
+	updatedAt := time.Now().UTC()
+	if at != nil {
+		updatedAt = at.UTC()
+	}
+	var blockedAt *time.Time
+	if blocked {
+		blockedAt = &updatedAt
+	}
+	tag, err := platformpg.Conn(ctx, r.pool).Exec(ctx,
+		`UPDATE auth.accounts SET blocked = $2, blocked_at = $3, updated_at = $4 WHERE id = $1`,
+		userID, blocked, blockedAt, updatedAt)
+	if err != nil {
+		return fmt.Errorf("set account blocked: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrAccountNotFound
+	}
+	return nil
 }
 
 // Sessions implements ports.SessionRepository.
@@ -156,6 +208,21 @@ func (r *Sessions) SaveRevocation(ctx context.Context, s domain.Session) error {
 	return nil
 }
 
+// RevokeAllUserSessions revokes all active sessions for userID and returns their IDs.
+func (r *Sessions) RevokeAllUserSessions(ctx context.Context, userID uuid.UUID, reason string, at time.Time) ([]uuid.UUID, error) {
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx,
+		`UPDATE auth.sessions SET revoked_at = $2, revoke_reason = $3 WHERE user_id = $1 AND revoked_at IS NULL RETURNING id`,
+		userID, at.UTC(), reason)
+	if err != nil {
+		return nil, fmt.Errorf("revoke all user sessions: %w", err)
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (uuid.UUID, error) {
+		var id uuid.UUID
+		err := row.Scan(&id)
+		return id, err
+	})
+}
+
 // ListActive returns the user's live sessions, newest first.
 func (r *Sessions) ListActive(ctx context.Context, userID uuid.UUID, now time.Time) ([]domain.Session, error) {
 	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, `
@@ -166,4 +233,89 @@ func (r *Sessions) ListActive(ctx context.Context, userID uuid.UUID, now time.Ti
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Session, error) { return scanSession(row) })
+}
+
+// ModerationReceipts implements ports.ModerationReceiptRepository.
+type ModerationReceipts struct{ pool *pgxpool.Pool }
+
+// NewModerationReceipts returns a moderation receipt repository.
+func NewModerationReceipts(pool *pgxpool.Pool) *ModerationReceipts {
+	return &ModerationReceipts{pool: pool}
+}
+
+// GetModerationReceipt loads a moderation receipt by operation ID.
+func (r *ModerationReceipts) GetModerationReceipt(ctx context.Context, opID uuid.UUID) (domain.ModerationReceipt, error) {
+	var rec domain.ModerationReceipt
+	err := platformpg.Conn(ctx, r.pool).QueryRow(ctx,
+		`SELECT operation_id, user_id, blocked, changed, revoked_sessions, created_at FROM auth.moderation_receipts WHERE operation_id = $1`,
+		opID).Scan(&rec.OperationID, &rec.UserID, &rec.Blocked, &rec.Changed, &rec.RevokedSessions, &rec.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ModerationReceipt{}, domain.ErrReceiptNotFound
+	}
+	if err != nil {
+		return domain.ModerationReceipt{}, fmt.Errorf("select moderation receipt: %w", err)
+	}
+	return rec, nil
+}
+
+// SaveModerationReceipt persists a moderation receipt.
+func (r *ModerationReceipts) SaveModerationReceipt(ctx context.Context, rec domain.ModerationReceipt) error {
+	_, err := platformpg.Conn(ctx, r.pool).Exec(ctx,
+		`INSERT INTO auth.moderation_receipts (operation_id, user_id, blocked, changed, revoked_sessions, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+		rec.OperationID, rec.UserID, rec.Blocked, rec.Changed, rec.RevokedSessions, rec.CreatedAt.UTC())
+	if err != nil {
+		return fmt.Errorf("insert moderation receipt: %w", err)
+	}
+	return nil
+}
+
+// PendingRevocations implements ports.PendingRevocationRepository.
+type PendingRevocations struct{ pool *pgxpool.Pool }
+
+// NewPendingRevocations returns a pending revocation repository.
+func NewPendingRevocations(pool *pgxpool.Pool) *PendingRevocations {
+	return &PendingRevocations{pool: pool}
+}
+
+// SavePendingRevocations durably records session IDs awaiting Redis revocation.
+func (r *PendingRevocations) SavePendingRevocations(ctx context.Context, sids []uuid.UUID, expiresAt time.Time) error {
+	if len(sids) == 0 {
+		return nil
+	}
+	_, err := platformpg.Conn(ctx, r.pool).Exec(ctx, `
+		INSERT INTO auth.pending_revocations (session_id, expires_at)
+		SELECT unnest($1::uuid[]), $2
+		ON CONFLICT (session_id) DO UPDATE SET expires_at = GREATEST(auth.pending_revocations.expires_at, EXCLUDED.expires_at)`,
+		sids, expiresAt.UTC())
+	if err != nil {
+		return fmt.Errorf("save pending revocations: %w", err)
+	}
+	return nil
+}
+
+// DeletePendingRevocation removes a session ID once Redis revocation succeeds.
+func (r *PendingRevocations) DeletePendingRevocation(ctx context.Context, sid uuid.UUID) error {
+	_, err := platformpg.Conn(ctx, r.pool).Exec(ctx,
+		`DELETE FROM auth.pending_revocations WHERE session_id = $1`, sid)
+	if err != nil {
+		return fmt.Errorf("delete pending revocation: %w", err)
+	}
+	return nil
+}
+
+// ListPendingRevocations returns up to limit pending revocations ordered oldest first.
+func (r *PendingRevocations) ListPendingRevocations(ctx context.Context, limit int) ([]domain.PendingRevocation, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx,
+		`SELECT session_id, expires_at, created_at FROM auth.pending_revocations ORDER BY created_at ASC LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list pending revocations: %w", err)
+	}
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.PendingRevocation, error) {
+		var p domain.PendingRevocation
+		err := row.Scan(&p.SessionID, &p.ExpiresAt, &p.CreatedAt)
+		return p, err
+	})
 }

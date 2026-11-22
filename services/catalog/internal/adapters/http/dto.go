@@ -40,6 +40,20 @@ type updateTrackRequest struct {
 	Status   *string `json:"status"`
 }
 
+type moderateTrackRequest struct {
+	OperationID string `json:"operationId"`
+	Blocked     *bool  `json:"blocked"`
+}
+
+type moderationReceiptResponse struct {
+	OperationID    string    `json:"operationId"`
+	TrackID        string    `json:"trackId"`
+	PreviousStatus string    `json:"previousStatus"`
+	CurrentStatus  string    `json:"currentStatus"`
+	Changed        bool      `json:"changed"`
+	CreatedAt      time.Time `json:"createdAt"`
+}
+
 type artistResponse struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
@@ -130,6 +144,17 @@ func toTrack(t domain.Track) trackResponse {
 
 func toGenre(g domain.Genre) genreResponse {
 	return genreResponse{ID: g.ID.String(), Slug: g.Slug, Name: g.Name}
+}
+
+func toModerationReceipt(r domain.ModerationReceipt) moderationReceiptResponse {
+	return moderationReceiptResponse{
+		OperationID:    r.OperationID.String(),
+		TrackID:        r.TrackID.String(),
+		PreviousStatus: string(r.PreviousStatus),
+		CurrentStatus:  string(r.CurrentStatus),
+		Changed:        r.Changed,
+		CreatedAt:      r.CreatedAt.UTC(),
+	}
 }
 
 func mapSlice[S, D any](in []S, f func(S) D) []D {

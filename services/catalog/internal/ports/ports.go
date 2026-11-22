@@ -56,6 +56,13 @@ type TrackRepository interface {
 	ListByAlbum(ctx context.Context, albumID uuid.UUID) ([]domain.Track, error)
 	// ListByIDs returns the non-deleted tracks among ids, in no particular order.
 	ListByIDs(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error)
+	// ListTracksPage returns tracks ordered by (created_at DESC, id DESC),
+	// excluding DELETED unless status == DELETED.
+	ListTracksPage(ctx context.Context, status *domain.TrackStatus, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Track, error)
+	// GetModerationReceipt loads a stored moderation receipt by operation ID.
+	GetModerationReceipt(ctx context.Context, operationID uuid.UUID) (domain.ModerationReceipt, error)
+	// SaveModerationReceipt persists a moderation receipt.
+	SaveModerationReceipt(ctx context.Context, receipt domain.ModerationReceipt) error
 }
 
 // GenreRepository reads the curated genre list.

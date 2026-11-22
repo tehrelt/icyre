@@ -38,6 +38,7 @@ type Config struct {
 	// Login throttling: failures allowed per window per account.
 	LoginMaxFailures int
 	LoginWindow      time.Duration
+	InternalToken    config.Secret
 }
 
 // Local reports a developer environment.
@@ -82,8 +83,11 @@ func Load() (Config, error) {
 		},
 	}
 	cfg.SecureCookies = env.Bool("AUTH_SECURE_COOKIES", !cfg.Local())
-	if !cfg.Local() {
+	if cfg.Local() {
+		cfg.InternalToken = env.Secret("INTERNAL_SERVICE_TOKEN", "icyre-internal-dev-token")
+	} else {
 		env.RequiredString("AUTH_SIGNING_KEY")
+		cfg.InternalToken = env.RequiredSecret("INTERNAL_SERVICE_TOKEN")
 	}
 	cfg.Tracing.Version, cfg.Tracing.Environment = cfg.Version, cfg.Env
 	return cfg, env.Err()

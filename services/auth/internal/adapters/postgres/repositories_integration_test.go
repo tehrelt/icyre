@@ -119,3 +119,127 @@ func TestAccountsAndSessions(t *testing.T) {
 		t.Fatalf("revocation not stored: %+v", final)
 	}
 }
+
+func TestModerationRepositories(t *testing.T) {
+	pool := newTestDB(t)
+	ctx := context.Background()
+	accounts := NewAccounts(pool)
+	sessions := NewSessions(pool)
+	receipts := NewModerationReceipts(pool)
+	pending := NewPendingRevocations(pool)
+	now := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+
+	acc1 := domain.NewAccount(uuid.Must(uuid.NewV7()), "u1@example.com", "$argon2id$v=19$m=1,t=1,p=1$c2FsdA$aGFzaA", now)
+	acc2 := domain.NewAccount(uuid.Must(uuid.NewV7()), "u2@example.com", "$argon2id$v=19$m=1,t=1,p=1$c2FsdA$aGFzaA", now)
+	if err := accounts.Create(ctx, acc1); err != nil {
+		t.Fatal(err)
+	}
+	if err := accounts.Create(ctx, acc2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := accounts.SetBlocked(ctx, acc1.ID, true, &now); err != nil {
+		t.Fatal(err)
+	}
+	locked, err := accounts.ByIDForUpdate(ctx, acc1.ID)
+	if err != nil || !locked.Blocked || locked.BlockedAt == nil {
+		t.Fatalf("ByIDForUpdate = %+v err=%v", locked, err)
+	}
+	byEmail, err := accounts.ByEmailForUpdate(ctx, acc2.Email)
+	if err != nil || byEmail.ID != acc2.ID {
+		t.Fatalf("ByEmailForUpdate = %+v err=%v", byEmail, err)
+	}
+
+	onlyBlocked := true
+	listed, err := accounts.ListAccounts(ctx, nil, 10, &onlyBlocked)
+	if err != nil || len(listed) != 1 || listed[0].ID != acc1.ID {
+		t.Fatalf("ListAccounts(blocked=true) = %+v err=%v", listed, err)
+	}
+	afterFirst, err := accounts.ListAccounts(ctx, &acc1.ID, 10, nil)
+	if err != nil || len(afterFirst) != 1 || afterFirst[0].ID != acc2.ID {
+		t.Fatalf("ListAccounts(afterID) = %+v err=%v", afterFirst, err)
+	}
+
+	s1 := domain.NewSession(uuid.Must(uuid.NewV7()), acc1.ID, h("s1"), "ua", now, time.Hour)
+	s2 := domain.NewSession(uuid.Must(uuid.NewV7()), acc1.ID, h("s2"), "ua", now, time.Hour)
+	_ = sessions.Create(ctx, s1)
+	_ = sessions.Create(ctx, s2)
+	revokedIDs, err := sessions.RevokeAllUserSessions(ctx, acc1.ID, domain.RevokeAccountBlocked, now.Add(time.Minute))
+	if err != nil || len(revokedIDs) != 2 {
+		t.Fatalf("RevokeAllUserSessions = %v err=%v", revokedIDs, err)
+	}
+
+	opID := uuid.Must(uuid.NewV7())
+	rec := domain.ModerationReceipt{OperationID: opID, UserID: acc1.ID, Blocked: true, Changed: true, RevokedSessions: 2, CreatedAt: now}
+	if err := receipts.SaveModerationReceipt(ctx, rec); err != nil {
+		t.Fatal(err)
+	}
+	gotRec, err := receipts.GetModerationReceipt(ctx, opID)
+	if err != nil || gotRec.OperationID != opID || gotRec.RevokedSessions != 2 {
+		t.Fatalf("GetModerationReceipt = %+v err=%v", gotRec, err)
+	}
+
+	if err := pending.SavePendingRevocations(ctx, revokedIDs, now.Add(16*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	items, err := pending.ListPendingRevocations(ctx, 10)
+	if err != nil || len(items) != 2 {
+		t.Fatalf("ListPendingRevocations = %+v err=%v", items, err)
+	}
+	if err := pending.DeletePendingRevocation(ctx, revokedIDs[0]); err != nil {
+		t.Fatal(err)
+	}
+	items, err = pending.ListPendingRevocations(ctx, 10)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("ListPendingRevocations after delete = %+v err=%v", items, err)
+	}
+}
+
+func TestAccountBlockingAndModerationReceipts(t *testing.T) {
+	pool := newTestDB(t)
+	ctx := context.Background()
+	accounts, sessions, receipts := NewAccounts(pool), NewSessions(pool), NewModerationReceipts(pool)
+	now := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+
+	acc := domain.NewAccount(uuid.Must(uuid.NewV7()), "mod@example.com", "$argon2id$v=19$m=1,t=1,p=1$c2FsdA$aGFzaA", now)
+	if err := accounts.Create(ctx, acc); err != nil {
+		t.Fatal(err)
+	}
+	s1 := domain.NewSession(uuid.Must(uuid.NewV7()), acc.ID, h("m1"), "ua1", now, time.Hour)
+	s2 := domain.NewSession(uuid.Must(uuid.NewV7()), acc.ID, h("m2"), "ua2", now, time.Hour)
+	if err := sessions.Create(ctx, s1); err != nil {
+		t.Fatal(err)
+	}
+	if err := sessions.Create(ctx, s2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := platformpg.InTx(ctx, pool, func(ctx context.Context) error {
+		locked, err := accounts.ByIDForUpdate(ctx, acc.ID)
+		if err != nil || locked.Blocked {
+			return fmt.Errorf("ByIDForUpdate: %+v %w", locked, err)
+		}
+		if _, err := accounts.ByEmailForUpdate(ctx, acc.Email); err != nil {
+			return err
+		}
+		blockedAt := now.Add(time.Minute)
+		if err := accounts.SetBlocked(ctx, acc.ID, true, &blockedAt); err != nil {
+			return err
+		}
+		revoked, err := sessions.RevokeAllUserSessions(ctx, acc.ID, domain.RevokeAccountBlocked, blockedAt)
+		if err != nil || len(revoked) != 2 {
+			return fmt.Errorf("RevokeAllUserSessions: %v %w", revoked, err)
+		}
+		return receipts.SaveModerationReceipt(ctx, domain.ModerationReceipt{
+			OperationID: uuid.Must(uuid.NewV7()), UserID: acc.ID, Blocked: true, Changed: true, RevokedSessions: len(revoked), CreatedAt: blockedAt,
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	onlyBlocked := true
+	listed, err := accounts.ListAccounts(ctx, nil, 10, &onlyBlocked)
+	if err != nil || len(listed) != 1 || !listed[0].Blocked || listed[0].BlockedAt == nil {
+		t.Fatalf("ListAccounts: %+v %v", listed, err)
+	}
+}

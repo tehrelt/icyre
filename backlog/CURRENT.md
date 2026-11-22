@@ -67,6 +67,7 @@ Catalog Service — эталон для остальных сервисов (`se
 
 ## Edge и агрегация
 
+- [x] EPIC-031 — Admin Service (RBAC, модерация треков и пользователей, immutable `audit_logs`, `transcode_jobs` из `media.events`, internal moderation endpoints в Catalog/Auth/Media Ingest)
 - [x] EPIC-032 — API Gateway (nginx: routing, CORS с credentials и preflight, production TLS 1.2/1.3 + HSTS, request ID, rate limits, access logs)
 - [-] EPIC-033 — Web BFF (home, album и playlist pages, user context → liked и Recently played с альбомами и плейлистами; осталось artist page — нет макета)
 - [x] EPIC-034 — gRPC contracts (Buf v2, `api/proto/{catalog,users,playback}/v1`, Go/gRPC-стабы в `libs/contracts/gen`, `make proto*`, CI `proto` job, политика совместимости `v1`/`v2`)

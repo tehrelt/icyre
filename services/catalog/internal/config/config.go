@@ -31,7 +31,11 @@ type Config struct {
 	Kafka          Kafka
 	Cache          Cache
 	Tracing        telemetry.TracingConfig
+	InternalToken  config.Secret
 }
+
+// Local reports a developer environment.
+func (c Config) Local() bool { return c.Env == "local" || c.Env == "test" }
 
 // Cache settings: the Redis read-through cache of the repositories
 // (EPIC-038 experiment "with / without Redis").
@@ -87,6 +91,11 @@ func Load() (Config, error) {
 			Insecure:     env.Bool("OTEL_EXPORTER_OTLP_INSECURE", true),
 			SampleRatio:  1,
 		},
+	}
+	if cfg.Local() {
+		cfg.InternalToken = env.Secret("INTERNAL_SERVICE_TOKEN", "icyre-internal-dev-token")
+	} else {
+		cfg.InternalToken = env.RequiredSecret("INTERNAL_SERVICE_TOKEN")
 	}
 	cfg.Tracing.Version = cfg.Version
 	cfg.Tracing.Environment = cfg.Env

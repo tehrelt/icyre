@@ -22,6 +22,7 @@ var constraintErrors = map[string]error{
 	"album_genres_genre_id_fkey":   &domain.ReferenceError{Field: "genreIds", Err: domain.ErrGenreNotFound},
 	"tracks_album_id_fkey":         &domain.ReferenceError{Field: "albumId", Err: domain.ErrAlbumNotFound},
 	"tracks_album_position_key":    domain.ErrTrackPositionTaken,
+	"moderation_receipts_pkey":     domain.ErrModerationConflict,
 }
 
 // mapError translates known constraint violations; other errors pass through.

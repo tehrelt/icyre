@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -35,6 +36,35 @@ func (m *memRepo) Settle(_ context.Context, u domain.Upload) (bool, error) {
 	}
 	m.ups[u.ID] = u
 	return true, nil
+}
+func (m *memRepo) List(_ context.Context, trackID *uuid.UUID, status *domain.Status, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error) {
+	var out []domain.Upload
+	for _, u := range m.ups {
+		if trackID != nil && u.TrackID != *trackID {
+			continue
+		}
+		if status != nil && u.Status != *status {
+			continue
+		}
+		out = append(out, u)
+	}
+	less := func(a, b domain.Upload) bool {
+		if !a.CreatedAt.Equal(b.CreatedAt) {
+			return a.CreatedAt.After(b.CreatedAt)
+		}
+		return a.ID.String() > b.ID.String()
+	}
+	sort.Slice(out, func(i, j int) bool { return less(out[i], out[j]) })
+	if afterCreatedAt != nil && afterID != nil {
+		cur := domain.Upload{CreatedAt: *afterCreatedAt, ID: *afterID}
+		for len(out) > 0 && !less(cur, out[0]) {
+			out = out[1:]
+		}
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }
 
 type fakeCatalog struct{}
@@ -317,5 +347,66 @@ func TestAuditLoggingAdminCompletesOtherUsersUpload(t *testing.T) {
 	}
 	if !strings.Contains(lines[3], `"event":"upload_rejected"`) {
 		t.Fatalf("expected upload_rejected in %s", lines[3])
+	}
+}
+
+func TestListUploads(t *testing.T) {
+	f := newFixture()
+	ctx := context.Background()
+	artist := Actor{ID: uuid.New(), Artist: true}
+	trackA, trackB := uuid.New(), uuid.New()
+
+	mk := func(trackID uuid.UUID) domain.Upload {
+		f.now = f.now.Add(time.Minute)
+		req := request(flac)
+		req.TrackID = trackID
+		c, err := f.svc.Create(ctx, artist, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return c.Upload
+	}
+
+	u1 := mk(trackA)
+	u2 := mk(trackB)
+	u3 := mk(trackA)
+	f.store.put(u2.Key, "audio/flac", flac)
+	if _, err := f.svc.Complete(ctx, artist, u2.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Keyset pagination across all uploads (newest first: u3, u2, u1).
+	page1, err := f.svc.ListModerationUploads(ctx, nil, nil, nil, nil, 2)
+	if err != nil || len(page1) != 2 || page1[0].ID != u3.ID || page1[1].ID != u2.ID {
+		t.Fatalf("page1 = %+v, err = %v", page1, err)
+	}
+	page2, err := f.svc.ListModerationUploads(ctx, nil, nil, &page1[1].CreatedAt, &page1[1].ID, 2)
+	if err != nil || len(page2) != 1 || page2[0].ID != u1.ID {
+		t.Fatalf("page2 = %+v, err = %v", page2, err)
+	}
+
+	// Filter by trackID and status.
+	byTrack, err := f.svc.ListModerationUploads(ctx, &trackA, nil, nil, nil, 10)
+	if err != nil || len(byTrack) != 2 || byTrack[0].ID != u3.ID || byTrack[1].ID != u1.ID {
+		t.Fatalf("byTrack = %+v, err = %v", byTrack, err)
+	}
+	stCompleted := domain.StatusCompleted
+	completed, err := f.svc.ListModerationUploads(ctx, nil, &stCompleted, nil, nil, 10)
+	if err != nil || len(completed) != 1 || completed[0].ID != u2.ID {
+		t.Fatalf("completed = %+v, err = %v", completed, err)
+	}
+
+	// Validation errors.
+	var ve *domain.ValidationError
+	bogus := domain.Status("BOGUS")
+	if _, err := f.svc.ListModerationUploads(ctx, nil, &bogus, nil, nil, 10); !errors.As(err, &ve) {
+		t.Fatalf("invalid status: got %v", err)
+	}
+	nilID := uuid.Nil
+	if _, err := f.svc.ListModerationUploads(ctx, &nilID, nil, nil, nil, 10); !errors.As(err, &ve) {
+		t.Fatalf("nil trackID: got %v", err)
+	}
+	if _, err := f.svc.ListModerationUploads(ctx, nil, nil, &f.now, nil, 10); !errors.As(err, &ve) {
+		t.Fatalf("partial cursor: got %v", err)
 	}
 }

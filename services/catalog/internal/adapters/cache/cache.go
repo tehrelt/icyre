@@ -130,9 +130,14 @@ func (r *Tracks) Update(ctx context.Context, t domain.Track) error {
 	if err := r.TrackRepository.Update(ctx, t); err != nil {
 		return err
 	}
-	invalidate(ctx, r.c.Log, r.c.Tracks, t.ID)
-	invalidate(ctx, r.c.Log, r.c.AlbumTracks, t.AlbumID)
+	r.Invalidate(ctx, t.ID, t.AlbumID)
 	return nil
+}
+
+// Invalidate drops cached entries for a track and its album's track list.
+func (r *Tracks) Invalidate(ctx context.Context, trackID, albumID uuid.UUID) {
+	invalidate(ctx, r.c.Log, r.c.Tracks, trackID)
+	invalidate(ctx, r.c.Log, r.c.AlbumTracks, albumID)
 }
 
 // Genres caches the curated genre list.
