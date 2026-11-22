@@ -21,6 +21,11 @@ const (
 	StatusFailed    Status = "FAILED"
 )
 
+// Valid reports whether s is a known upload status.
+func (s Status) Valid() bool {
+	return s == StatusPending || s == StatusCompleted || s == StatusFailed
+}
+
 // Errors.
 var (
 	ErrNotFound      = errors.New("upload not found")

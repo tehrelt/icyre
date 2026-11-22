@@ -187,3 +187,64 @@ func TestTrackAdvanceMedia(t *testing.T) {
 		}
 	}
 }
+
+func TestTrackModerateBlock(t *testing.T) {
+	later := now.Add(time.Hour)
+	cases := []struct {
+		name        string
+		from        TrackStatus
+		blocked     bool
+		wantStatus  TrackStatus
+		wantChanged bool
+		wantErr     error
+	}{
+		{"ready to blocked", TrackStatusReady, true, TrackStatusBlocked, true, nil},
+		{"blocked idempotent", TrackStatusBlocked, true, TrackStatusBlocked, false, nil},
+		{"draft block rejected", TrackStatusDraft, true, TrackStatusDraft, false, ErrInvalidModerationTransition},
+		{"processing block rejected", TrackStatusProcessing, true, TrackStatusProcessing, false, ErrInvalidModerationTransition},
+		{"deleted block rejected", TrackStatusDeleted, true, TrackStatusDeleted, false, ErrInvalidModerationTransition},
+		{"blocked to ready", TrackStatusBlocked, false, TrackStatusReady, true, nil},
+		{"ready idempotent", TrackStatusReady, false, TrackStatusReady, false, nil},
+		{"draft unblock rejected", TrackStatusDraft, false, TrackStatusDraft, false, ErrInvalidModerationTransition},
+		{"processing unblock rejected", TrackStatusProcessing, false, TrackStatusProcessing, false, ErrInvalidModerationTransition},
+		{"deleted unblock rejected", TrackStatusDeleted, false, TrackStatusDeleted, false, ErrInvalidModerationTransition},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tr := validTrack(t)
+			tr.Status = c.from
+			changed, err := tr.ModerateBlock(c.blocked, later)
+			if !errors.Is(err, c.wantErr) {
+				t.Fatalf("err = %v, want %v", err, c.wantErr)
+			}
+			if changed != c.wantChanged || tr.Status != c.wantStatus {
+				t.Fatalf("changed=%v status=%s, want changed=%v status=%s", changed, tr.Status, c.wantChanged, c.wantStatus)
+			}
+			if changed && !tr.UpdatedAt.Equal(later) {
+				t.Fatal("updatedAt not bumped on change")
+			}
+			if !changed && tr.UpdatedAt.Equal(later) {
+				t.Fatal("updatedAt bumped without change")
+			}
+		})
+	}
+}
+
+func TestTrackApplyRejectsBlockedTransitions(t *testing.T) {
+	later := now.Add(time.Hour)
+	readyTrack := validTrack(t)
+	readyTrack.Status = TrackStatusReady
+	blocked := TrackStatusBlocked
+	if _, err := readyTrack.Apply(TrackChanges{Status: &blocked}, later); !errors.Is(err, ErrInvalidStatusTransition) {
+		t.Fatalf("READY -> BLOCKED via Apply: got %v, want ErrInvalidStatusTransition", err)
+	}
+
+	blockedTrack := validTrack(t)
+	blockedTrack.Status = TrackStatusBlocked
+	for _, target := range []TrackStatus{TrackStatusReady, TrackStatusDeleted} {
+		tgt := target
+		if _, err := blockedTrack.Apply(TrackChanges{Status: &tgt}, later); !errors.Is(err, ErrInvalidStatusTransition) {
+			t.Fatalf("BLOCKED -> %s via Apply: got %v, want ErrInvalidStatusTransition", target, err)
+		}
+	}
+}

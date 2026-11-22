@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/tehrelt/icyre/libs/platform/authn"
 	"github.com/tehrelt/icyre/libs/platform/httpserver"
 	"github.com/tehrelt/icyre/services/catalog/internal/application"
 	"github.com/tehrelt/icyre/services/catalog/internal/domain"
@@ -34,7 +35,9 @@ type Catalog interface {
 	CreateTrack(ctx context.Context, cmd application.CreateTrack) (domain.Track, error)
 	GetTrack(ctx context.Context, id uuid.UUID) (domain.Track, error)
 	ListTracks(ctx context.Context, ids []uuid.UUID) ([]domain.Track, error)
+	ListTracksPage(ctx context.Context, status *domain.TrackStatus, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Track, error)
 	UpdateTrack(ctx context.Context, cmd application.UpdateTrack) (domain.Track, error)
+	ModerateTrack(ctx context.Context, operationID, trackID uuid.UUID, blocked bool) (domain.ModerationReceipt, error)
 	ListGenres(ctx context.Context) ([]domain.Genre, error)
 }
 
@@ -64,6 +67,13 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/tracks/{id}", h.getTrack)
 	mux.HandleFunc("PATCH /api/v1/tracks/{id}", h.updateTrack)
 	mux.HandleFunc("GET /api/v1/genres", h.listGenres)
+}
+
+// RegisterInternal mounts internal moderation routes protected by X-Internal-Token.
+func (h *Handler) RegisterInternal(mux *http.ServeMux, internalToken string) {
+	guard := authn.RequireInternalToken(internalToken)
+	mux.Handle("GET /internal/v1/moderation/tracks", guard(http.HandlerFunc(h.listModerationTracks)))
+	mux.Handle("PATCH /internal/v1/moderation/tracks/{id}", guard(http.HandlerFunc(h.moderateTrack)))
 }
 
 func (h *Handler) fail(w http.ResponseWriter, r *http.Request, err error) {
@@ -324,6 +334,66 @@ func (h *Handler) listGenres(w http.ResponseWriter, r *http.Request) {
 	httpserver.WriteJSON(w, http.StatusOK, listResponse[genreResponse]{Data: mapSlice(genres, toGenre)})
 }
 
+func (h *Handler) listModerationTracks(w http.ResponseWriter, r *http.Request) {
+	status, limit, afterCreatedAt, afterID, err := trackPageParams(r)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	tracks, err := h.app.ListTracksPage(r.Context(), status, afterCreatedAt, afterID, limit+1)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	p := &pagination{HasMore: len(tracks) > limit}
+	if p.HasMore {
+		tracks = tracks[:limit]
+		last := tracks[limit-1]
+		c := encodeTrackCursor(last.CreatedAt, last.ID)
+		p.NextCursor = &c
+	}
+	httpserver.WriteJSON(w, http.StatusOK, listResponse[trackResponse]{Data: mapSlice(tracks, toTrack), Pagination: p})
+}
+
+func (h *Handler) moderateTrack(w http.ResponseWriter, r *http.Request) {
+	trackID, err := pathID(r)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	var req moderateTrackRequest
+	if err := decode(w, r, &req); err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	opID, err := parseModerationRequest(req)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	rec, err := h.app.ModerateTrack(r.Context(), opID, trackID, *req.Blocked)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, toModerationReceipt(rec))
+}
+
+func parseModerationRequest(req moderateTrackRequest) (uuid.UUID, error) {
+	fields := map[string]string{}
+	opID, err := uuid.Parse(req.OperationID)
+	if err != nil || opID == uuid.Nil {
+		fields["operationId"] = "must be a valid UUID"
+	}
+	if req.Blocked == nil {
+		fields["blocked"] = "is required"
+	}
+	if len(fields) > 0 {
+		return uuid.Nil, invalidFields(fields)
+	}
+	return opID, nil
+}
+
 // --- request helpers -------------------------------------------------------
 
 func decode(w http.ResponseWriter, r *http.Request, dst any) error {
@@ -407,4 +477,66 @@ func decodeCursor(s string) (ports.AlbumCursor, error) {
 		return ports.AlbumCursor{}, errors.New("bad cursor id")
 	}
 	return ports.AlbumCursor{ReleaseDate: d, ID: id}, nil
+}
+
+func trackPageParams(r *http.Request) (*domain.TrackStatus, int, *time.Time, *uuid.UUID, error) {
+	q := r.URL.Query()
+	var status *domain.TrackStatus
+	if raw := q.Get("status"); raw != "" {
+		s := domain.TrackStatus(strings.ToUpper(raw))
+		if !s.Valid() {
+			return nil, 0, nil, nil, invalidFields(map[string]string{"status": "must be one of DRAFT, PROCESSING, READY, BLOCKED, DELETED"})
+		}
+		status = &s
+	}
+	limit := application.DefaultPageSize
+	if s := q.Get("limit"); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > application.MaxPageSize {
+			return nil, 0, nil, nil, invalidFields(map[string]string{"limit": "must be between 1 and " + strconv.Itoa(application.MaxPageSize)})
+		}
+		limit = n
+	}
+	var (
+		afterCreatedAt *time.Time
+		afterID        *uuid.UUID
+	)
+	if s := q.Get("cursor"); s != "" {
+		t, id, err := decodeTrackCursor(s)
+		if err != nil {
+			return nil, 0, nil, nil, &requestError{status: http.StatusBadRequest, code: codeInvalidCursor, message: "cursor is malformed"}
+		}
+		afterCreatedAt, afterID = &t, &id
+	}
+	return status, limit, afterCreatedAt, afterID, nil
+}
+
+type trackCursorJSON struct {
+	T string `json:"t"`
+	I string `json:"i"`
+}
+
+func encodeTrackCursor(createdAt time.Time, id uuid.UUID) string {
+	b, _ := json.Marshal(trackCursorJSON{T: createdAt.UTC().Format(time.RFC3339Nano), I: id.String()})
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func decodeTrackCursor(s string) (time.Time, uuid.UUID, error) {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	var c trackCursorJSON
+	if err := json.Unmarshal(b, &c); err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	t, err := time.Parse(time.RFC3339Nano, c.T)
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	id, err := uuid.Parse(c.I)
+	if err != nil {
+		return time.Time{}, uuid.Nil, errors.New("bad cursor id")
+	}
+	return t, id, nil
 }

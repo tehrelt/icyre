@@ -21,10 +21,14 @@ var (
 	ErrSessionInactive    = errors.New("session is revoked or expired")
 	// ErrRefreshReuse means a rotated refresh token was presented again:
 	// it was probably stolen, so the whole session is revoked.
-	ErrRefreshReuse     = errors.New("refresh token reuse detected")
-	ErrInvalidRefresh   = errors.New("invalid refresh token")
-	ErrTooManyAttempts  = errors.New("too many login attempts")
-	ErrConcurrentUpdate = errors.New("session changed concurrently")
+	ErrRefreshReuse      = errors.New("refresh token reuse detected")
+	ErrInvalidRefresh    = errors.New("invalid refresh token")
+	ErrTooManyAttempts   = errors.New("too many login attempts")
+	ErrConcurrentUpdate  = errors.New("session changed concurrently")
+	ErrAccountBlocked    = errors.New("account is blocked")
+	ErrCannotBlockAdmin  = errors.New("cannot block admin account")
+	ErrReceiptNotFound   = errors.New("moderation receipt not found")
+	ErrOperationConflict = errors.New("moderation operation conflict")
 )
 
 // ValidationError lists invalid fields.
@@ -38,8 +42,11 @@ const (
 	MaxPasswordLength = 128
 )
 
-// Role granted to every new account.
-const RoleUser = "USER"
+// Account roles.
+const (
+	RoleUser  = "USER"
+	RoleAdmin = "ADMIN"
+)
 
 // Account is a set of credentials.
 type Account struct {
@@ -47,8 +54,20 @@ type Account struct {
 	Email        string // normalized
 	PasswordHash string // PHC string; never logged, never leaves the service
 	Roles        []string
+	Blocked      bool
+	BlockedAt    *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+// HasRole reports whether the account holds role.
+func (a Account) HasRole(role string) bool {
+	for _, r := range a.Roles {
+		if r == role {
+			return true
+		}
+	}
+	return false
 }
 
 // NormalizeEmail lower-cases and trims an address.
@@ -83,10 +102,29 @@ func NewAccount(id uuid.UUID, email, passwordHash string, now time.Time) Account
 
 // Revoke reasons.
 const (
-	RevokeLogout     = "logout"
-	RevokeExplicit   = "revoked"
-	RevokeTokenReuse = "token_reuse"
+	RevokeLogout         = "logout"
+	RevokeExplicit       = "revoked"
+	RevokeTokenReuse     = "token_reuse"
+	RevokeAccountBlocked = "account_blocked"
 )
+
+// ModerationReceipt records an idempotent account moderation operation.
+type ModerationReceipt struct {
+	OperationID        uuid.UUID
+	UserID             uuid.UUID
+	Blocked            bool
+	Changed            bool
+	RevokedSessions    int
+	RevocationsPending bool
+	CreatedAt          time.Time
+}
+
+// PendingRevocation tracks a session revocation that still needs to be pushed to Redis.
+type PendingRevocation struct {
+	SessionID uuid.UUID
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
 
 // Session is one signed-in device. It holds only hashes of refresh tokens.
 type Session struct {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,53 @@ func (m memAccounts) ByID(_ context.Context, id uuid.UUID) (domain.Account, erro
 	}
 	return a, nil
 }
+func (m memAccounts) ByIDForUpdate(ctx context.Context, id uuid.UUID) (domain.Account, error) {
+	return m.ByID(ctx, id)
+}
+func (m memAccounts) ByEmailForUpdate(ctx context.Context, email string) (domain.Account, error) {
+	return m.ByEmail(ctx, email)
+}
+func (m memAccounts) ListAccounts(_ context.Context, afterID *uuid.UUID, limit int, blocked *bool) ([]domain.Account, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	out := make([]domain.Account, 0, len(m))
+	for _, a := range m {
+		if afterID != nil && *afterID != uuid.Nil && bytes.Compare(a.ID[:], (*afterID)[:]) <= 0 {
+			continue
+		}
+		if blocked != nil && a.Blocked != *blocked {
+			continue
+		}
+		out = append(out, a)
+	}
+	slices.SortFunc(out, func(a, b domain.Account) int {
+		return bytes.Compare(a.ID[:], b.ID[:])
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+func (m memAccounts) SetBlocked(_ context.Context, userID uuid.UUID, blocked bool, at *time.Time) error {
+	a, ok := m[userID]
+	if !ok {
+		return domain.ErrAccountNotFound
+	}
+	ts := time.Now().UTC()
+	if at != nil {
+		ts = at.UTC()
+	}
+	a.Blocked = blocked
+	if blocked {
+		a.BlockedAt = &ts
+	} else {
+		a.BlockedAt = nil
+	}
+	a.UpdatedAt = ts
+	m[userID] = a
+	return nil
+}
 
 type memSessions map[uuid.UUID]domain.Session
 
@@ -81,6 +129,17 @@ func (m memSessions) SaveRotation(_ context.Context, s domain.Session, old []byt
 func (m memSessions) SaveRevocation(_ context.Context, s domain.Session) error {
 	m[s.ID] = s
 	return nil
+}
+func (m memSessions) RevokeAllUserSessions(_ context.Context, userID uuid.UUID, reason string, at time.Time) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	for id, s := range m {
+		if s.UserID == userID && s.RevokedAt == nil {
+			s.Revoke(reason, at)
+			m[id] = s
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
 func (m memSessions) ListActive(_ context.Context, uid uuid.UUID, now time.Time) ([]domain.Session, error) {
 	var out []domain.Session
@@ -121,6 +180,47 @@ func (m memRevocations) Revoke(_ context.Context, sid string, ttl time.Duration)
 	return nil
 }
 
+type failingRevocations struct{ err error }
+
+func (f failingRevocations) Revoke(context.Context, string, time.Duration) error { return f.err }
+
+type memReceipts map[uuid.UUID]domain.ModerationReceipt
+
+func (m memReceipts) GetModerationReceipt(_ context.Context, opID uuid.UUID) (domain.ModerationReceipt, error) {
+	r, ok := m[opID]
+	if !ok {
+		return domain.ModerationReceipt{}, domain.ErrReceiptNotFound
+	}
+	return r, nil
+}
+func (m memReceipts) SaveModerationReceipt(_ context.Context, r domain.ModerationReceipt) error {
+	m[r.OperationID] = r
+	return nil
+}
+
+type memPendingRevocations map[uuid.UUID]domain.PendingRevocation
+
+func (m memPendingRevocations) SavePendingRevocations(_ context.Context, sids []uuid.UUID, expiresAt time.Time) error {
+	for _, sid := range sids {
+		m[sid] = domain.PendingRevocation{SessionID: sid, ExpiresAt: expiresAt}
+	}
+	return nil
+}
+func (m memPendingRevocations) DeletePendingRevocation(_ context.Context, sid uuid.UUID) error {
+	delete(m, sid)
+	return nil
+}
+func (m memPendingRevocations) ListPendingRevocations(_ context.Context, limit int) ([]domain.PendingRevocation, error) {
+	out := make([]domain.PendingRevocation, 0, len(m))
+	for _, p := range m {
+		out = append(out, p)
+		if limit > 0 && len(out) >= limit {
+			break
+		}
+	}
+	return out, nil
+}
+
 type memThrottle struct{ failures map[string]int }
 
 func (t *memThrottle) Allow(_ context.Context, e string) (bool, time.Duration, error) {
@@ -140,15 +240,26 @@ type fixture struct {
 	svc      *Service
 	accounts memAccounts
 	sessions memSessions
+	receipts memReceipts
+	pending  memPendingRevocations
 	revoked  memRevocations
 	pub      *recorder
 	now      time.Time
 }
 
 func newFixture(t *testing.T) *fixture {
-	f := &fixture{accounts: memAccounts{}, sessions: memSessions{}, revoked: memRevocations{}, pub: &recorder{}, now: time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)}
+	f := &fixture{
+		accounts: memAccounts{},
+		sessions: memSessions{},
+		receipts: memReceipts{},
+		pending:  memPendingRevocations{},
+		revoked:  memRevocations{},
+		pub:      &recorder{},
+		now:      time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC),
+	}
 	svc, err := New(Deps{
-		Accounts: f.accounts, Sessions: f.sessions, Hasher: fakeHasher{}, Tokens: fakeTokens{}, Refresh: &seqRefresh{},
+		Accounts: f.accounts, Sessions: f.sessions, Receipts: f.receipts, PendingRevocations: f.pending,
+		Hasher: fakeHasher{}, Tokens: fakeTokens{}, Refresh: &seqRefresh{},
 		Revocation: f.revoked, Throttle: &memThrottle{failures: map[string]int{}}, Publisher: f.pub,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil)), SessionTTL: 24 * time.Hour,
 		Now: func() time.Time { return f.now },
@@ -395,5 +506,147 @@ func TestAuditLoggingAndNilLoggerDefault(t *testing.T) {
 		if strings.Contains(logs, forbidden) {
 			t.Fatalf("sensitive value %q leaked in logs:\n%s", forbidden, logs)
 		}
+	}
+}
+
+func TestBlockedLoginAndRefreshRejected(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	reg, err := f.svc.Register(ctx, "rin@example.com", pw, Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.ModerateBlock(ctx, uuid.New(), reg.Account.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.Login(ctx, "rin@example.com", pw, Client{}); !errors.Is(err, domain.ErrInvalidCredentials) {
+		t.Fatalf("blocked login must return ErrInvalidCredentials, got %v", err)
+	}
+	if _, err := f.svc.Refresh(ctx, reg.RefreshToken); !errors.Is(err, domain.ErrSessionInactive) {
+		t.Fatalf("blocked refresh must return ErrSessionInactive, got %v", err)
+	}
+	// Even if a session remained active in storage, blocked account cannot refresh.
+	s := domain.NewSession(uuid.New(), reg.Account.ID, (&seqRefresh{}).Hash("manual-refresh"), "ua", f.now, time.Hour)
+	f.sessions[s.ID] = s
+	if _, err := f.svc.Refresh(ctx, "manual-refresh"); !errors.Is(err, domain.ErrSessionInactive) {
+		t.Fatalf("refresh for blocked account with active session must fail, got %v", err)
+	}
+}
+
+func TestModerateBlockRevokesSessionsAndIsIdempotent(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	s1, _ := f.svc.Register(ctx, "rin@example.com", pw, Client{UserAgent: "phone"})
+	s2, _ := f.svc.Login(ctx, "rin@example.com", pw, Client{UserAgent: "laptop"})
+	f.pub.events = nil
+
+	opID := uuid.New()
+	res, err := f.svc.ModerateBlock(ctx, opID, s1.Account.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Blocked || !res.Changed || res.RevokedSessions != 2 || res.RevocationsPending {
+		t.Fatalf("unexpected moderation result: %+v", res)
+	}
+	if len(f.pub.events) != 2 {
+		t.Fatalf("expected 2 SessionRevoked events, got %d", len(f.pub.events))
+	}
+	for _, ev := range f.pub.events {
+		sr, ok := ev.(domain.SessionRevoked)
+		if !ok || sr.Session.RevokeReason != domain.RevokeAccountBlocked {
+			t.Fatalf("unexpected event: %#v", ev)
+		}
+	}
+	wantTTL := fakeTokens{}.TTL() + time.Minute
+	if f.revoked[s1.SessionID.String()] != wantTTL || f.revoked[s2.SessionID.String()] != wantTTL {
+		t.Fatalf("expected both sessions revoked in cache with ttl %v, got %+v", wantTTL, f.revoked)
+	}
+
+	// Idempotent replay with same operationID does not re-emit events.
+	f.pub.events = nil
+	replay, err := f.svc.ModerateBlock(ctx, opID, s1.Account.ID, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replay != res || len(f.pub.events) != 0 {
+		t.Fatalf("replay mismatch: %+v vs %+v, events=%d", replay, res, len(f.pub.events))
+	}
+	if _, err := f.svc.ModerateBlock(ctx, opID, s1.Account.ID, false); !errors.Is(err, domain.ErrOperationConflict) {
+		t.Fatalf("expected ErrOperationConflict on mismatched replay, got %v", err)
+	}
+}
+
+func TestModerateUnblockDoesNotResurrectSessions(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	reg, _ := f.svc.Register(ctx, "rin@example.com", pw, Client{})
+	if _, err := f.svc.ModerateBlock(ctx, uuid.New(), reg.Account.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	// Blocking again with a new operationID is a no-op (Changed: false).
+	noop, err := f.svc.ModerateBlock(ctx, uuid.New(), reg.Account.ID, true)
+	if err != nil || noop.Changed || !noop.Blocked || noop.RevokedSessions != 0 {
+		t.Fatalf("expected no-op block, got %+v err=%v", noop, err)
+	}
+
+	unblock, err := f.svc.ModerateBlock(ctx, uuid.New(), reg.Account.ID, false)
+	if err != nil || !unblock.Changed || unblock.Blocked || unblock.RevokedSessions != 0 {
+		t.Fatalf("unexpected unblock result: %+v err=%v", unblock, err)
+	}
+	if _, err := f.svc.Refresh(ctx, reg.RefreshToken); !errors.Is(err, domain.ErrSessionInactive) {
+		t.Fatalf("unblock must not resurrect revoked session, got %v", err)
+	}
+	if _, err := f.svc.Login(ctx, "rin@example.com", pw, Client{}); err != nil {
+		t.Fatalf("unblocked user should be able to login again: %v", err)
+	}
+}
+
+func TestModerateBlockRejectsAdminAndTracksRedisFailure(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	adminReg, _ := f.svc.Register(ctx, "admin@example.com", pw, Client{})
+	adminAcc := f.accounts[adminReg.Account.ID]
+	adminAcc.Roles = []string{domain.RoleUser, domain.RoleAdmin}
+	f.accounts[adminAcc.ID] = adminAcc
+
+	if _, err := f.svc.ModerateBlock(ctx, uuid.New(), adminAcc.ID, true); !errors.Is(err, domain.ErrCannotBlockAdmin) {
+		t.Fatalf("expected ErrCannotBlockAdmin, got %v", err)
+	}
+
+	userReg, _ := f.svc.Register(ctx, "user@example.com", pw, Client{})
+	f.svc.d.Revocation = failingRevocations{err: errors.New("redis down")}
+	res, err := f.svc.ModerateBlock(ctx, uuid.New(), userReg.Account.ID, true)
+	if err != nil {
+		t.Fatalf("block must succeed even if redis fails: %v", err)
+	}
+	if !res.RevocationsPending || !res.Changed || res.RevokedSessions != 1 || len(f.pending) != 1 {
+		t.Fatalf("expected RevocationsPending=true and 1 pending revocation, got %+v pending=%d", res, len(f.pending))
+	}
+
+	// Once Redis recovers, FlushPendingRevocations drains pending revocations.
+	f.svc.d.Revocation = f.revoked
+	if err := f.svc.FlushPendingRevocations(ctx); err != nil {
+		t.Fatalf("FlushPendingRevocations: %v", err)
+	}
+	if len(f.pending) != 0 || len(f.revoked) != 1 {
+		t.Fatalf("expected pending drained and 1 revoked in cache, pending=%d revoked=%d", len(f.pending), len(f.revoked))
+	}
+}
+
+func TestListAndGetModerationUsers(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	u1, _ := f.svc.Register(ctx, "a@example.com", pw, Client{})
+	u2, _ := f.svc.Register(ctx, "b@example.com", pw, Client{})
+	_, _ = f.svc.ModerateBlock(ctx, uuid.New(), u2.Account.ID, true)
+
+	got, err := f.svc.GetModerationUser(ctx, u1.Account.ID)
+	if err != nil || got.ID != u1.Account.ID {
+		t.Fatalf("GetModerationUser = %+v err=%v", got, err)
+	}
+	onlyBlocked := true
+	list, err := f.svc.ListModerationUsers(ctx, nil, 10, &onlyBlocked)
+	if err != nil || len(list) != 1 || list[0].ID != u2.Account.ID {
+		t.Fatalf("ListModerationUsers(blocked=true) = %+v err=%v", list, err)
 	}
 }

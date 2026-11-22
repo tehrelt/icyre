@@ -11,10 +11,11 @@ import (
 
 // Not-found errors returned by repositories and use cases.
 var (
-	ErrArtistNotFound = errors.New("artist not found")
-	ErrAlbumNotFound  = errors.New("album not found")
-	ErrTrackNotFound  = errors.New("track not found")
-	ErrGenreNotFound  = errors.New("genre not found")
+	ErrArtistNotFound            = errors.New("artist not found")
+	ErrAlbumNotFound             = errors.New("album not found")
+	ErrTrackNotFound             = errors.New("track not found")
+	ErrGenreNotFound             = errors.New("genre not found")
+	ErrModerationReceiptNotFound = errors.New("moderation receipt not found")
 )
 
 // Business rule violations.

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -235,10 +236,142 @@ type UpdateTrack struct {
 }
 
 // UpdateTrack applies a partial update, including status transitions.
+// Transitions into or out of BLOCKED are rejected; moderation uses ModerateTrack.
 func (s *Service) UpdateTrack(ctx context.Context, cmd UpdateTrack) (domain.Track, error) {
 	return s.modifyTrack(ctx, cmd.ID, func(t *domain.Track) (bool, error) {
+		if t.Status == domain.TrackStatusDeleted {
+			return false, domain.ErrTrackDeleted
+		}
+		if cmd.Changes.Status != nil {
+			next := *cmd.Changes.Status
+			if next == domain.TrackStatusBlocked || (t.Status == domain.TrackStatusBlocked && next != t.Status) {
+				return false, fmt.Errorf("%w: %s → %s", domain.ErrInvalidStatusTransition, t.Status, next)
+			}
+		}
 		return t.Apply(cmd.Changes, s.d.Now())
 	})
+}
+
+// ListTracksPage returns a keyset-paginated slice of tracks ordered by
+// (created_at DESC, id DESC), excluding DELETED unless status == DELETED.
+func (s *Service) ListTracksPage(ctx context.Context, status *domain.TrackStatus, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Track, error) {
+	if status != nil && !status.Valid() {
+		return nil, &domain.ValidationError{Fields: map[string]string{"status": "unknown status"}}
+	}
+	if (afterCreatedAt == nil) != (afterID == nil) {
+		return nil, &domain.ValidationError{Fields: map[string]string{"cursor": "afterCreatedAt and afterID must both be set"}}
+	}
+	if limit <= 0 {
+		limit = DefaultPageSize
+	}
+	if limit > MaxPageSize+1 {
+		limit = MaxPageSize + 1
+	}
+	tracks, err := s.d.Tracks.ListTracksPage(ctx, status, afterCreatedAt, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list tracks page: %w", err)
+	}
+	return tracks, nil
+}
+
+type trackCacheInvalidator interface {
+	Invalidate(ctx context.Context, trackID, albumID uuid.UUID)
+}
+
+// ModerateTrack idempotently blocks or unblocks a track by operationID.
+func (s *Service) ModerateTrack(ctx context.Context, operationID, trackID uuid.UUID, blocked bool) (domain.ModerationReceipt, error) {
+	if err := validateModerationIDs(operationID, trackID); err != nil {
+		return domain.ModerationReceipt{}, err
+	}
+	var (
+		out     domain.ModerationReceipt
+		albumID uuid.UUID
+	)
+	err := s.d.Tx.InTx(ctx, func(ctx context.Context) error {
+		rec, found, err := s.findModerationReceipt(ctx, operationID, trackID, blocked)
+		if err != nil {
+			return err
+		}
+		if found {
+			out = rec
+			return nil
+		}
+		rec, albumID, err = s.applyModeration(ctx, operationID, trackID, blocked)
+		if err != nil {
+			return err
+		}
+		out = rec
+		return nil
+	})
+	if err != nil {
+		return domain.ModerationReceipt{}, err
+	}
+	if out.Changed {
+		if inv, ok := s.d.Tracks.(trackCacheInvalidator); ok {
+			inv.Invalidate(ctx, out.TrackID, albumID)
+		}
+	}
+	return out, nil
+}
+
+func (s *Service) applyModeration(ctx context.Context, operationID, trackID uuid.UUID, blocked bool) (domain.ModerationReceipt, uuid.UUID, error) {
+	t, err := s.d.Tracks.GetForUpdate(ctx, trackID)
+	if err != nil {
+		return domain.ModerationReceipt{}, uuid.Nil, err
+	}
+	if rec, found, err := s.findModerationReceipt(ctx, operationID, trackID, blocked); err != nil || found {
+		return rec, t.AlbumID, err
+	}
+	prev := t.Status
+	now := s.d.Now().UTC()
+	changed, err := t.ModerateBlock(blocked, now)
+	if err != nil {
+		return domain.ModerationReceipt{}, uuid.Nil, err
+	}
+	if changed {
+		if err := s.d.Tracks.Update(ctx, t); err != nil {
+			return domain.ModerationReceipt{}, uuid.Nil, fmt.Errorf("store track: %w", err)
+		}
+		if err := s.d.Publisher.Publish(ctx, domain.TrackUpdated{Track: t}); err != nil {
+			return domain.ModerationReceipt{}, uuid.Nil, fmt.Errorf("record events: %w", err)
+		}
+	}
+	rec := domain.ModerationReceipt{
+		OperationID: operationID, TrackID: t.ID,
+		PreviousStatus: prev, CurrentStatus: t.Status, Changed: changed, CreatedAt: now,
+	}
+	if err := s.d.Tracks.SaveModerationReceipt(ctx, rec); err != nil {
+		return domain.ModerationReceipt{}, uuid.Nil, fmt.Errorf("save moderation receipt: %w", err)
+	}
+	return rec, t.AlbumID, nil
+}
+
+func (s *Service) findModerationReceipt(ctx context.Context, operationID, trackID uuid.UUID, blocked bool) (domain.ModerationReceipt, bool, error) {
+	rec, err := s.d.Tracks.GetModerationReceipt(ctx, operationID)
+	if errors.Is(err, domain.ErrModerationReceiptNotFound) {
+		return domain.ModerationReceipt{}, false, nil
+	}
+	if err != nil {
+		return domain.ModerationReceipt{}, false, fmt.Errorf("get moderation receipt: %w", err)
+	}
+	if rec.TrackID != trackID || blocked != (rec.CurrentStatus == domain.TrackStatusBlocked) {
+		return domain.ModerationReceipt{}, false, domain.ErrModerationConflict
+	}
+	return rec, true, nil
+}
+
+func validateModerationIDs(operationID, trackID uuid.UUID) error {
+	fields := map[string]string{}
+	if operationID == uuid.Nil {
+		fields["operationId"] = "must be set"
+	}
+	if trackID == uuid.Nil {
+		fields["trackId"] = "must be set"
+	}
+	if len(fields) > 0 {
+		return &domain.ValidationError{Fields: fields}
+	}
+	return nil
 }
 
 // AdvanceTrackMedia applies a media pipeline signal (media.events) to the

@@ -5,6 +5,7 @@ toolchain go1.26.8
 use (
 	./libs/contracts
 	./libs/platform
+	./services/admin
 	./services/auth
 	./services/bff
 	./services/catalog

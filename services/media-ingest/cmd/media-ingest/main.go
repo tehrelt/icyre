@@ -139,7 +139,9 @@ func run(args []string) error {
 	mux := http.NewServeMux()
 	checks.Register(mux)
 	mux.Handle("GET /metrics", telemetry.MetricsHandler(reg))
-	httpadapter.NewHandler(app, verifier, log).Register(mux)
+	h := httpadapter.NewHandler(app, verifier, log)
+	h.Register(mux)
+	h.RegisterInternal(mux, cfg.InternalToken.Value())
 	handler := httpserver.Standard(mux, httpserver.StandardOptions{
 		Service: config.ServiceName, Log: log, Metrics: httpserver.NewHTTPMetrics(reg), RequestTimeout: cfg.HTTP.RequestTimeout,
 	})

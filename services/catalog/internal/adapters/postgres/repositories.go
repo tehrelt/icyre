@@ -302,6 +302,62 @@ func (r *TrackRepository) ListByIDs(ctx context.Context, ids []uuid.UUID) ([]dom
 	return collectTracks(rows)
 }
 
+// ListTracksPage returns tracks ordered by (created_at DESC, id DESC),
+// excluding DELETED unless status == DELETED.
+func (r *TrackRepository) ListTracksPage(ctx context.Context, status *domain.TrackStatus, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Track, error) {
+	var statusStr *string
+	if status != nil {
+		s := string(*status)
+		statusStr = &s
+	}
+	rows, err := conn(ctx, r.pool).Query(ctx, `
+		SELECT `+trackColumns+`
+		FROM catalog.tracks t
+		WHERE (($1::text IS NULL AND t.status <> 'DELETED') OR ($1::text IS NOT NULL AND t.status = $1::text))
+		  AND ($2::timestamptz IS NULL OR $3::uuid IS NULL OR (t.created_at, t.id) < ($2::timestamptz, $3::uuid))
+		ORDER BY t.created_at DESC, t.id DESC
+		LIMIT $4`,
+		statusStr, afterCreatedAt, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("select tracks page: %w", err)
+	}
+	return collectTracks(rows)
+}
+
+// GetModerationReceipt loads a stored moderation receipt by operation ID.
+func (r *TrackRepository) GetModerationReceipt(ctx context.Context, operationID uuid.UUID) (domain.ModerationReceipt, error) {
+	var (
+		rec        domain.ModerationReceipt
+		prev, curr string
+	)
+	err := conn(ctx, r.pool).QueryRow(ctx, `
+		SELECT operation_id, track_id, previous_status, current_status, changed, created_at
+		FROM catalog.moderation_receipts
+		WHERE operation_id = $1`, operationID,
+	).Scan(&rec.OperationID, &rec.TrackID, &prev, &curr, &rec.Changed, &rec.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ModerationReceipt{}, domain.ErrModerationReceiptNotFound
+	}
+	if err != nil {
+		return domain.ModerationReceipt{}, fmt.Errorf("select moderation receipt: %w", err)
+	}
+	rec.PreviousStatus = domain.TrackStatus(prev)
+	rec.CurrentStatus = domain.TrackStatus(curr)
+	return rec, nil
+}
+
+// SaveModerationReceipt persists a moderation receipt.
+func (r *TrackRepository) SaveModerationReceipt(ctx context.Context, rec domain.ModerationReceipt) error {
+	_, err := conn(ctx, r.pool).Exec(ctx, `
+		INSERT INTO catalog.moderation_receipts (operation_id, track_id, previous_status, current_status, changed, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`,
+		rec.OperationID, rec.TrackID, string(rec.PreviousStatus), string(rec.CurrentStatus), rec.Changed, rec.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("insert moderation receipt: %w", mapError(err))
+	}
+	return nil
+}
+
 func collectTracks(rows pgx.Rows) ([]domain.Track, error) {
 	tracks, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Track, error) {
 		var (

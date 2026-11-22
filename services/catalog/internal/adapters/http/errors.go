@@ -12,14 +12,16 @@ import (
 
 // Stable, machine-readable error codes of the Catalog API.
 const (
-	codeArtistNotFound          = "ARTIST_NOT_FOUND"
-	codeAlbumNotFound           = "ALBUM_NOT_FOUND"
-	codeTrackNotFound           = "TRACK_NOT_FOUND"
-	codeGenreNotFound           = "GENRE_NOT_FOUND"
-	codeInvalidStatusTransition = "INVALID_STATUS_TRANSITION"
-	codeTrackPositionTaken      = "TRACK_POSITION_TAKEN"
-	codeTrackDeleted            = "TRACK_DELETED"
-	codeInvalidCursor           = "INVALID_CURSOR"
+	codeArtistNotFound              = "ARTIST_NOT_FOUND"
+	codeAlbumNotFound               = "ALBUM_NOT_FOUND"
+	codeTrackNotFound               = "TRACK_NOT_FOUND"
+	codeGenreNotFound               = "GENRE_NOT_FOUND"
+	codeInvalidStatusTransition     = "INVALID_STATUS_TRANSITION"
+	codeInvalidModerationTransition = "INVALID_MODERATION_TRANSITION"
+	codeModerationConflict          = "MODERATION_CONFLICT"
+	codeTrackPositionTaken          = "TRACK_POSITION_TAKEN"
+	codeTrackDeleted                = "TRACK_DELETED"
+	codeInvalidCursor               = "INVALID_CURSOR"
 )
 
 var notFound = []struct {
@@ -84,6 +86,12 @@ func writeError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err er
 		}
 	case errors.Is(err, domain.ErrInvalidStatusTransition):
 		httpserver.WriteError(w, r, http.StatusUnprocessableEntity, codeInvalidStatusTransition, err.Error(), nil)
+		return
+	case errors.Is(err, domain.ErrInvalidModerationTransition):
+		httpserver.WriteError(w, r, http.StatusUnprocessableEntity, codeInvalidModerationTransition, err.Error(), nil)
+		return
+	case errors.Is(err, domain.ErrModerationConflict):
+		httpserver.WriteError(w, r, http.StatusConflict, codeModerationConflict, "Moderation operation conflicts with an existing receipt", nil)
 		return
 	case errors.Is(err, domain.ErrTrackDeleted):
 		httpserver.WriteError(w, r, http.StatusUnprocessableEntity, codeTrackDeleted, "Deleted track cannot be modified", nil)

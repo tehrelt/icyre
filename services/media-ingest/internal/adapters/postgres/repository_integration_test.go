@@ -82,4 +82,26 @@ func TestRepository(t *testing.T) {
 	if _, err := repo.Get(ctx, uuid.New()); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatal(err)
 	}
+
+	// List with filters and keyset pagination.
+	u2 := domain.Upload{
+		ID: uuid.New(), TrackID: u.TrackID, UploaderID: u.UploaderID, ContentType: "audio/flac", SizeBytes: 42,
+		SHA256: make([]byte, 32), Key: "tracks/t/original/u2.flac", Status: domain.StatusPending, CreatedAt: now.Add(time.Minute), ExpiresAt: now.Add(2 * time.Hour),
+	}
+	if err := repo.Create(ctx, u2); err != nil {
+		t.Fatal(err)
+	}
+	page1, err := repo.List(ctx, &u.TrackID, nil, nil, nil, 1)
+	if err != nil || len(page1) != 1 || page1[0].ID != u2.ID {
+		t.Fatalf("page1 = %+v, err = %v", page1, err)
+	}
+	page2, err := repo.List(ctx, &u.TrackID, nil, &page1[0].CreatedAt, &page1[0].ID, 10)
+	if err != nil || len(page2) != 1 || page2[0].ID != u.ID {
+		t.Fatalf("page2 = %+v, err = %v", page2, err)
+	}
+	failedStatus := domain.StatusFailed
+	failedList, err := repo.List(ctx, nil, &failedStatus, nil, nil, 10)
+	if err != nil || len(failedList) != 1 || failedList[0].ID != u.ID {
+		t.Fatalf("failedList = %+v, err = %v", failedList, err)
+	}
 }

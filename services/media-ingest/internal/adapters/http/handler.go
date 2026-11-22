@@ -3,10 +3,14 @@ package http
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +26,7 @@ type Uploads interface {
 	Create(ctx context.Context, actor application.Actor, req domain.Request) (application.Created, error)
 	Get(ctx context.Context, actor application.Actor, id uuid.UUID) (domain.Upload, error)
 	Complete(ctx context.Context, actor application.Actor, id uuid.UUID) (domain.Upload, error)
+	ListModerationUploads(ctx context.Context, trackID *uuid.UUID, status *domain.Status, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error)
 }
 
 // Handler serves the upload API.
@@ -41,6 +46,12 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.Handle("POST /api/v1/media/uploads", h.auth(h.create))
 	mux.Handle("GET /api/v1/media/uploads/{id}", h.auth(h.get))
 	mux.Handle("POST /api/v1/media/uploads/{id}/complete", h.auth(h.complete))
+}
+
+// RegisterInternal mounts internal moderation routes protected by X-Internal-Token.
+func (h *Handler) RegisterInternal(mux *http.ServeMux, internalToken string) {
+	guard := authn.RequireInternalToken(internalToken)
+	mux.Handle("GET /internal/v1/moderation/uploads", guard(http.HandlerFunc(h.listModerationUploads)))
 }
 
 type actorHandler func(w http.ResponseWriter, r *http.Request, actor application.Actor)
@@ -177,4 +188,151 @@ func (h *Handler) error(w http.ResponseWriter, r *http.Request, err error) {
 		h.log.ErrorContext(r.Context(), "media ingest request failed", "error", err)
 		httpserver.WriteError(w, r, http.StatusServiceUnavailable, httpserver.CodeUnavailable, "Media ingest is temporarily unavailable", nil)
 	}
+}
+
+type moderationUploadView struct {
+	ID            string        `json:"id"`
+	TrackID       string        `json:"trackId"`
+	Status        domain.Status `json:"status"`
+	FailureReason *string       `json:"failureReason"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	ExpiresAt     time.Time     `json:"expiresAt"`
+	CompletedAt   *time.Time    `json:"completedAt"`
+}
+
+type paginationView struct {
+	NextCursor *string `json:"nextCursor"`
+	HasMore    bool    `json:"hasMore"`
+}
+
+type moderationUploadsResponse struct {
+	Data       []moderationUploadView `json:"data"`
+	Pagination paginationView         `json:"pagination"`
+}
+
+func toModerationUploadView(u domain.Upload) moderationUploadView {
+	v := moderationUploadView{
+		ID:        u.ID.String(),
+		TrackID:   u.TrackID.String(),
+		Status:    u.Status,
+		CreatedAt: u.CreatedAt.UTC(),
+		ExpiresAt: u.ExpiresAt.UTC(),
+	}
+	if u.FailureReason != "" {
+		r := u.FailureReason
+		v.FailureReason = &r
+	}
+	if u.CompletedAt != nil {
+		t := u.CompletedAt.UTC()
+		v.CompletedAt = &t
+	}
+	return v
+}
+
+var errInvalidCursor = errors.New("cursor is malformed")
+
+func (h *Handler) listModerationUploads(w http.ResponseWriter, r *http.Request) {
+	trackID, status, limit, afterCreatedAt, afterID, err := parseModerationUploadsQuery(r)
+	if err != nil {
+		if errors.Is(err, errInvalidCursor) {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "INVALID_CURSOR", "cursor is malformed", nil)
+			return
+		}
+		h.error(w, r, err)
+		return
+	}
+	uploads, err := h.app.ListModerationUploads(r.Context(), trackID, status, afterCreatedAt, afterID, limit+1)
+	if err != nil {
+		h.error(w, r, err)
+		return
+	}
+	p := paginationView{HasMore: len(uploads) > limit}
+	if p.HasMore {
+		uploads = uploads[:limit]
+		last := uploads[limit-1]
+		c := encodeUploadCursor(last.CreatedAt, last.ID)
+		p.NextCursor = &c
+	}
+	data := make([]moderationUploadView, len(uploads))
+	for i, u := range uploads {
+		data[i] = toModerationUploadView(u)
+	}
+	httpserver.WriteJSON(w, http.StatusOK, moderationUploadsResponse{Data: data, Pagination: p})
+}
+
+func parseModerationUploadsQuery(r *http.Request) (*uuid.UUID, *domain.Status, int, *time.Time, *uuid.UUID, error) {
+	q := r.URL.Query()
+	fields := map[string]string{}
+	var trackID *uuid.UUID
+	if raw := q.Get("trackId"); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			fields["trackId"] = "must be a UUID"
+		} else {
+			trackID = &id
+		}
+	}
+	var status *domain.Status
+	if raw := q.Get("status"); raw != "" {
+		s := domain.Status(strings.ToUpper(raw))
+		if !s.Valid() {
+			fields["status"] = "must be one of PENDING, COMPLETED, FAILED"
+		} else {
+			status = &s
+		}
+	}
+	limit := application.DefaultModerationLimit
+	if raw := q.Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > application.MaxModerationLimit {
+			fields["limit"] = "must be between 1 and " + strconv.Itoa(application.MaxModerationLimit)
+		} else {
+			limit = n
+		}
+	}
+	if len(fields) > 0 {
+		return nil, nil, 0, nil, nil, &domain.ValidationError{Fields: fields}
+	}
+	var (
+		afterCreatedAt *time.Time
+		afterID        *uuid.UUID
+	)
+	if raw := q.Get("cursor"); raw != "" {
+		t, id, err := decodeUploadCursor(raw)
+		if err != nil {
+			return nil, nil, 0, nil, nil, errInvalidCursor
+		}
+		afterCreatedAt, afterID = &t, &id
+	}
+	return trackID, status, limit, afterCreatedAt, afterID, nil
+}
+
+type uploadCursorJSON struct {
+	T string `json:"t"`
+	I string `json:"i"`
+}
+
+func encodeUploadCursor(createdAt time.Time, id uuid.UUID) string {
+	b, _ := json.Marshal(uploadCursorJSON{T: createdAt.UTC().Format(time.RFC3339Nano), I: id.String()})
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func decodeUploadCursor(s string) (time.Time, uuid.UUID, error) {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	var c uploadCursorJSON
+	if err := json.Unmarshal(b, &c); err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	t, err := time.Parse(time.RFC3339Nano, c.T)
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	id, err := uuid.Parse(c.I)
+	if err != nil {
+		return time.Time{}, uuid.Nil, errors.New("bad cursor id")
+	}
+	return t, id, nil
 }

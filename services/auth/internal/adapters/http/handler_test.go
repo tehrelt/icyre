@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,8 +22,17 @@ import (
 )
 
 type stubAuth struct {
-	err        error
-	gotRefresh string
+	err         error
+	gotRefresh  string
+	users       []domain.Account
+	user        domain.Account
+	receipt     domain.ModerationReceipt
+	gotAfterID  *uuid.UUID
+	gotLimit    int
+	gotBlocked  *bool
+	gotOpID     uuid.UUID
+	gotUserID   uuid.UUID
+	gotSetBlock bool
 }
 
 func result() application.Result {
@@ -49,12 +59,33 @@ func (s *stubAuth) Sessions(context.Context, uuid.UUID) ([]domain.Session, error
 	return nil, s.err
 }
 func (s *stubAuth) RevokeSession(context.Context, uuid.UUID, uuid.UUID) error { return s.err }
+func (s *stubAuth) ListModerationUsers(_ context.Context, afterID *uuid.UUID, limit int, blocked *bool) ([]domain.Account, error) {
+	s.gotAfterID = afterID
+	s.gotLimit = limit
+	s.gotBlocked = blocked
+	return s.users, s.err
+}
+func (s *stubAuth) GetModerationUser(_ context.Context, userID uuid.UUID) (domain.Account, error) {
+	s.gotUserID = userID
+	return s.user, s.err
+}
+func (s *stubAuth) ModerateBlock(_ context.Context, operationID, userID uuid.UUID, blocked bool) (domain.ModerationReceipt, error) {
+	s.gotOpID = operationID
+	s.gotUserID = userID
+	s.gotSetBlock = blocked
+	return s.receipt, s.err
+}
+
+const testInternalToken = "test-internal-secret"
 
 func newServer(app Auth) http.Handler {
 	pub, _, _ := ed25519.GenerateKey(rand.Reader)
 	v := authn.NewVerifier(authn.StaticKeys{"k1": pub}, nil)
 	mux := http.NewServeMux()
-	NewHandler(app, v, authn.JWKS{Keys: []authn.JWK{authn.PublicJWK("k1", pub)}}, Options{SecureCookies: true}, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(mux)
+	NewHandler(app, v, authn.JWKS{Keys: []authn.JWK{authn.PublicJWK("k1", pub)}}, Options{
+		SecureCookies: true,
+		InternalToken: testInternalToken,
+	}, slog.New(slog.NewTextHandler(io.Discard, nil))).Register(mux)
 	return mux
 }
 
@@ -140,5 +171,120 @@ func TestLogoutClearsCookie(t *testing.T) {
 	rec := do(newServer(stub), http.MethodPost, "/api/v1/auth/logout", "", &http.Cookie{Name: RefreshCookie, Value: "abc"})
 	if rec.Code != http.StatusNoContent || stub.gotRefresh != "abc" || rec.Result().Cookies()[0].MaxAge >= 0 {
 		t.Fatalf("logout: %d %q", rec.Code, stub.gotRefresh)
+	}
+}
+
+func doInternal(h http.Handler, method, path, body, token string) *httptest.ResponseRecorder {
+	var r io.Reader
+	if body != "" {
+		r = strings.NewReader(body)
+	}
+	req := httptest.NewRequest(method, path, r)
+	if token != "" {
+		req.Header.Set(authn.InternalTokenHeader, token)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestInternalModerationAuth(t *testing.T) {
+	h := newServer(&stubAuth{})
+	uid := uuid.New().String()
+	routes := []struct{ method, path, body string }{
+		{http.MethodGet, "/internal/v1/moderation/users", ""},
+		{http.MethodGet, "/internal/v1/moderation/users/" + uid, ""},
+		{http.MethodPatch, "/internal/v1/moderation/users/" + uid, `{"operationId":"` + uuid.New().String() + `","blocked":true}`},
+	}
+	for _, rt := range routes {
+		if rec := doInternal(h, rt.method, rt.path, rt.body, ""); rec.Code != http.StatusUnauthorized {
+			t.Errorf("%s %s missing token: got %d, want 401", rt.method, rt.path, rec.Code)
+		}
+		if rec := doInternal(h, rt.method, rt.path, rt.body, "wrong-token"); rec.Code != http.StatusForbidden {
+			t.Errorf("%s %s wrong token: got %d, want 403", rt.method, rt.path, rec.Code)
+		}
+	}
+}
+
+func TestInternalListModerationUsers(t *testing.T) {
+	now := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+	u1 := domain.Account{ID: uuid.MustParse("01900000-0000-7000-8000-000000000001"), Email: "secret1@example.com", PasswordHash: "$argon2id$secret1", Roles: []string{domain.RoleUser}, CreatedAt: now, UpdatedAt: now}
+	u2 := domain.Account{ID: uuid.MustParse("01900000-0000-7000-8000-000000000002"), Email: "secret2@example.com", PasswordHash: "$argon2id$secret2", Roles: []string{domain.RoleUser}, Blocked: true, BlockedAt: &now, CreatedAt: now, UpdatedAt: now}
+	u3 := domain.Account{ID: uuid.MustParse("01900000-0000-7000-8000-000000000003"), Email: "secret3@example.com", PasswordHash: "$argon2id$secret3", Roles: []string{domain.RoleUser}, CreatedAt: now, UpdatedAt: now}
+
+	stub := &stubAuth{users: []domain.Account{u1, u2, u3}}
+	cursor := uuid.MustParse("01900000-0000-7000-8000-000000000000")
+	rec := doInternal(newServer(stub), http.MethodGet, "/internal/v1/moderation/users?limit=2&blocked=true&cursor="+cursor.String(), "", testInternalToken)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body)
+	}
+	if stub.gotLimit != 3 || stub.gotAfterID == nil || *stub.gotAfterID != cursor || stub.gotBlocked == nil || !*stub.gotBlocked {
+		t.Fatalf("unexpected query args: after=%v limit=%d blocked=%v", stub.gotAfterID, stub.gotLimit, stub.gotBlocked)
+	}
+	body := rec.Body.String()
+	for _, forbidden := range []string{"secret1@example.com", "secret2@example.com", "$argon2id$", "passwordHash", "email"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("sensitive field %q leaked in response: %s", forbidden, body)
+		}
+	}
+	var parsed struct {
+		Data       []moderationUserDTO `json:"data"`
+		Pagination paginationDTO       `json:"pagination"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Data) != 2 || !parsed.Pagination.HasMore || parsed.Pagination.NextCursor == nil || *parsed.Pagination.NextCursor != u2.ID.String() {
+		t.Fatalf("unexpected response: %+v", parsed)
+	}
+}
+
+func TestInternalGetAndPatchModerationUser(t *testing.T) {
+	now := time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
+	uid := uuid.New()
+	opID := uuid.New()
+	stub := &stubAuth{
+		user: domain.Account{ID: uid, Email: "hidden@example.com", PasswordHash: "$argon2id$hidden", Roles: []string{domain.RoleUser}, Blocked: true, BlockedAt: &now, CreatedAt: now, UpdatedAt: now},
+		receipt: domain.ModerationReceipt{
+			OperationID: opID, UserID: uid, Blocked: true, Changed: true, RevokedSessions: 2, RevocationsPending: true, CreatedAt: now,
+		},
+	}
+	h := newServer(stub)
+
+	getRec := doInternal(h, http.MethodGet, "/internal/v1/moderation/users/"+uid.String(), "", testInternalToken)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("get status %d: %s", getRec.Code, getRec.Body)
+	}
+	if strings.Contains(getRec.Body.String(), "hidden@example.com") || strings.Contains(getRec.Body.String(), "$argon2id$") {
+		t.Fatalf("sensitive data leaked: %s", getRec.Body)
+	}
+
+	patchRec := doInternal(h, http.MethodPatch, "/internal/v1/moderation/users/"+uid.String(), `{"operationId":"`+opID.String()+`","blocked":true}`, testInternalToken)
+	if patchRec.Code != http.StatusOK {
+		t.Fatalf("patch status %d: %s", patchRec.Code, patchRec.Body)
+	}
+	var got moderationReceiptDTO
+	if err := json.Unmarshal(patchRec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.OperationID != opID.String() || got.UserID != uid.String() || !got.Blocked || !got.Changed || got.RevokedSessions != 2 || !got.RevocationsPending {
+		t.Fatalf("unexpected receipt DTO: %+v", got)
+	}
+
+	cases := []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{domain.ErrOperationConflict, http.StatusConflict, "OPERATION_CONFLICT"},
+		{domain.ErrCannotBlockAdmin, http.StatusUnprocessableEntity, "CANNOT_BLOCK_ADMIN"},
+		{domain.ErrAccountNotFound, http.StatusNotFound, "ACCOUNT_NOT_FOUND"},
+	}
+	for _, c := range cases {
+		errStub := &stubAuth{err: c.err}
+		rec := doInternal(newServer(errStub), http.MethodPatch, "/internal/v1/moderation/users/"+uid.String(), `{"operationId":"`+opID.String()+`","blocked":true}`, testInternalToken)
+		if rec.Code != c.status || !strings.Contains(rec.Body.String(), c.code) {
+			t.Errorf("%v: got %d %s, want %d %s", c.err, rec.Code, rec.Body, c.status, c.code)
+		}
 	}
 }

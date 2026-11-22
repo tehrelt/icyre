@@ -142,17 +142,19 @@ func run(args []string) error {
 
 	// 6. Application.
 	app, err := application.New(application.Deps{
-		Accounts:   pgadapter.NewAccounts(pool),
-		Sessions:   pgadapter.NewSessions(pool),
-		Hasher:     crypto.NewArgon2Hasher(crypto.DefaultArgon2),
-		Tokens:     issuer,
-		Refresh:    crypto.RefreshTokens{},
-		Revocation: revocations,
-		Throttle:   redisadapter.NewLoginThrottle(rdb, cfg.LoginMaxFailures, cfg.LoginWindow),
-		Publisher:  publisher,
-		Tx:         postgres.Transactor{Pool: pool},
-		Log:        log,
-		SessionTTL: cfg.SessionTTL,
+		Accounts:           pgadapter.NewAccounts(pool),
+		Sessions:           pgadapter.NewSessions(pool),
+		Receipts:           pgadapter.NewModerationReceipts(pool),
+		PendingRevocations: pgadapter.NewPendingRevocations(pool),
+		Hasher:             crypto.NewArgon2Hasher(crypto.DefaultArgon2),
+		Tokens:             issuer,
+		Refresh:            crypto.RefreshTokens{},
+		Revocation:         revocations,
+		Throttle:           redisadapter.NewLoginThrottle(rdb, cfg.LoginMaxFailures, cfg.LoginWindow),
+		Publisher:          publisher,
+		Tx:                 postgres.Transactor{Pool: pool},
+		Log:                log,
+		SessionTTL:         cfg.SessionTTL,
 	})
 	if err != nil {
 		return err
@@ -162,7 +164,10 @@ func run(args []string) error {
 	mux := http.NewServeMux()
 	checks.Register(mux)
 	mux.Handle("GET /metrics", telemetry.MetricsHandler(reg))
-	httpadapter.NewHandler(app, verifier, issuer.JWKS(), httpadapter.Options{SecureCookies: cfg.SecureCookies}, log).Register(mux)
+	httpadapter.NewHandler(app, verifier, issuer.JWKS(), httpadapter.Options{
+		SecureCookies: cfg.SecureCookies,
+		InternalToken: cfg.InternalToken.Value(),
+	}, log).Register(mux)
 	handler := httpserver.Standard(mux, httpserver.StandardOptions{
 		Service: config.ServiceName, Log: log, Metrics: httpserver.NewHTTPMetrics(reg), RequestTimeout: cfg.HTTP.RequestTimeout,
 	})
@@ -179,12 +184,47 @@ func run(args []string) error {
 	if relay != nil {
 		waitRelay = relay.Start(ctx)
 	}
+	flusherCtx, cancelFlusher := context.WithCancel(ctx)
+	flushDone := startRevocationFlusher(flusherCtx, app, log)
+	defer func() {
+		cancelFlusher()
+		<-flushDone
+	}()
 	if err := srv.Run(serveCtx, cfg.ShutdownTimeout); err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
+	cancelFlusher()
+	<-flushDone
 	if err := waitRelay(); err != nil {
 		log.Error("outbox relay stopped with error", logger.Err(err))
 	}
 	log.Info("auth service stopped")
 	return nil
+}
+
+const revocationFlushInterval = 5 * time.Second
+
+func startRevocationFlusher(ctx context.Context, app *application.Service, log *slog.Logger) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		flushPendingRevocations(ctx, app, log)
+		ticker := time.NewTicker(revocationFlushInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				flushPendingRevocations(ctx, app, log)
+			}
+		}
+	}()
+	return done
+}
+
+func flushPendingRevocations(ctx context.Context, app *application.Service, log *slog.Logger) {
+	if err := app.FlushPendingRevocations(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		log.WarnContext(ctx, "pending revocation flush failed", logger.Err(err))
+	}
 }

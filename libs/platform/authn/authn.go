@@ -30,11 +30,12 @@ const (
 	RoleAdmin     = "ADMIN"
 )
 
-// Errors returned by Verify.
+// Errors returned by Verify and VerifyStrict.
 var (
-	ErrNoToken      = errors.New("authn: no bearer token")
-	ErrInvalidToken = errors.New("authn: invalid token")
-	ErrRevoked      = errors.New("authn: session revoked")
+	ErrNoToken               = errors.New("authn: no bearer token")
+	ErrInvalidToken          = errors.New("authn: invalid token")
+	ErrRevoked               = errors.New("authn: session revoked")
+	ErrRevocationUnavailable = errors.New("authn: revocation store unavailable")
 )
 
 // Principal is the authenticated caller.
@@ -85,8 +86,19 @@ func NewVerifier(keys KeySet, revoked Revocations) *Verifier {
 	return &Verifier{keys: keys, revoked: revoked, leeway: 30 * time.Second}
 }
 
-// Verify parses and validates a compact JWT.
+// Verify parses and validates a compact JWT. It fails open if the revocation
+// store returns an error because access tokens are short-lived.
 func (v *Verifier) Verify(ctx context.Context, raw string) (Principal, error) {
+	return v.verify(ctx, raw, false)
+}
+
+// VerifyStrict parses and validates a compact JWT and fails closed with
+// ErrRevocationUnavailable if the revocation store returns an error.
+func (v *Verifier) VerifyStrict(ctx context.Context, raw string) (Principal, error) {
+	return v.verify(ctx, raw, true)
+}
+
+func (v *Verifier) verify(ctx context.Context, raw string, strict bool) (Principal, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(raw, claims, func(t *jwt.Token) (any, error) {
 		kid, _ := t.Header["kid"].(string)
@@ -107,16 +119,8 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Principal, error) {
 	if claims.Subject == "" || claims.SessionID == "" {
 		return Principal{}, fmt.Errorf("%w: missing sub or sid", ErrInvalidToken)
 	}
-	if v.revoked != nil {
-		revoked, err := v.revoked.IsRevoked(ctx, claims.SessionID)
-		if err != nil {
-			// Fail open on a cache outage: the token is signed and short-lived.
-			// Auth Service itself re-checks sessions on refresh.
-			revoked = false
-		}
-		if revoked {
-			return Principal{}, ErrRevoked
-		}
+	if err := v.checkRevocation(ctx, claims.SessionID, strict); err != nil {
+		return Principal{}, err
 	}
 	return Principal{
 		UserID:    claims.Subject,
@@ -124,6 +128,25 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Principal, error) {
 		Roles:     claims.Roles,
 		ExpiresAt: claims.ExpiresAt.Time,
 	}, nil
+}
+
+func (v *Verifier) checkRevocation(ctx context.Context, sid string, strict bool) error {
+	if v.revoked == nil {
+		return nil
+	}
+	revoked, err := v.revoked.IsRevoked(ctx, sid)
+	if err != nil {
+		if strict {
+			return fmt.Errorf("%w: %v", ErrRevocationUnavailable, err)
+		}
+		// Fail open on a cache outage: the token is signed and short-lived.
+		// Auth Service itself re-checks sessions on refresh.
+		return nil
+	}
+	if revoked {
+		return ErrRevoked
+	}
+	return nil
 }
 
 type ctxKey struct{}

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -88,4 +89,46 @@ func (r *Repository) Settle(ctx context.Context, u domain.Upload) (bool, error) 
 		return false, fmt.Errorf("settle upload: %w", err)
 	}
 	return tag.RowsAffected() == 1, nil
+}
+
+// List returns uploads ordered by (created_at DESC, id DESC) with optional
+// trackID/status filters and keyset cursor.
+func (r *Repository) List(ctx context.Context, trackID *uuid.UUID, status *domain.Status, afterCreatedAt *time.Time, afterID *uuid.UUID, limit int) ([]domain.Upload, error) {
+	var statusStr *string
+	if status != nil {
+		s := string(*status)
+		statusStr = &s
+	}
+	rows, err := platformpg.Conn(ctx, r.pool).Query(ctx, `
+		SELECT id, track_id, uploader_id, content_type, size_bytes, sha256, object_key, status, failure_reason, created_at, expires_at, completed_at
+		FROM media.uploads
+		WHERE ($1::uuid IS NULL OR track_id = $1::uuid)
+		  AND ($2::text IS NULL OR status = $2::text)
+		  AND ($3::timestamptz IS NULL OR $4::uuid IS NULL OR (created_at, id) < ($3::timestamptz, $4::uuid))
+		ORDER BY created_at DESC, id DESC
+		LIMIT $5`,
+		trackID, statusStr, afterCreatedAt, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list uploads: %w", err)
+	}
+	uploads, err := pgx.CollectRows(rows, scanUpload)
+	if err != nil {
+		return nil, fmt.Errorf("scan uploads: %w", err)
+	}
+	return uploads, nil
+}
+
+func scanUpload(row pgx.CollectableRow) (domain.Upload, error) {
+	var (
+		u      domain.Upload
+		reason *string
+	)
+	err := row.Scan(&u.ID, &u.TrackID, &u.UploaderID, &u.ContentType, &u.SizeBytes, &u.SHA256, &u.Key, &u.Status, &reason, &u.CreatedAt, &u.ExpiresAt, &u.CompletedAt)
+	if err != nil {
+		return domain.Upload{}, err
+	}
+	if reason != nil {
+		u.FailureReason = *reason
+	}
+	return u, nil
 }

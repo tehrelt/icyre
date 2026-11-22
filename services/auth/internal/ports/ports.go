@@ -16,6 +16,10 @@ type AccountRepository interface {
 	Create(ctx context.Context, a domain.Account) error
 	ByEmail(ctx context.Context, email string) (domain.Account, error)
 	ByID(ctx context.Context, id uuid.UUID) (domain.Account, error)
+	ByIDForUpdate(ctx context.Context, id uuid.UUID) (domain.Account, error)
+	ByEmailForUpdate(ctx context.Context, email string) (domain.Account, error)
+	ListAccounts(ctx context.Context, afterID *uuid.UUID, limit int, blocked *bool) ([]domain.Account, error)
+	SetBlocked(ctx context.Context, userID uuid.UUID, blocked bool, at *time.Time) error
 }
 
 // SessionRepository persists sessions. Lookups return domain.ErrSessionNotFound.
@@ -28,7 +32,21 @@ type SessionRepository interface {
 	// oldHash (compare-and-swap), else domain.ErrConcurrentUpdate.
 	SaveRotation(ctx context.Context, s domain.Session, oldHash []byte) error
 	SaveRevocation(ctx context.Context, s domain.Session) error
+	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID, reason string, at time.Time) ([]uuid.UUID, error)
 	ListActive(ctx context.Context, userID uuid.UUID, now time.Time) ([]domain.Session, error)
+}
+
+// ModerationReceiptRepository persists idempotency receipts for moderation actions.
+type ModerationReceiptRepository interface {
+	GetModerationReceipt(ctx context.Context, opID uuid.UUID) (domain.ModerationReceipt, error)
+	SaveModerationReceipt(ctx context.Context, r domain.ModerationReceipt) error
+}
+
+// PendingRevocationRepository durably tracks session revocations pending Redis propagation.
+type PendingRevocationRepository interface {
+	SavePendingRevocations(ctx context.Context, sids []uuid.UUID, expiresAt time.Time) error
+	DeletePendingRevocation(ctx context.Context, sid uuid.UUID) error
+	ListPendingRevocations(ctx context.Context, limit int) ([]domain.PendingRevocation, error)
 }
 
 // PasswordHasher hashes and verifies passwords (Argon2id).

@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -8,6 +9,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+)
+
+// Moderation errors.
+var (
+	ErrModerationConflict          = errors.New("moderation operation conflict")
+	ErrInvalidModerationTransition = errors.New("track cannot be moderated in its current status")
 )
 
 // TrackStatus is the lifecycle state of a track.
@@ -206,6 +213,9 @@ func (t *Track) Apply(c TrackChanges, now time.Time) (bool, error) {
 		if !c.Status.Valid() {
 			return false, &ValidationError{Fields: map[string]string{"status": "unknown status"}}
 		}
+		if *c.Status == TrackStatusBlocked || t.Status == TrackStatusBlocked {
+			return false, fmt.Errorf("%w: %s → %s", ErrInvalidStatusTransition, t.Status, *c.Status)
+		}
 		if !t.Status.CanTransitionTo(*c.Status) {
 			return false, fmt.Errorf("%w: %s → %s", ErrInvalidStatusTransition, t.Status, *c.Status)
 		}
@@ -218,4 +228,34 @@ func (t *Track) Apply(c TrackChanges, now time.Time) (bool, error) {
 		*t = next
 	}
 	return changed, nil
+}
+
+// ModerationReceipt records the outcome of an idempotent moderation command.
+type ModerationReceipt struct {
+	OperationID    uuid.UUID
+	TrackID        uuid.UUID
+	PreviousStatus TrackStatus
+	CurrentStatus  TrackStatus
+	Changed        bool
+	CreatedAt      time.Time
+}
+
+// ModerateBlock transitions a track between READY and BLOCKED.
+// Idempotent when the track is already in the target state.
+func (t *Track) ModerateBlock(blocked bool, now time.Time) (bool, error) {
+	target := TrackStatusReady
+	expected := TrackStatusBlocked
+	if blocked {
+		target = TrackStatusBlocked
+		expected = TrackStatusReady
+	}
+	if t.Status == target {
+		return false, nil
+	}
+	if t.Status != expected {
+		return false, fmt.Errorf("%w: %s → %s", ErrInvalidModerationTransition, t.Status, target)
+	}
+	t.Status = target
+	t.UpdatedAt = now.UTC()
+	return true, nil
 }
