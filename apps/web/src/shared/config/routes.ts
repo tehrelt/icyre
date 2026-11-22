@@ -1,6 +1,8 @@
 /** Client routes. Screens not built yet render the "not built" page. */
 export const routes = {
   home: '/',
+  login: '/login',
+  register: '/register',
   library: '/library',
   liked: '/liked',
   profile: '/profile',

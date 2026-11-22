@@ -29,6 +29,10 @@
 
 .profile {
   display: flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
   border-radius: var(--radius-pill);
   text-decoration: none;
 }

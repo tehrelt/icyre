@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useNavigationType } from 'react-router';
+import { useLocation, useNavigate, useNavigationType } from 'react-router';
 
 import { useCurrentUser } from '@/entities/user/api';
+import { useLogoutMutation } from '@/features/auth';
 import { routes } from '@/shared/config/routes';
-import { Avatar, Breadcrumb, Button, IconButton } from '@/shared/ui';
+import { Avatar, Breadcrumb, Button, Dropdown, IconButton, Menu, MenuDivider, MenuItem } from '@/shared/ui';
 
 import styles from './PageToolbar.module.css';
 
@@ -31,9 +32,20 @@ function useHistoryStack() {
 
 /** Shell / Page toolbar from the product canvas (CToolbar). */
 export function PageToolbar({ crumbs }: { crumbs?: Crumb[] }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const { canBack, canForward } = useHistoryStack();
   const user = useCurrentUser();
+  const logout = useLogoutMutation();
+
+  const handleSignOut = async () => {
+    try {
+      await logout.mutateAsync();
+    } catch {
+      // Local session is cleared in onSettled even if the request fails.
+    }
+    navigate(routes.login);
+  };
 
   return (
     <header className={styles.toolbar}>
@@ -50,11 +62,31 @@ export function PageToolbar({ crumbs }: { crumbs?: Crumb[] }) {
           What&apos;s new
         </Button>
       </span>
-      {user.data && (
-        <Link to={routes.profile} aria-label={`Profile — ${user.data.displayName}`} className={styles.profile}>
-          <Avatar name={user.data.displayName} src={user.data.avatarUrl} size="sm" art={user.data.art} />
-        </Link>
-      )}
+      {user.data ? (
+        <Dropdown
+          align="end"
+          trigger={
+            <button type="button" aria-label={`Account — ${user.data.displayName}`} className={styles.profile}>
+              <Avatar name={user.data.displayName} src={user.data.avatarUrl} size="sm" art={user.data.art} />
+            </button>
+          }
+        >
+          <Menu label="Account" autoFocus>
+            <MenuItem label="Profile" icon="user" onSelect={() => navigate(routes.profile)} />
+            <MenuItem label="Settings" icon="settings" onSelect={() => navigate(routes.settings)} />
+            <MenuDivider />
+            <MenuItem label="Sign out" danger disabled={logout.isPending} onSelect={() => void handleSignOut()} />
+          </Menu>
+        </Dropdown>
+      ) : !user.isPending ? (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => navigate(routes.login, { state: { from: `${location.pathname}${location.search}` } })}
+        >
+          Sign in
+        </Button>
+      ) : null}
     </header>
   );
 }

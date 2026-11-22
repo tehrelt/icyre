@@ -10,7 +10,7 @@
 
 Поднять `apps/web` в Bun workspace на стеке specs: React + TypeScript + Vite.
 
-Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM
+Design System: `design-system/`
 
 ## Задачи
 
@@ -28,7 +28,7 @@ Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: http
 
 - [x] TASK-041.7 ESLint (typescript-eslint, react-hooks, запрет raw HEX в TS), Vitest + RTL.
 
-- [ ] TASK-041.8 React Hook Form — подключить вместе с первой формой (Auth UI / Create playlist).
+- [x] TASK-041.8 React Hook Form — подключить вместе с первой формой (Auth UI / Create playlist).
 
 ## Definition of Done
 

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router';
 
 import { useLibrarySummary } from '@/entities/library/api';
 import { useMyPlaylists } from '@/entities/playlist/api';
+import { useCurrentUser } from '@/entities/user/api';
 import { routes } from '@/shared/config/routes';
 import { Artwork, Logo, SidebarItem, Skeleton } from '@/shared/ui';
 
@@ -10,6 +11,7 @@ import styles from './Sidebar.module.css';
 /** Shell / Sidebar from the product canvas (CSidebar). */
 export function Sidebar() {
   const { pathname } = useLocation();
+  const user = useCurrentUser();
   const library = useLibrarySummary();
   const playlists = useMyPlaylists();
   const isActive = (to: string) => (to === routes.home ? pathname === to : pathname.startsWith(to));
@@ -52,7 +54,11 @@ export function Sidebar() {
       </nav>
 
       <div className={styles.footer}>
-        <SidebarItem icon="user" label="Profile" to={routes.profile} active={isActive(routes.profile)} />
+        {!user.data && !user.isPending ? (
+          <SidebarItem icon="user" label="Sign in" to={routes.login} active={isActive(routes.login)} />
+        ) : (
+          <SidebarItem icon="user" label="Profile" to={routes.profile} active={isActive(routes.profile)} />
+        )}
         <SidebarItem icon="settings" label="Settings" to={routes.settings} active={isActive(routes.settings)} />
       </div>
     </div>

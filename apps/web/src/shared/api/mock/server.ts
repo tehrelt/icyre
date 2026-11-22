@@ -22,7 +22,28 @@ type Handler = (params: Record<string, string>, query: URLSearchParams, ctx: Req
  * for access tokens the mock Auth still accepts. Tests flip these to model
  * anonymous visitors and expired access tokens.
  */
-export const mockAuth = { signedIn: true, tokens: new Set<string>(), issued: 0 };
+export const mockAuth = { signedIn: true, tokens: new Set<string>(), issued: 0, email: 'rin@example.com' };
+
+interface MockAccount {
+  id: string;
+  email: string;
+  password: string;
+  username: string;
+  displayName: string;
+}
+
+export const mockAccounts = new Map<string, MockAccount>([
+  [
+    'rin@example.com',
+    {
+      id: currentUser.id,
+      email: 'rin@example.com',
+      password: 'password1234',
+      username: currentUser.username,
+      displayName: currentUser.displayName,
+    },
+  ],
+]);
 
 /** Saved tracks of the mock listener (Library Service), seeded from the fixtures' liked flags. */
 const likedFixtures = [...prismHoursPage.tracks, ...homeFeed.trending.today, ...homeFeed.trending.week].flatMap((t) => (t?.liked ? [t.id] : []));
@@ -30,17 +51,71 @@ export const mockLibrary = { tracks: new Set<string>(likedFixtures), initial: ne
 
 const unauthorized = (code: string, message: string): MockResponse => ({ status: 401, json: { error: { code, message, requestId: 'mock-auth' } } });
 
-function mockRefresh(): MockResponse {
-  if (!mockAuth.signedIn) return unauthorized('SESSION_EXPIRED', 'Session expired, sign in again');
+function issueTokens(email: string, userId: string) {
   const accessToken = `mock-access-${++mockAuth.issued}`;
   mockAuth.tokens.add(accessToken);
-  return ok({
+  mockAuth.signedIn = true;
+  mockAuth.email = email;
+  return {
     accessToken,
-    tokenType: 'Bearer',
+    tokenType: 'Bearer' as const,
     expiresIn: 900,
     expiresAt: new Date(Date.now() + 900_000).toISOString(),
-    user: { id: currentUser.id, email: 'rin@example.com', roles: ['USER'] },
-  });
+    user: { id: userId, email, roles: ['USER'] },
+  };
+}
+
+function mockRefresh(): MockResponse {
+  if (!mockAuth.signedIn) return unauthorized('SESSION_EXPIRED', 'Session expired, sign in again');
+  const account = mockAccounts.get(mockAuth.email);
+  return ok(issueTokens(account?.email ?? 'rin@example.com', account?.id ?? currentUser.id));
+}
+
+function mockLogin(body: unknown): MockResponse {
+  const raw = (body ?? {}) as { email?: unknown; password?: unknown };
+  const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
+  const password = typeof raw.password === 'string' ? raw.password : '';
+  const account = mockAccounts.get(email);
+  if (!account || account.password !== password) {
+    return unauthorized('INVALID_CREDENTIALS', 'Email or password is incorrect');
+  }
+  return ok(issueTokens(account.email, account.id));
+}
+
+function mockRegister(body: unknown): MockResponse {
+  const raw = (body ?? {}) as { email?: unknown; password?: unknown };
+  const email = typeof raw.email === 'string' ? raw.email.trim().toLowerCase() : '';
+  const password = typeof raw.password === 'string' ? raw.password : '';
+  const fields: Record<string, string> = {};
+  if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fields.email = 'must be a valid email address';
+  }
+  const len = Array.from(password).length;
+  if (len < 10) fields.password = 'must be at least 10 characters';
+  else if (len > 128) fields.password = 'must be at most 128 characters';
+  else if (!password.trim()) fields.password = 'must not be blank';
+  if (Object.keys(fields).length > 0) {
+    return { status: 422, json: { error: { code: 'VALIDATION_FAILED', message: 'Request validation failed', details: { fields } } } };
+  }
+  if (mockAccounts.has(email)) {
+    return { status: 409, json: { error: { code: 'EMAIL_TAKEN', message: 'An account with this email already exists', requestId: 'mock-auth' } } };
+  }
+  const local = email.split('@')[0] || 'listener';
+  const account: MockAccount = {
+    id: `usr-${mockAccounts.size + 1}`,
+    email,
+    password,
+    username: local,
+    displayName: local,
+  };
+  mockAccounts.set(email, account);
+  return { status: 201, json: issueTokens(account.email, account.id) };
+}
+
+function mockCurrentUser(): MockResponse {
+  const account = mockAccounts.get(mockAuth.email);
+  if (!account || account.email === 'rin@example.com') return ok(currentUser);
+  return ok({ ...currentUser, id: account.id, username: account.username, displayName: account.displayName });
 }
 
 function authed(handler: Handler): Handler {
@@ -141,6 +216,8 @@ function albumPage(id: string): MockResponse {
 }
 
 const routes: Array<[method: string, pattern: string, handler: Handler]> = [
+  ['POST', '/auth/login', (_p, _q, ctx) => mockLogin(ctx.body)],
+  ['POST', '/auth/register', (_p, _q, ctx) => mockRegister(ctx.body)],
   ['POST', '/auth/refresh', () => mockRefresh()],
   [
     'POST',
@@ -151,7 +228,7 @@ const routes: Array<[method: string, pattern: string, handler: Handler]> = [
       return { status: 204, json: null };
     },
   ],
-  ['GET', '/users/me', authed(() => ok(currentUser))],
+  ['GET', '/users/me', authed(() => mockCurrentUser())],
   [
     'GET',
     '/me/library/summary',
