@@ -2,7 +2,7 @@
 
 > Проект: **Исследование архитектурных подходов и реализация масштабируемого музыкального стриминг-сервиса**
 
-**Status:** [!] BLOCKED
+**Status:** [x] DONE
 
 **Priority:** P2
 
@@ -10,14 +10,20 @@
 
 Вход/регистрация.
 
-Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM
+Design System: `design-system/` · Макет: `design-system/auth-preview.html`
 
 ## Задачи
 
-- [ ] TASK-051.1 Нет макета в canvas — нужен дизайн (React Hook Form + Zod будут подключены здесь).
+- [x] TASK-051.1 Подключить `react-hook-form` + `@hookform/resolvers` + Zod-схемы (`loginSchema`, `registerSchema`) по контракту Auth Service (`services/auth`).
+
+- [x] TASK-051.2 Реализовать `features/auth` (`AuthForm`, `useLoginMutation`, `useRegisterMutation`, `useLogoutMutation`, `mapAuthError`, индикатор надёжности пароля, toggle видимости пароля) и mock-маршруты `POST /auth/login`, `POST /auth/register`.
+
+- [x] TASK-051.3 Реализовать экран `AuthPage` (`/login`, `/register`) по макету `design-system/auth-preview.html` на компонентах DS (`Logo`, `SegmentedControl`, `Input`, `Checkbox`, `Button`, `FeaturedCard`, `PlaybackState`), меню аккаунта / кнопку `Sign in` в `PageToolbar`.
+
+- [x] TASK-051.4 Покрыть тестами валидацию, маппинг ошибок, вход, регистрацию и выход (`AuthPage.test.tsx`, `authApi.test.ts`).
 
 ## Definition of Done
 
-Макет утверждён в canvas.
+Экраны `/login` и `/register` работают с Auth API и mock-сервером, `bun run typecheck`, `bun run lint`, `bun run test`, `bun run build` проходят.
 
 ---

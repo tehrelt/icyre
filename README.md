@@ -8,8 +8,7 @@
 |---|---|
 | Архитектура и спецификации | [`specs/`](specs/README.md) |
 | План и статусы | [`backlog/`](backlog/README.md), текущий фокус — [`backlog/CURRENT.md`](backlog/CURRENT.md) |
-| Design System | https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT |
-| Продуктовые экраны | https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM |
+| Design System | [`design-system/`](design-system/README.md) |
 
 ## Структура
 

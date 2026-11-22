@@ -1,0 +1,35 @@
+<!-- @dsCard group="Navigation" height=316 subtitle="default · hover · active · disabled" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>SidebarItem — preview</title>
+<style>
+html,body{margin:0}
+body{padding:16px;background:var(--background);color:var(--text-primary);font-family:var(--font-sans);font-size:15px;line-height:22px}
+.pv-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.pv-col{display:flex;flex-direction:column;gap:12px}
+.pv-grid{display:grid;gap:16px}
+.pv-cap{font-family:var(--font-mono);font-size:11px;line-height:14px;font-weight:500;letter-spacing:.02em;color:var(--text-tertiary);min-width:64px}
+.pv-sep{width:1px;height:28px;background:var(--border-subtle);margin:0 4px}
+.pv-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:10px;background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.pv-icon .pv-cap{min-width:0;font-size:10px}
+
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var I = window.Icyre, h = React.createElement;
+function row(){ return h.apply(null, ['div', {className:'pv-row'}].concat([].slice.call(arguments))); }
+function cap(t){ return h('span',{className:'pv-cap'},t); }
+function mount(el){ ReactDOM.createRoot(document.getElementById('root')).render(el); }
+mount(h('div',{style:{width:248,padding:12,background:'var(--background-subtle)',borderRadius:14,display:'flex',flexDirection:'column',gap:2}},
+  h(I.SidebarItem,{icon:'home',label:'Home',active:true}),
+  h(I.SidebarItem,{icon:'search',label:'Search',forceState:'hover'}),
+  h(I.SidebarItem,{icon:'library',label:'Library',count:128}),
+  h(I.SidebarItem,{icon:'heart',label:'Liked Songs',count:342}),
+  h(I.SidebarItem,{icon:'user',label:'Following',disabled:true}),
+  h(I.Divider,{}),
+  h(I.SidebarItem,{art:h(I.Artwork,{art:7}),label:'Late night drives'})
+));
+</script>
+</body>
+</html>

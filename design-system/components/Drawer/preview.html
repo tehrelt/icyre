@@ -1,0 +1,31 @@
+<!-- @dsCard group="Overlays" height=400 subtitle="Side and bottom sheets" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Drawer — preview</title>
+<style>
+html,body{margin:0}
+body{padding:16px;background:var(--background);color:var(--text-primary);font-family:var(--font-sans);font-size:15px;line-height:22px}
+.pv-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.pv-col{display:flex;flex-direction:column;gap:12px}
+.pv-grid{display:grid;gap:16px}
+.pv-cap{font-family:var(--font-mono);font-size:11px;line-height:14px;font-weight:500;letter-spacing:.02em;color:var(--text-tertiary);min-width:64px}
+.pv-sep{width:1px;height:28px;background:var(--border-subtle);margin:0 4px}
+.pv-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:10px;background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.pv-icon .pv-cap{min-width:0;font-size:10px}
+
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var I = window.Icyre, h = React.createElement;
+function row(){ return h.apply(null, ['div', {className:'pv-row'}].concat([].slice.call(arguments))); }
+function cap(t){ return h('span',{className:'pv-cap'},t); }
+function mount(el){ ReactDOM.createRoot(document.getElementById('root')).render(el); }
+var q = [['Glass Tides','Nova Hale',227,'current',0],['Hollow Signal','Kai Frost',198,'next',4],['Pearl Static','Mira Solen',254,'next',7]];
+mount(h('div',{style:{position:'relative',height:368,borderRadius:12,overflow:'hidden',background:'var(--background)'}},
+  h(I.Drawer,{open:true,inline:true,title:'Queue',onClose:function(){}},
+    q.map(function(t,i){ return h(I.QueueItem,{key:i,title:t[0],artist:t[1],duration:t[2],status:t[3],art:t[4]}); }))
+));
+</script>
+</body>
+</html>

@@ -10,7 +10,7 @@
 
 Адаптация по правилам DS: 6/4/2 колонки, sidebar 248 → rail 72 → bottom nav, player 80 → mini 64.
 
-Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM
+Design System: `design-system/`
 
 ## Задачи
 

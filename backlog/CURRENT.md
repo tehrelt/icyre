@@ -89,6 +89,7 @@ Catalog Service — эталон для остальных сервисов (`se
 - [x] EPIC-046 — Home
 - [x] EPIC-047 — Catalog Screens (Album)
 - [x] EPIC-048 — Search
+- [x] EPIC-051 — Auth UI
 - [-] EPIC-052 — Responsive / Mobile
 - [-] EPIC-053 — Frontend testing
 
@@ -96,8 +97,8 @@ Catalog Service — эталон для остальных сервисов (`se
 
 Home и Album работают на реальных данных: Postgres → Catalog → BFF → Gateway → UI (`make seed`);
 сессия восстанавливается из refresh cookie, профиль — из User Profile; плеер играет реальный звук
-(`make seed-media`) по signed URL; поиск идёт через OpenSearch (`search-indexer reindex`). Экранов входа/регистрации в canvas нет
-(EPIC-051 BLOCKED) — войти можно через API (`POST /api/v1/auth/register|login`).
+(`make seed-media`) по signed URL; поиск идёт через OpenSearch (`search-indexer reindex`);
+вход и регистрация работают через `/login` и `/register` (`POST /api/v1/auth/register|login`).
 Недостающие источники данных, по порядку ценности для экранов canvas:
 
 1. Экран плейлиста и его редактирование (EPIC-050 BLOCKED — нет макета; BFF `GET /pages/playlists/{id}` уже есть,

@@ -1,0 +1,86 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  font-weight: 500;
+}
+
+.bannerIcon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.pwMeter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.pwBars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+}
+
+.pwBar {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-pressed);
+  transition: background-color var(--duration-normal) var(--easing-standard);
+}
+
+.pwWeak {
+  background: var(--danger);
+}
+
+.pwFair {
+  background: var(--warning);
+}
+
+.pwGood {
+  background: var(--brand-primary);
+}
+
+.pwStrong {
+  background: var(--success);
+}
+
+.pwMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  color: var(--text-tertiary);
+}
+
+.pwLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.fieldError {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  color: var(--danger);
+  font-weight: 500;
+}
+
+.submit {
+  margin-top: var(--space-1);
+}

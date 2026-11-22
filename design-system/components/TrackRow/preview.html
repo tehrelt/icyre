@@ -1,0 +1,38 @@
+<!-- @dsCard group="Media" height=484 subtitle="default · hover · selected · playing · paused · unavailable · loading" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>TrackRow — preview</title>
+<style>
+html,body{margin:0}
+body{padding:16px;background:var(--background);color:var(--text-primary);font-family:var(--font-sans);font-size:15px;line-height:22px}
+.pv-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.pv-col{display:flex;flex-direction:column;gap:12px}
+.pv-grid{display:grid;gap:16px}
+.pv-cap{font-family:var(--font-mono);font-size:11px;line-height:14px;font-weight:500;letter-spacing:.02em;color:var(--text-tertiary);min-width:64px}
+.pv-sep{width:1px;height:28px;background:var(--border-subtle);margin:0 4px}
+.pv-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:10px;background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.pv-icon .pv-cap{min-width:0;font-size:10px}
+
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var I = window.Icyre, h = React.createElement;
+function row(){ return h.apply(null, ['div', {className:'pv-row'}].concat([].slice.call(arguments))); }
+function cap(t){ return h('span',{className:'pv-cap'},t); }
+function mount(el){ ReactDOM.createRoot(document.getElementById('root')).render(el); }
+var T = [
+  [1,'Glass Tides','Nova Hale','Prism Hours',227,0,'default',{liked:true}],
+  [2,'Hollow Signal','Kai Frost','Hollow Signal',198,4,'hover',{explicit:true}],
+  [3,'Pearl Static','Mira Solen','Pearl Static',254,7,'selected',{badge:'new'}],
+  [4,'Cold Bloom','Aster Vale','Cold Bloom',311,2,'playing',{liked:true}],
+  [5,'Night Index','Lumen Park','Night Index',189,6,'paused',{}],
+  [6,'Frozen Choir','Nova Hale','Prism Hours',240,1,'unavailable',{}],
+  [7,'','','',0,0,'loading',{}]
+];
+mount(h('div',{style:{maxWidth:900}}, h(I.TrackListHeader,{}),
+  T.map(function(t){ return h(I.TrackRow,Object.assign({key:t[0],index:t[0],title:t[1],artist:t[2],album:t[3],duration:t[4],art:t[5],state:t[6]},t[7])); })
+));
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 
 import { AlbumPage } from '@/pages/album';
+import { AuthPage } from '@/pages/auth';
 import { HomePage } from '@/pages/home';
 import { SearchPage } from '@/pages/search';
 import { NotBuiltPage } from '@/pages/not-built/NotBuiltPage';
@@ -8,6 +9,8 @@ import { NotBuiltPage } from '@/pages/not-built/NotBuiltPage';
 import { AppShell } from '../layouts/AppShell';
 
 export const appRoutes: RouteObject[] = [
+  { path: 'login', element: <AuthPage mode="login" /> },
+  { path: 'register', element: <AuthPage mode="register" /> },
   {
     element: <AppShell />,
     children: [

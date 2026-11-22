@@ -1,0 +1,716 @@
+{
+  "manifestVersion": 3,
+  "name": "ICYRE",
+  "namespace": "Icyre",
+  "files": [
+    "assets/Icons/README.md",
+    "assets/Logos/README.md",
+    "components/AlbumCard/README.md",
+    "components/ArtistCard/README.md",
+    "components/Avatar/README.md",
+    "components/Badge/README.md",
+    "components/Breadcrumb/README.md",
+    "components/Button/README.md",
+    "components/Checkbox/README.md",
+    "components/Chip/README.md",
+    "components/ContextMenu/README.md",
+    "components/Divider/README.md",
+    "components/Drawer/README.md",
+    "components/Dropdown/README.md",
+    "components/FeaturedCard/README.md",
+    "components/Icon/README.md",
+    "components/IconButton/README.md",
+    "components/Input/README.md",
+    "components/Logo/README.md",
+    "components/MediaCard/README.md",
+    "components/MobileNavItem/README.md",
+    "components/Modal/README.md",
+    "components/PlaybackState/README.md",
+    "components/PlayerButton/README.md",
+    "components/PlaylistCard/README.md",
+    "components/Popover/README.md",
+    "components/Progress/README.md",
+    "components/ProgressBar/README.md",
+    "components/QueueItem/README.md",
+    "components/RadioGroup/README.md",
+    "components/SearchInput/README.md",
+    "components/SegmentedControl/README.md",
+    "components/Showcase/README.md",
+    "components/SidebarItem/README.md",
+    "components/Skeleton/README.md",
+    "components/Slider/README.md",
+    "components/Spinner/README.md",
+    "components/Surface/README.md",
+    "components/Switch/README.md",
+    "components/Tabs/README.md",
+    "components/Tag/README.md",
+    "components/Textarea/README.md",
+    "components/TimeLabel/README.md",
+    "components/Toast/README.md",
+    "components/Tooltip/README.md",
+    "components/TopNavItem/README.md",
+    "components/TrackRow/README.md",
+    "components/VolumeSlider/README.md",
+    "components/bundle.css",
+    "components/bundle.js",
+    "components/index.d.ts",
+    "components/lib/react-dom.production.min.js",
+    "components/lib/react.production.min.js",
+    "tokens.css"
+  ],
+  "libraries": [
+    {
+      "name": "react",
+      "version": "18",
+      "global": "React",
+      "file": "components/lib/react.production.min.js"
+    },
+    {
+      "name": "react-dom",
+      "version": "18",
+      "global": "ReactDOM",
+      "file": "components/lib/react-dom.production.min.js"
+    }
+  ],
+  "components": [
+    {
+      "name": "Logo",
+      "group": "Brand",
+      "summary": "The ICYRE brand mark — a \"glint card\" symbol (a portrait card outline with a four-point spark) and a stroke-built geometric wordmark."
+    },
+    {
+      "name": "Surface",
+      "group": "Brand",
+      "summary": "The three ICYRE materials: Neutral, Elevated and Collectible — every container is one of them."
+    },
+    {
+      "name": "Icon",
+      "group": "Brand",
+      "summary": "Line icons on a 24px grid with a 1.75 stroke, round caps and joins — one weight across the set."
+    },
+    {
+      "name": "Button",
+      "group": "Actions",
+      "summary": "Text buttons for actions; six variants, three sizes, loading built in."
+    },
+    {
+      "name": "IconButton",
+      "group": "Actions",
+      "summary": "Square icon-only control with an accessible label and toggle support."
+    },
+    {
+      "name": "Input",
+      "group": "Forms",
+      "summary": "Single-line text field with label, hint, error and optional leading icon."
+    },
+    {
+      "name": "SearchInput",
+      "group": "Forms",
+      "summary": "The app-wide pill search field with keyboard shortcut hint and clear button."
+    },
+    {
+      "name": "Textarea",
+      "group": "Forms",
+      "summary": "Multi-line text field with an optional character counter."
+    },
+    {
+      "name": "Checkbox",
+      "group": "Forms",
+      "summary": "Multi-select control with label, description and indeterminate state."
+    },
+    {
+      "name": "RadioGroup",
+      "group": "Forms",
+      "summary": "A fieldset of mutually exclusive options (Radio items)."
+    },
+    {
+      "name": "Switch",
+      "group": "Forms",
+      "summary": "Instant on/off toggle for preferences that apply immediately."
+    },
+    {
+      "name": "Slider",
+      "group": "Forms",
+      "summary": "Accessible range control built on a native input with a custom track."
+    },
+    {
+      "name": "Avatar",
+      "group": "Display",
+      "summary": "Round user/artist image with an initials fallback."
+    },
+    {
+      "name": "Badge",
+      "group": "Display",
+      "summary": "Small status or content marker."
+    },
+    {
+      "name": "Tag",
+      "group": "Display",
+      "summary": "Static metadata label (genre, year, mood), optionally removable."
+    },
+    {
+      "name": "Chip",
+      "group": "Display",
+      "summary": "Pill toggle for filters."
+    },
+    {
+      "name": "Tooltip",
+      "group": "Overlays",
+      "summary": "Short inverse label for icon-only controls, shown on hover/focus after 300ms."
+    },
+    {
+      "name": "Dropdown",
+      "group": "Overlays",
+      "summary": "A trigger that opens a Menu of actions or single-choice options."
+    },
+    {
+      "name": "ContextMenu",
+      "group": "Overlays",
+      "summary": "Right-click menu for tracks, albums and playlists."
+    },
+    {
+      "name": "Popover",
+      "group": "Overlays",
+      "summary": "Non-modal floating panel for small rich content (sleep timer, share, quick settings)."
+    },
+    {
+      "name": "Modal",
+      "group": "Overlays",
+      "summary": "Blocking dialog for confirmations and short focused tasks."
+    },
+    {
+      "name": "Drawer",
+      "group": "Overlays",
+      "summary": "Side (desktop/tablet) or bottom (mobile) sheet for the queue, lyrics and filters."
+    },
+    {
+      "name": "Toast",
+      "group": "Overlays",
+      "summary": "Transient confirmation at the bottom of the screen."
+    },
+    {
+      "name": "Tabs",
+      "group": "Navigation",
+      "summary": "Underline tabs for sections within a page (Overview · Tracks · About)."
+    },
+    {
+      "name": "SegmentedControl",
+      "group": "Navigation",
+      "summary": "Compact switch between 2–5 views of the same content (grid/list, time ranges)."
+    },
+    {
+      "name": "SidebarItem",
+      "group": "Navigation",
+      "summary": "Desktop sidebar navigation row."
+    },
+    {
+      "name": "TopNavItem",
+      "group": "Navigation",
+      "summary": "Header navigation link with a 2px iridescent-progress underline when active."
+    },
+    {
+      "name": "MobileNavItem",
+      "group": "Navigation",
+      "summary": "Bottom navigation item for mobile (≤ 767px)."
+    },
+    {
+      "name": "Breadcrumb",
+      "group": "Navigation",
+      "summary": "Hierarchy trail for deep library pages."
+    },
+    {
+      "name": "Skeleton",
+      "group": "Feedback",
+      "summary": "Shimmering placeholder that mirrors the final layout while content loads."
+    },
+    {
+      "name": "Progress",
+      "group": "Feedback",
+      "summary": "Linear progress for downloads, imports and syncs."
+    },
+    {
+      "name": "Spinner",
+      "group": "Feedback",
+      "summary": "Compact circular busy indicator."
+    },
+    {
+      "name": "Divider",
+      "group": "Feedback",
+      "summary": "Hairline separator, horizontal or vertical, optionally with an overline label."
+    },
+    {
+      "name": "MediaCard",
+      "group": "Media",
+      "summary": "The base card primitive for any media object — artwork in a thin frame plus a two-line meta block."
+    },
+    {
+      "name": "AlbumCard",
+      "group": "Media",
+      "summary": "MediaCard for albums, EPs and singles: square cover, title, \"Artist · Year\"."
+    },
+    {
+      "name": "ArtistCard",
+      "group": "Media",
+      "summary": "MediaCard for artists: circular portrait, centered name and listener count."
+    },
+    {
+      "name": "PlaylistCard",
+      "group": "Media",
+      "summary": "MediaCard for playlists — the cover sits on two offset layers, a stacked \"pile of cards\" that signals a collection."
+    },
+    {
+      "name": "FeaturedCard",
+      "group": "Media",
+      "summary": "The collectible: ICYRE's premium presentation for one featured release."
+    },
+    {
+      "name": "TrackRow",
+      "group": "Media",
+      "summary": "Dense track-list row: index/play, cover, title + artist, album, badge, like, duration, more."
+    },
+    {
+      "name": "PlayerButton",
+      "group": "Player",
+      "summary": "Transport controls: play/pause, previous, next, shuffle, repeat."
+    },
+    {
+      "name": "ProgressBar",
+      "group": "Player",
+      "summary": "Seek bar with elapsed/total time labels and buffered range."
+    },
+    {
+      "name": "VolumeSlider",
+      "group": "Player",
+      "summary": "Mute toggle plus a neutral volume slider."
+    },
+    {
+      "name": "TimeLabel",
+      "group": "Player",
+      "summary": "Monospace, tabular time readout."
+    },
+    {
+      "name": "PlaybackState",
+      "group": "Player",
+      "summary": "Three-bar indicator for playing, paused and buffering."
+    },
+    {
+      "name": "QueueItem",
+      "group": "Player",
+      "summary": "Compact row for the Up Next queue."
+    },
+    {
+      "name": "Showcase",
+      "group": "Examples",
+      "summary": "A full album screen composed only from ICYRE components — the reference for how the system reads at product scale.",
+      "page": true
+    }
+  ],
+  "assetGroups": [
+    {
+      "name": "Logos",
+      "tile": "l",
+      "order": [
+        "icyre-lockup-holo.svg",
+        "icyre-lockup-ink.svg",
+        "icyre-symbol-holo.svg",
+        "icyre-symbol-ink.svg",
+        "icyre-wordmark.svg",
+        "icyre-app-icon.svg"
+      ],
+      "files": [
+        {
+          "path": "assets/Logos/icyre-lockup-holo.svg",
+          "id": "124e8c3a751abd1c2735e4556264ce07"
+        },
+        {
+          "path": "assets/Logos/icyre-lockup-ink.svg",
+          "id": "e690e7f299f79c4ca013543cd5a0baa9"
+        },
+        {
+          "path": "assets/Logos/icyre-symbol-holo.svg",
+          "id": "665a2303916798d22d0e145a9fb24dc8"
+        },
+        {
+          "path": "assets/Logos/icyre-symbol-ink.svg",
+          "id": "695db5d5c6eaa826ddd0f7381566b51e"
+        },
+        {
+          "path": "assets/Logos/icyre-wordmark.svg",
+          "id": "7ff1a686576069a3f8d6d7bed7a25252"
+        },
+        {
+          "path": "assets/Logos/icyre-app-icon.svg",
+          "id": "0a9ee14bbad6db4b13d4d7f38de9a4cf"
+        }
+      ]
+    },
+    {
+      "name": "Icons",
+      "tile": "xs",
+      "order": [
+        "play.svg",
+        "pause.svg",
+        "previous.svg",
+        "next.svg",
+        "shuffle.svg",
+        "repeat.svg",
+        "volume.svg",
+        "mute.svg",
+        "search.svg",
+        "home.svg",
+        "library.svg",
+        "heart.svg",
+        "plus.svg",
+        "more.svg",
+        "queue.svg",
+        "user.svg",
+        "settings.svg",
+        "chevron.svg",
+        "chevron-down.svg",
+        "close.svg",
+        "check.svg",
+        "spark.svg",
+        "trending.svg",
+        "clock.svg",
+        "info.svg",
+        "alert.svg",
+        "check-circle.svg",
+        "grip.svg",
+        "menu.svg"
+      ],
+      "files": [
+        {
+          "path": "assets/Icons/play.svg",
+          "id": "1a6f4ec6283ae6485d8247c098e6e6b9"
+        },
+        {
+          "path": "assets/Icons/pause.svg",
+          "id": "d703d9d925f38ee0de74785178082f19"
+        },
+        {
+          "path": "assets/Icons/previous.svg",
+          "id": "c5c7de13f05808213785c20a2595e084"
+        },
+        {
+          "path": "assets/Icons/next.svg",
+          "id": "7a36c4bd62e99fec3b3fad8f1f0e44d3"
+        },
+        {
+          "path": "assets/Icons/shuffle.svg",
+          "id": "6411fd35794f348b8847111f0767bb12"
+        },
+        {
+          "path": "assets/Icons/repeat.svg",
+          "id": "e83861686a0448f1cff3c8cd327bba96"
+        },
+        {
+          "path": "assets/Icons/volume.svg",
+          "id": "82a89e663fd91332965aaad659e6c397"
+        },
+        {
+          "path": "assets/Icons/mute.svg",
+          "id": "d778c09b9ff1ebb1cf3a0081dea904bc"
+        },
+        {
+          "path": "assets/Icons/search.svg",
+          "id": "f48cefdba91d0591d689c5c7c1af0a10"
+        },
+        {
+          "path": "assets/Icons/home.svg",
+          "id": "6add78865ff90a05d5d85a8bf55d7e00"
+        },
+        {
+          "path": "assets/Icons/library.svg",
+          "id": "49b19a09dc3300ad45da8135999e932e"
+        },
+        {
+          "path": "assets/Icons/heart.svg",
+          "id": "ab9f7749e7e2e2ec93f18f1277b76f31"
+        },
+        {
+          "path": "assets/Icons/plus.svg",
+          "id": "01960bc2dbadffb46e9497849d0df141"
+        },
+        {
+          "path": "assets/Icons/more.svg",
+          "id": "e412423c284f1454826d5a6c555c6c7e"
+        },
+        {
+          "path": "assets/Icons/queue.svg",
+          "id": "5b2c1f6604755e164e5a922512f41fd8"
+        },
+        {
+          "path": "assets/Icons/user.svg",
+          "id": "1434ff57bae52a4f0083b76772238134"
+        },
+        {
+          "path": "assets/Icons/settings.svg",
+          "id": "135e2bfb70ff772a8cf02eeadb1b4941"
+        },
+        {
+          "path": "assets/Icons/chevron.svg",
+          "id": "56cb2807e5de436ba80b3ae87f3d90fd"
+        },
+        {
+          "path": "assets/Icons/chevron-down.svg",
+          "id": "aff7c41d0ed974f6cf0ef79369a630e9"
+        },
+        {
+          "path": "assets/Icons/close.svg",
+          "id": "c3826404761eb7ae77402a88b209c62f"
+        },
+        {
+          "path": "assets/Icons/check.svg",
+          "id": "c3a5af9fe12f544e5c7a0140570906ad"
+        },
+        {
+          "path": "assets/Icons/spark.svg",
+          "id": "8dccdd638f35914d5e85b92adf852675"
+        },
+        {
+          "path": "assets/Icons/trending.svg",
+          "id": "f4db4cd08ad7a58a28091aa90c2c3240"
+        },
+        {
+          "path": "assets/Icons/clock.svg",
+          "id": "530b69c8cd4f6fb593982f5faef6740b"
+        },
+        {
+          "path": "assets/Icons/info.svg",
+          "id": "362230df380b6fe1bcf946fb3602d574"
+        },
+        {
+          "path": "assets/Icons/alert.svg",
+          "id": "4b301ece33efcb0e2111a5e069a05208"
+        },
+        {
+          "path": "assets/Icons/check-circle.svg",
+          "id": "8e324b218004af35636ae1c2b7edbf16"
+        },
+        {
+          "path": "assets/Icons/grip.svg",
+          "id": "25eb4c1c2861f767139e14f1e755f8a6"
+        },
+        {
+          "path": "assets/Icons/menu.svg",
+          "id": "ac37e7490681621962a881cc711aebbe"
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "files": {
+      "assets/Icons/alert.svg": {
+        "store": "blob",
+        "id": "4b301ece33efcb0e2111a5e069a05208",
+        "bytes": 301,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/check-circle.svg": {
+        "store": "blob",
+        "id": "8e324b218004af35636ae1c2b7edbf16",
+        "bytes": 256,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/check.svg": {
+        "store": "blob",
+        "id": "c3a5af9fe12f544e5c7a0140570906ad",
+        "bytes": 215,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/chevron-down.svg": {
+        "store": "blob",
+        "id": "aff7c41d0ed974f6cf0ef79369a630e9",
+        "bytes": 212,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/chevron.svg": {
+        "store": "blob",
+        "id": "56cb2807e5de436ba80b3ae87f3d90fd",
+        "bytes": 212,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/clock.svg": {
+        "store": "blob",
+        "id": "530b69c8cd4f6fb593982f5faef6740b",
+        "bytes": 245,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/close.svg": {
+        "store": "blob",
+        "id": "c3826404761eb7ae77402a88b209c62f",
+        "bytes": 223,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/grip.svg": {
+        "store": "blob",
+        "id": "25eb4c1c2861f767139e14f1e755f8a6",
+        "bytes": 553,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/heart.svg": {
+        "store": "blob",
+        "id": "ab9f7749e7e2e2ec93f18f1277b76f31",
+        "bytes": 284,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/home.svg": {
+        "store": "blob",
+        "id": "6add78865ff90a05d5d85a8bf55d7e00",
+        "bytes": 266,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/info.svg": {
+        "store": "blob",
+        "id": "362230df380b6fe1bcf946fb3602d574",
+        "bytes": 299,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/library.svg": {
+        "store": "blob",
+        "id": "49b19a09dc3300ad45da8135999e932e",
+        "bytes": 270,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/menu.svg": {
+        "store": "blob",
+        "id": "ac37e7490681621962a881cc711aebbe",
+        "bytes": 221,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/more.svg": {
+        "store": "blob",
+        "id": "e412423c284f1454826d5a6c555c6c7e",
+        "bytes": 375,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/mute.svg": {
+        "store": "blob",
+        "id": "d778c09b9ff1ebb1cf3a0081dea904bc",
+        "bytes": 330,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/next.svg": {
+        "store": "blob",
+        "id": "7a36c4bd62e99fec3b3fad8f1f0e44d3",
+        "bytes": 305,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/pause.svg": {
+        "store": "blob",
+        "id": "d703d9d925f38ee0de74785178082f19",
+        "bytes": 293,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/play.svg": {
+        "store": "blob",
+        "id": "1a6f4ec6283ae6485d8247c098e6e6b9",
+        "bytes": 282,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/plus.svg": {
+        "store": "blob",
+        "id": "01960bc2dbadffb46e9497849d0df141",
+        "bytes": 214,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/previous.svg": {
+        "store": "blob",
+        "id": "c5c7de13f05808213785c20a2595e084",
+        "bytes": 307,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/queue.svg": {
+        "store": "blob",
+        "id": "5b2c1f6604755e164e5a922512f41fd8",
+        "bytes": 253,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/repeat.svg": {
+        "store": "blob",
+        "id": "e83861686a0448f1cff3c8cd327bba96",
+        "bytes": 345,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/search.svg": {
+        "store": "blob",
+        "id": "f48cefdba91d0591d689c5c7c1af0a10",
+        "bytes": 245,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/settings.svg": {
+        "store": "blob",
+        "id": "135e2bfb70ff772a8cf02eeadb1b4941",
+        "bytes": 332,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/shuffle.svg": {
+        "store": "blob",
+        "id": "6411fd35794f348b8847111f0767bb12",
+        "bytes": 422,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/spark.svg": {
+        "store": "blob",
+        "id": "8dccdd638f35914d5e85b92adf852675",
+        "bytes": 289,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/trending.svg": {
+        "store": "blob",
+        "id": "f4db4cd08ad7a58a28091aa90c2c3240",
+        "bytes": 247,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/user.svg": {
+        "store": "blob",
+        "id": "1434ff57bae52a4f0083b76772238134",
+        "bytes": 275,
+        "type": "image/svg+xml"
+      },
+      "assets/Icons/volume.svg": {
+        "store": "blob",
+        "id": "82a89e663fd91332965aaad659e6c397",
+        "bytes": 372,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/icyre-app-icon.svg": {
+        "store": "blob",
+        "id": "0a9ee14bbad6db4b13d4d7f38de9a4cf",
+        "bytes": 696,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/icyre-lockup-holo.svg": {
+        "store": "blob",
+        "id": "124e8c3a751abd1c2735e4556264ce07",
+        "bytes": 776,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/icyre-lockup-ink.svg": {
+        "store": "blob",
+        "id": "e690e7f299f79c4ca013543cd5a0baa9",
+        "bytes": 536,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/icyre-symbol-holo.svg": {
+        "store": "blob",
+        "id": "665a2303916798d22d0e145a9fb24dc8",
+        "bytes": 555,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/icyre-symbol-ink.svg": {
+        "store": "blob",
+        "id": "695db5d5c6eaa826ddd0f7381566b51e",
+        "bytes": 315,
+        "type": "image/svg+xml"
+      },
+      "assets/Logos/icyre-wordmark.svg": {
+        "store": "blob",
+        "id": "7ff1a686576069a3f8d6d7bed7a25252",
+        "bytes": 309,
+        "type": "image/svg+xml"
+      }
+    },
+    "blobBytesUsed": 11630
+  }
+}

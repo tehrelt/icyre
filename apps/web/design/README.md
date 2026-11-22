@@ -1,7 +1,7 @@
 # design/
 
-`icyre-tokens.json` — **копия** `project/tokens.json` из ICYRE Design System
-(https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT). Это единственный источник значений токенов во frontend.
+`icyre-tokens.json` — **копия** `design-system/tokens.json` из локальной ICYRE Design System
+(`design-system/`). Это единственный источник значений токенов во frontend.
 
 ```bash
 bun run tokens   # icyre-tokens.json → src/app/styles/tokens.css

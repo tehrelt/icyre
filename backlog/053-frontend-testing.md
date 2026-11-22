@@ -10,7 +10,7 @@
 
 Тестовая пирамида frontend.
 
-Design System: https://claude.ai/artifact/RA7b9Qphfgy2MmAVzsxcDT · Canvas: https://claude.ai/artifact/5GypRL4RmbSQUxEGMDkwfM
+Design System: `design-system/`
 
 ## Задачи
 

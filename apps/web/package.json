@@ -16,9 +16,11 @@
     "tokens": "bun scripts/generate-tokens.ts"
   },
   "dependencies": {
+    "@hookform/resolvers": "^7.0.8",
     "@tanstack/react-query": "^5.103.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-hook-form": "^7.92.0",
     "react-router": "^8.4.0",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"

@@ -289,11 +289,12 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   size?: Size;
   iconStart?: IconName;
   iconEnd?: IconName;
+  endAdornment?: ReactNode;
   forceState?: 'hover' | 'focus';
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, size = 'md', iconStart, iconEnd, forceState, disabled, className, id, 'aria-describedby': describedBy, ...inputProps },
+  { label, hint, error, size = 'md', iconStart, iconEnd, endAdornment, forceState, disabled, className, id, 'aria-describedby': describedBy, ...inputProps },
   forwarded,
 ) {
   const generatedId = useId();
@@ -320,7 +321,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           aria-invalid={error != null ? true : undefined}
           aria-describedby={mergedDescribedBy}
         />
-        {iconEnd ? <Icon name={iconEnd} size={16} className="ic-field-icon" /> : null}
+        {endAdornment ?? (iconEnd ? <Icon name={iconEnd} size={16} className="ic-field-icon" /> : null)}
       </div>
       <FieldHelp id={helpId} hint={hint} error={error} />
     </div>
