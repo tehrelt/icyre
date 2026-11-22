@@ -256,6 +256,58 @@ load-media: ## Load: audio from object storage (signed URL) vs through the backe
 load-all: ## Load: every experiment in a row
 	bun scripts/load-run.ts all $(LOAD_ARGS)
 
+# --- Protobuf / gRPC (EPIC-034) ---------------------------------------------
+
+TOOLS_BIN := .tools/bin
+BUF_VERSION := v1.50.1
+PROTOC_GEN_GO_VERSION := v1.36.12
+PROTOC_GEN_GO_GRPC_VERSION := v1.5.1
+PROTO_BASE_REF ?= origin/main
+
+.PHONY: proto-tools proto proto-lint proto-breaking proto-check
+proto-tools: ## Install pinned buf, protoc-gen-go, and protoc-gen-go-grpc into .tools/bin
+	@mkdir -p "$(TOOLS_BIN)"
+	GOWORK=off GOBIN="$$(pwd)/$(TOOLS_BIN)" go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
+	GOWORK=off GOBIN="$$(pwd)/$(TOOLS_BIN)" go install google.golang.org/protobuf/cmd/protoc-gen-go@$(PROTOC_GEN_GO_VERSION)
+	GOWORK=off GOBIN="$$(pwd)/$(TOOLS_BIN)" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GEN_GO_GRPC_VERSION)
+
+proto: ## Format proto schemas and generate Go/gRPC code into libs/contracts/gen
+	PATH="$$(pwd)/$(TOOLS_BIN):$$PATH" buf format -w
+	PATH="$$(pwd)/$(TOOLS_BIN):$$PATH" buf generate --clean
+
+proto-lint: ## Lint and check formatting of proto schemas
+	PATH="$$(pwd)/$(TOOLS_BIN):$$PATH" buf lint
+	PATH="$$(pwd)/$(TOOLS_BIN):$$PATH" buf format --diff --exit-code
+
+proto-breaking: ## Check proto schemas for breaking changes against PROTO_BASE_REF
+	@set -eu; \
+	tools_bin="$$(pwd)/$(TOOLS_BIN)"; \
+	git rev-parse --verify "$(PROTO_BASE_REF)" >/dev/null 2>&1 || { \
+		echo "proto-breaking: base ref '$(PROTO_BASE_REF)' not found"; \
+		exit 1; \
+	}; \
+	mkdir -p .tools; \
+	tmpdir=$$(mktemp -d .tools/breaking.XXXXXX); \
+	trap 'git worktree remove --force "$$tmpdir/base" >/dev/null 2>&1 || true; rm -rf "$$tmpdir"' EXIT; \
+	git worktree add --detach "$$tmpdir/base" "$(PROTO_BASE_REF)" >/dev/null; \
+	if [ -d "$$tmpdir/base/api/proto" ] && [ -n "$$(find "$$tmpdir/base/api/proto" -name '*.proto' -print -quit)" ]; then \
+		(cd "$$tmpdir/base" && PATH="$$tools_bin:$$PATH" buf build -o ../base.binpb); \
+		PATH="$$tools_bin:$$PATH" buf breaking --against "$$tmpdir/base.binpb"; \
+	else \
+		echo "proto-breaking: no .proto files in $(PROTO_BASE_REF); skipping breaking check (bootstrap)"; \
+	fi
+
+proto-check: ## Verify generated Go/gRPC code in libs/contracts/gen is up to date
+	@set -eu; \
+	mkdir -p .tools; \
+	tmpdir=$$(mktemp -d .tools/check.XXXXXX); \
+	trap 'rm -rf "$$tmpdir"' EXIT; \
+	PATH="$$(pwd)/$(TOOLS_BIN):$$PATH" buf generate -o "$$tmpdir"; \
+	diff -ru libs/contracts/gen "$$tmpdir/libs/contracts/gen" || { \
+		echo "libs/contracts/gen is out of date (run 'make proto' and commit)"; \
+		exit 1; \
+	}
+
 # --- Everything -------------------------------------------------------------
 
 .PHONY: check

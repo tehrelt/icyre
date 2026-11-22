@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package users.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/tehrelt/icyre/libs/contracts/gen/users/v1;usersv1";
+
+message PublicProfile {
+  string id = 1;
+  string username = 2;
+  string display_name = 3;
+  optional string avatar_url = 4;
+  string bio = 5;
+  string country = 6;
+}
+
+message OwnProfile {
+  PublicProfile profile = 1;
+  string language = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+service UsersService {
+  rpc GetPublicProfile(GetPublicProfileRequest) returns (GetPublicProfileResponse);
+  rpc GetMyProfile(GetMyProfileRequest) returns (GetMyProfileResponse);
+  rpc UpdateMyProfile(UpdateMyProfileRequest) returns (UpdateMyProfileResponse);
+}
+
+message GetPublicProfileRequest {
+  string user_id = 1;
+}
+
+message GetPublicProfileResponse {
+  PublicProfile profile = 1;
+}
+
+message GetMyProfileRequest {}
+
+message GetMyProfileResponse {
+  OwnProfile profile = 1;
+}
+
+message UpdateMyProfileRequest {
+  optional string username = 1;
+  optional string display_name = 2;
+  optional string bio = 3;
+  optional string country = 4;
+  optional string language = 5;
+}
+
+message UpdateMyProfileResponse {
+  OwnProfile profile = 1;
+}

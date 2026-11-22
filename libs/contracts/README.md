@@ -12,7 +12,8 @@
   версионные миграции и retention — общий контракт Analytics Worker и читателей агрегатов;
 - `recommendation` — ключи Redis (`recommendations:user:{id}`, `recommendations:popular`) и JSON готового набора —
   общий контракт Recommendation Worker и Recommendation Service;
-- далее здесь появится код, сгенерированный из `api/proto` (gRPC, EPIC-034).
+- `gen` (`gen/catalog/v1`, `gen/users/v1`, `gen/playback/v1`) — сгенерированный Go/gRPC-код из `api/proto` (EPIC-034).
+  Правила обратной совместимости `v1` и эволюции до `v2` описаны в [api/proto/README.md](../../api/proto/README.md).
 
 Это **не** склад DTO: сюда попадает только то, что пересекает границу сервиса
 (Kafka, gRPC). HTTP DTO и доменные сущности живут внутри своих сервисов.

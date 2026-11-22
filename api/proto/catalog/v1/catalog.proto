@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package catalog.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/tehrelt/icyre/libs/contracts/gen/catalog/v1;catalogv1";
+
+enum AlbumType {
+  ALBUM_TYPE_UNSPECIFIED = 0;
+  ALBUM_TYPE_ALBUM = 1;
+  ALBUM_TYPE_EP = 2;
+  ALBUM_TYPE_SINGLE = 3;
+  ALBUM_TYPE_COMPILATION = 4;
+}
+
+enum TrackStatus {
+  TRACK_STATUS_UNSPECIFIED = 0;
+  TRACK_STATUS_DRAFT = 1;
+  TRACK_STATUS_PROCESSING = 2;
+  TRACK_STATUS_READY = 3;
+  TRACK_STATUS_BLOCKED = 4;
+  TRACK_STATUS_DELETED = 5;
+}
+
+message Artist {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message Album {
+  string id = 1;
+  string title = 2;
+  AlbumType album_type = 3;
+  string release_date = 4;
+  repeated string artist_ids = 5;
+  repeated string genre_ids = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+message Track {
+  string id = 1;
+  string album_id = 2;
+  repeated string artist_ids = 3;
+  string title = 4;
+  int64 duration_ms = 5;
+  int32 track_number = 6;
+  int32 disc_number = 7;
+  bool explicit = 8;
+  optional string isrc = 9;
+  TrackStatus status = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+message Genre {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+}
+
+service CatalogService {
+  rpc GetArtist(GetArtistRequest) returns (GetArtistResponse);
+  rpc GetAlbum(GetAlbumRequest) returns (GetAlbumResponse);
+  rpc GetTrack(GetTrackRequest) returns (GetTrackResponse);
+  rpc BatchGetArtists(BatchGetArtistsRequest) returns (BatchGetArtistsResponse);
+  rpc BatchGetTracks(BatchGetTracksRequest) returns (BatchGetTracksResponse);
+  rpc ListAlbums(ListAlbumsRequest) returns (ListAlbumsResponse);
+  rpc ListArtistAlbums(ListArtistAlbumsRequest) returns (ListArtistAlbumsResponse);
+  rpc ListAlbumTracks(ListAlbumTracksRequest) returns (ListAlbumTracksResponse);
+  rpc ListGenres(ListGenresRequest) returns (ListGenresResponse);
+}
+
+message GetArtistRequest {
+  string artist_id = 1;
+}
+
+message GetArtistResponse {
+  Artist artist = 1;
+}
+
+message GetAlbumRequest {
+  string album_id = 1;
+}
+
+message GetAlbumResponse {
+  Album album = 1;
+}
+
+message GetTrackRequest {
+  string track_id = 1;
+}
+
+message GetTrackResponse {
+  Track track = 1;
+}
+
+message BatchGetArtistsRequest {
+  repeated string artist_ids = 1;
+}
+
+message BatchGetArtistsResponse {
+  repeated Artist artists = 1;
+}
+
+message BatchGetTracksRequest {
+  repeated string track_ids = 1;
+}
+
+message BatchGetTracksResponse {
+  repeated Track tracks = 1;
+}
+
+message ListAlbumsRequest {
+  optional int32 limit = 1;
+  string cursor = 2;
+}
+
+message ListAlbumsResponse {
+  repeated Album albums = 1;
+  optional string next_cursor = 2;
+}
+
+message ListArtistAlbumsRequest {
+  string artist_id = 1;
+  optional int32 limit = 2;
+  string cursor = 3;
+}
+
+message ListArtistAlbumsResponse {
+  repeated Album albums = 1;
+  optional string next_cursor = 2;
+}
+
+message ListAlbumTracksRequest {
+  string album_id = 1;
+}
+
+message ListAlbumTracksResponse {
+  repeated Track tracks = 1;
+}
+
+message ListGenresRequest {}
+
+message ListGenresResponse {
+  repeated Genre genres = 1;
+}
