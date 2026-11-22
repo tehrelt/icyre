@@ -2,7 +2,7 @@
 
 > Проект: **Исследование архитектурных подходов и реализация масштабируемого музыкального стриминг-сервиса**
 
-**Status:** [-] IN PROGRESS
+**Status:** [x] DONE
 
 **Priority:** P0
 
@@ -10,7 +10,7 @@
 
 Плеер: UI → Player Store → Controller → Audio Engine → HTMLAudioElement. Аудио идёт из CDN по signed URL.
 
-Design System: `design-system/`
+Design System: `design-system/` · Макет: `design-system/player-preview.html`
 
 ## Задачи
 
@@ -26,7 +26,7 @@ Design System: `design-system/`
 
 - [x] TASK-045.6 Stream Authorization API (EPIC-017) вместо mock `/playback/tracks/{id}/stream`.
 
-- [ ] TASK-045.7 Queue drawer, like, device picker, expanded player (нужны макеты).
+- [x] TASK-045.7 Queue drawer, like, device picker, expanded player (нужны макеты).
 
 - [x] TASK-045.8 Media Session API, горячие клавиши, сохранение громкости.
 

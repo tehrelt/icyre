@@ -57,11 +57,11 @@ describe('Home screen', () => {
 
 describe('App shell', () => {
   it('keeps playback running across navigation', async () => {
-    const { router } = renderApp('/');
+    renderApp('/');
     await userEvent.click(await screen.findByRole('button', { name: 'Play album' }));
     await waitFor(() => expect(usePlayerStore.getState().isPlaying).toBe(true));
 
-    await router.navigate('/library');
+    await userEvent.click(screen.getByRole('link', { name: 'Settings' }));
     expect(await screen.findByRole('heading', { name: "This screen isn't built yet" })).toBeInTheDocument();
     const player = screen.getByRole('region', { name: 'Player' });
     expect(within(player).getByText('Mira Solen')).toBeInTheDocument();

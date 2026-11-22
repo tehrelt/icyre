@@ -101,12 +101,45 @@ export function bindPlayer(store: UseBoundStore<StoreApi<PlayerStore>>, engine: 
     if (store.getState().isPlaying) await engine.play();
   };
 
+  let deviceChain: Promise<void> = Promise.resolve();
+
+  const applyOutputDevice = (deviceId: string, requestId: number, fallbackDeviceId?: string) => {
+    deviceChain = deviceChain.then(async () => {
+      if (disposed) return;
+      if (!engine.setOutputDevice) {
+        if (deviceId === 'default') {
+          store.getState().engineOutputDevice('default', requestId);
+        } else {
+          store.getState().engineOutputDeviceError('Output switching is not supported in this browser', requestId, fallbackDeviceId);
+        }
+        return;
+      }
+      try {
+        await engine.setOutputDevice(deviceId);
+        if (!disposed) store.getState().engineOutputDevice(deviceId, requestId);
+      } catch {
+        if (!disposed) store.getState().engineOutputDeviceError('Could not switch audio output', requestId, fallbackDeviceId);
+      }
+    });
+  };
+
   const initial = store.getState();
   engine.setVolume(initial.volume / 100, initial.muted);
+  if (initial.outputDeviceId !== 'default') {
+    applyOutputDevice(initial.outputDeviceId, -1, 'default');
+  }
+  if (initial.pendingOutputDeviceId !== null && initial.outputDeviceRequest) {
+    applyOutputDevice(initial.outputDeviceRequest.deviceId, initial.outputDeviceRequest.id);
+  }
 
   const unsubscribeStore = store.subscribe((s, prev) => {
-    if (s.loadId !== prev.loadId && s.currentTrack) {
-      void load(s.currentTrack, s.loadId);
+    if (s.loadId !== prev.loadId) {
+      if (s.currentTrack) {
+        void load(s.currentTrack, s.loadId);
+      } else {
+        grant = null;
+        engine.pause();
+      }
       return; // load() applies isPlaying itself
     }
     if (s.isPlaying !== prev.isPlaying) {
@@ -115,6 +148,9 @@ export function bindPlayer(store: UseBoundStore<StoreApi<PlayerStore>>, engine: 
     }
     if (s.seekRequest && s.seekRequest !== prev.seekRequest) engine.seek(s.seekRequest.at);
     if (s.volume !== prev.volume || s.muted !== prev.muted) engine.setVolume(s.volume / 100, s.muted);
+    if (s.outputDeviceRequest && s.outputDeviceRequest !== prev.outputDeviceRequest) {
+      void applyOutputDevice(s.outputDeviceRequest.deviceId, s.outputDeviceRequest.id);
+    }
   });
 
   return () => {

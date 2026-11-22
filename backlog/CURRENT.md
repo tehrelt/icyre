@@ -85,10 +85,11 @@ Catalog Service — эталон для остальных сервисов (`se
 - [x] EPIC-042 — Design Tokens
 - [x] EPIC-043 — Core UI Components
 - [x] EPIC-044 — Application Shell
-- [-] EPIC-045 — Global Player
+- [x] EPIC-045 — Global Player
 - [x] EPIC-046 — Home
 - [x] EPIC-047 — Catalog Screens (Album)
 - [x] EPIC-048 — Search
+- [x] EPIC-049 — Library
 - [x] EPIC-051 — Auth UI
 - [-] EPIC-052 — Responsive / Mobile
 - [-] EPIC-053 — Frontend testing

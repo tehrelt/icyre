@@ -338,6 +338,7 @@
 .ic-menu-heading { padding: var(--space-2) var(--space-2) var(--space-1); font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--text-tertiary); }
 .ic-dropdown { position: relative; display: inline-block; }
 .ic-dropdown-panel { position: absolute; top: calc(100% + 6px); z-index: var(--z-dropdown); }
+.ic-dropdown-panel-top { top: auto; bottom: calc(100% + 8px); }
 .ic-align-start { left: 0; } .ic-align-end { right: 0; }
 .ic-context { position: relative; }
 .ic-context-panel { position: absolute; z-index: var(--z-dropdown); }

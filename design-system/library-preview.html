@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ICYRE Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./components/bundle.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--background);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--type-body-size);
+    line-height: var(--type-body-line);
+    -webkit-font-smoothing: antialiased;
+  }
+  .lib-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  .lib-side {
+    background: var(--background-subtle);
+    border-right: var(--border-hairline) solid var(--border-subtle);
+    padding: var(--space-5) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .lib-logo { padding: var(--space-1) var(--space-3) var(--space-2); }
+  .lib-nav { display: flex; flex-direction: column; gap: 2px; }
+  .lib-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .lib-toolbar {
+    height: 64px;
+    padding: 0 var(--gutter-desktop);
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    background: rgba(245, 247, 250, 0.86);
+    backdrop-filter: blur(12px);
+  }
+  .lib-page {
+    padding: var(--space-8) var(--gutter-desktop) var(--space-16);
+    max-width: var(--container-max);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+  }
+  .lib-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-6);
+    flex-wrap: wrap;
+  }
+  .lib-head-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .lib-title {
+    margin: 0;
+    font-size: var(--type-h1-size);
+    line-height: var(--type-h1-line);
+    font-weight: var(--type-h1-weight);
+    letter-spacing: var(--type-h1-tracking);
+  }
+  .lib-filter { width: 320px; max-width: 100%; }
+  .lib-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    border-bottom: var(--border-hairline) solid var(--border-subtle);
+  }
+  .lib-controls .ic-tabs { border-bottom: 0; }
+  .lib-spotlight {
+    display: grid;
+    grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+    gap: var(--space-6);
+    align-items: center;
+  }
+  .lib-spotlight-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .lib-spotlight-title {
+    margin: 0;
+    font-size: var(--type-h2-size);
+    line-height: var(--type-h2-line);
+    font-weight: var(--type-h2-weight);
+    letter-spacing: var(--type-h2-tracking);
+  }
+  .lib-spotlight-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+  .lib-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .lib-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .lib-section-title {
+    margin: 0;
+    font-size: var(--type-h3-size);
+    line-height: var(--type-h3-line);
+    font-weight: var(--type-h3-weight);
+    letter-spacing: var(--type-h3-tracking);
+  }
+  .lib-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--gap-grid);
+  }
+  @media (max-width: 1199px) {
+    .lib-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .lib-spotlight { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 767px) {
+    .lib-shell { grid-template-columns: minmax(0, 1fr); }
+    .lib-side { display: none; }
+    .lib-page { padding: var(--space-5) var(--gutter-mobile) var(--space-10); }
+    .lib-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="./components/lib/react.production.min.js"></script>
+<script src="./components/lib/react-dom.production.min.js"></script>
+<script src="./components/bundle.js"></script>
+<script>
+  var I = window.Icyre;
+  var h = React.createElement;
+
+  function App() {
+    var _useState = React.useState('all'), tab = _useState[0], setTab = _useState[1];
+    var _useSort = React.useState('recent'), sort = _useSort[0], setSort = _useSort[1];
+
+    return h('div', { className: 'lib-shell' },
+      h('aside', { className: 'lib-side' },
+        h('div', { className: 'lib-logo' }, h(I.Logo, { height: 26 })),
+        h('nav', { className: 'lib-nav' },
+          h(I.SidebarItem, { icon: 'home', label: 'Home' }),
+          h(I.SidebarItem, { icon: 'search', label: 'Search' }),
+          h(I.SidebarItem, { icon: 'library', label: 'Library', count: 128, active: true }),
+          h(I.SidebarItem, { icon: 'heart', label: 'Liked tracks', count: 342 })
+        )
+      ),
+      h('main', { className: 'lib-main' },
+        h('header', { className: 'lib-toolbar' },
+          h(I.Breadcrumb, { items: [{ label: 'Home' }, { label: 'Library' }] }),
+          h(I.Avatar, { name: 'Rin Aoki', size: 'sm', art: 7 })
+        ),
+        h('div', { className: 'lib-page' },
+          h('section', { className: 'lib-head' },
+            h('div', { className: 'lib-head-text' },
+              h('span', { className: 'ic-overline' }, 'Personal archive'),
+              h('h1', { className: 'lib-title' }, 'Your library'),
+              h('span', { className: 'ic-meta' }, '5 playlists · 128 albums · 6 artists · 342 liked tracks')
+            ),
+            h('div', { className: 'lib-filter' },
+              h(I.SearchInput, { size: 'md', placeholder: 'Filter library', shortcut: '' })
+            )
+          ),
+          h('div', { className: 'lib-controls' },
+            h(I.Tabs, {
+              size: 'lg',
+              value: tab,
+              onChange: setTab,
+              items: [
+                { id: 'all', label: 'All' },
+                { id: 'playlists', label: 'Playlists', count: 5 },
+                { id: 'albums', label: 'Albums', count: 6 },
+                { id: 'artists', label: 'Artists', count: 6 },
+                { id: 'tracks', label: 'Liked tracks', count: 6 }
+              ]
+            }),
+            h(I.SegmentedControl, {
+              size: 'sm',
+              value: sort,
+              onChange: setSort,
+              options: [
+                { value: 'recent', label: 'Recent' },
+                { value: 'alpha', label: 'A–Z' }
+              ]
+            })
+          ),
+          h(I.Surface, { material: 'collectible', padding: 'lg' },
+            h('div', { className: 'lib-spotlight' },
+              h('div', { className: 'lib-spotlight-copy' },
+                h('span', { className: 'ic-overline' }, 'Liked tracks · 342 saved'),
+                h('h2', { className: 'lib-spotlight-title' }, 'Your saved songs'),
+                h('span', { className: 'ic-meta' }, 'Glass Tides · Slow Aurora · Lanterns Out'),
+                h('div', { className: 'lib-spotlight-actions' },
+                  h(I.Button, { variant: 'iridescent', size: 'md', iconStart: 'play' }, 'Play liked'),
+                  h(I.Button, { variant: 'secondary', size: 'md' }, 'Open all')
+                )
+              ),
+              h('div', null,
+                h(I.TrackRow, { index: 1, title: 'Glass Tides', artist: 'Nova Hale', album: 'Prism Hours', duration: 227, art: 0, liked: true }),
+                h(I.TrackRow, { index: 2, title: 'Slow Aurora', artist: 'Nova Hale', album: 'Prism Hours', duration: 311, art: 0, liked: true }),
+                h(I.TrackRow, { index: 3, title: 'Lanterns Out', artist: 'Mira Solen', album: 'Salt Lanterns', duration: 214, art: 2, liked: true })
+              )
+            )
+          ),
+          h('section', { className: 'lib-section' },
+            h('div', { className: 'lib-section-head' },
+              h('h2', { className: 'lib-section-title' }, 'Playlists'),
+              h(I.Button, { variant: 'ghost', size: 'sm', iconEnd: 'chevron' }, 'See all')
+            ),
+            h('div', { className: 'lib-grid' },
+              h(I.PlaylistCard, { title: 'Late night drives', owner: 'Rin Aoki', trackCount: 48, art: 7 }),
+              h(I.PlaylistCard, { title: 'Deep focus', owner: 'Rin Aoki', trackCount: 112, art: 5 }),
+              h(I.PlaylistCard, { title: 'Run club', owner: 'Rin Aoki', trackCount: 36, art: 4 }),
+              h(I.PlaylistCard, { title: 'Glass & grain', owner: 'ICYRE', trackCount: 45, art: 2 }),
+              h(I.PlaylistCard, { title: 'Archive 2025', owner: 'Rin Aoki', trackCount: 204, art: 3 })
+            )
+          ),
+          h('section', { className: 'lib-section' },
+            h('div', { className: 'lib-section-head' },
+              h('h2', { className: 'lib-section-title' }, 'Saved albums'),
+              h(I.Button, { variant: 'ghost', size: 'sm', iconEnd: 'chevron' }, 'See all')
+            ),
+            h('div', { className: 'lib-grid' },
+              h(I.AlbumCard, { title: 'Prism Hours', artist: 'Nova Hale', year: 2026, art: 0 }),
+              h(I.AlbumCard, { title: 'Salt Lanterns', artist: 'Mira Solen', year: 2026, art: 2 }),
+              h(I.AlbumCard, { title: 'Hollow Signal', artist: 'Kai Frost', year: 2025, art: 4, explicit: true }),
+              h(I.AlbumCard, { title: 'Winter Index', artist: 'Nova Hale', year: 2024, art: 3 }),
+              h(I.AlbumCard, { title: 'Lowlight Atlas', artist: 'Halcyon Ward', year: 2026, art: 6 }),
+              h(I.AlbumCard, { title: 'Quiet Machines', artist: 'Lumen Park', year: 2024, art: 3 })
+            )
+          ),
+          h('section', { className: 'lib-section' },
+            h('div', { className: 'lib-section-head' },
+              h('h2', { className: 'lib-section-title' }, 'Followed artists'),
+              h(I.Button, { variant: 'ghost', size: 'sm', iconEnd: 'chevron' }, 'See all')
+            ),
+            h('div', { className: 'lib-grid' },
+              h(I.ArtistCard, { name: 'Nova Hale', listeners: '1.2M', art: 3 }),
+              h(I.ArtistCard, { name: 'Kai Frost', listeners: '640K', art: 4 }),
+              h(I.ArtistCard, { name: 'Mira Solen', listeners: '212K', art: 2 }),
+              h(I.ArtistCard, { name: 'Ines Mora', listeners: '88K', art: 0 }),
+              h(I.ArtistCard, { name: 'Lumen Park', listeners: '304K', art: 6 }),
+              h(I.ArtistCard, { name: 'Tove Marin', listeners: '157K', art: 7 })
+            )
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>

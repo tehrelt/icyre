@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ICYRE Player</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./components/bundle.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--background);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--type-body-size);
+    line-height: var(--type-body-line);
+    -webkit-font-smoothing: antialiased;
+  }
+  .pl-page {
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: var(--space-8) var(--gutter-desktop) var(--space-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+  }
+  .pl-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-6);
+    flex-wrap: wrap;
+  }
+  .pl-title {
+    margin: var(--space-1) 0 0;
+    font-size: var(--type-h1-size);
+    line-height: var(--type-h1-line);
+    font-weight: var(--type-h1-weight);
+    letter-spacing: var(--type-h1-tracking);
+  }
+  .pl-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .pl-section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .pl-section-title {
+    margin: 0;
+    font-size: var(--type-h3-size);
+    line-height: var(--type-h3-line);
+    font-weight: var(--type-h3-weight);
+    letter-spacing: var(--type-h3-tracking);
+  }
+  .pl-grid-2 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+    gap: var(--space-6);
+    align-items: start;
+  }
+  .pl-stage {
+    position: relative;
+    border-radius: var(--radius-lg);
+    border: var(--border-hairline) solid var(--border-subtle);
+    background:
+      radial-gradient(70% 100% at 18% 0%, rgba(141, 154, 214, 0.16) 0%, rgba(207, 233, 243, 0.1) 40%, rgba(245, 247, 250, 0) 75%),
+      var(--background);
+    padding: var(--space-6);
+    overflow: hidden;
+  }
+  .pl-expanded {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+    gap: var(--space-8);
+    align-items: center;
+  }
+  .pl-expanded-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-5);
+    max-width: 440px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .pl-expanded-top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+  .pl-art-frame {
+    width: min(320px, 100%);
+    aspect-ratio: 1;
+    padding: var(--space-1);
+    border-radius: var(--radius-card);
+    border: var(--border-thick) solid transparent;
+    background: var(--iridescent-soft) padding-box, var(--iridescent-foil) border-box;
+    box-shadow: var(--shadow-collectible);
+  }
+  .pl-art-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: var(--border-hairline) solid rgba(211, 217, 227, 0.8);
+  }
+  .pl-track-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+  .pl-track-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pl-track-title {
+    margin: 0;
+    font-size: var(--type-h2-size);
+    line-height: var(--type-h2-line);
+    font-weight: var(--type-h2-weight);
+    letter-spacing: var(--type-h2-tracking);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .pl-track-sub {
+    font-size: var(--type-body-size);
+    color: var(--text-secondary);
+  }
+  .pl-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+  }
+  .pl-util {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding-top: var(--space-2);
+  }
+  .pl-queue-panel {
+    background: var(--surface-raised);
+    border: var(--border-hairline) solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .pl-queue-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .pl-queue-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-2) var(--space-1);
+  }
+  .pl-drawer-frame {
+    position: relative;
+    height: 520px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: var(--border-hairline) solid var(--border-subtle);
+    background: var(--background-subtle);
+  }
+  .pl-device-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .pl-device-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    border: var(--border-hairline) solid transparent;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: var(--text-primary);
+  }
+  .pl-device-row:hover { background: var(--surface-hover); }
+  .pl-device-row.is-selected {
+    background: var(--iridescent-selected);
+    border-color: rgba(61, 92, 255, 0.2);
+  }
+  .pl-device-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .pl-device-name {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+  }
+  .pl-device-row.is-selected .pl-device-name { color: var(--text-brand); }
+  .pl-device-kind {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-tertiary);
+  }
+  .pl-bar {
+    height: var(--player-height);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-6);
+    padding: 0 var(--space-6);
+    background: var(--surface-raised);
+    border: var(--border-hairline) solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-floating);
+  }
+  .pl-bar-now { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+  .pl-bar-cover { width: 48px; height: 48px; border-radius: var(--radius-sm); overflow: hidden; flex: none; }
+  .pl-bar-meta { min-width: 0; display: flex; flex-direction: column; }
+  .pl-bar-title { font-size: 15px; line-height: 20px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-bar-artist { font-size: 13px; line-height: 18px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-bar-center { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; max-width: 560px; justify-self: center; }
+  .pl-bar-side { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+  @media (max-width: 1023px) {
+    .pl-grid-2, .pl-expanded { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 767px) {
+    .pl-page { padding: var(--space-5) var(--gutter-mobile) var(--space-10); }
+    .pl-bar { grid-template-columns: minmax(0, 1fr) auto; height: 64px; padding: 0 var(--space-3); }
+    .pl-bar-side, .pl-bar-center .ic-seek { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="./components/lib/react.production.min.js"></script>
+<script src="./components/lib/react-dom.production.min.js"></script>
+<script src="./components/bundle.js"></script>
+<script>
+  var I = window.Icyre;
+  var h = React.createElement;
+
+  function DeviceGlyph() {
+    return h('svg', { className: 'ic-icon', width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('rect', { x: 6, y: 3.5, width: 12, height: 17, rx: 2.5 }),
+      h('circle', { cx: 12, cy: 14, r: 3 }),
+      h('path', { d: 'M12 7.5h.01' })
+    );
+  }
+
+  function ExpandGlyph() {
+    return h('svg', { className: 'ic-icon', width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true },
+      h('path', { d: 'M14.5 4.5h5v5' }),
+      h('path', { d: 'M9.5 19.5h-5v-5' }),
+      h('path', { d: 'M19.5 4.5 14 10' }),
+      h('path', { d: 'M4.5 19.5 10 14' })
+    );
+  }
+
+  var DEVICES = [
+    { id: 'default', name: 'System default', kind: 'Built-in speakers · Active' },
+    { id: 'studio-dac', name: 'USB-C Reference DAC', kind: 'External audio output · 24-bit' },
+    { id: 'headphones', name: 'Studio Headphones', kind: 'Bluetooth audio output' }
+  ];
+
+  function App() {
+    var _liked = React.useState(true), liked = _liked[0], setLiked = _liked[1];
+    var _playing = React.useState(true), playing = _playing[0], setPlaying = _playing[1];
+    var _shuffle = React.useState(false), shuffle = _shuffle[0], setShuffle = _shuffle[1];
+    var _repeat = React.useState('all'), repeat = _repeat[0], setRepeat = _repeat[1];
+    var _pos = React.useState(94), pos = _pos[0], setPos = _pos[1];
+    var _vol = React.useState(72), vol = _vol[0], setVol = _vol[1];
+    var _muted = React.useState(false), muted = _muted[0], setMuted = _muted[1];
+    var _device = React.useState('default'), device = _device[0], setDevice = _device[1];
+
+    return h('div', { className: 'pl-page' },
+      h('header', { className: 'pl-head' },
+        h('div', null,
+          h('span', { className: 'ic-overline' }, 'EPIC-045 · TASK-045.7'),
+          h('h1', { className: 'pl-title' }, 'Global player surfaces')
+        ),
+        h(I.Logo, { height: 26 })
+      ),
+
+      h('section', { className: 'pl-section' },
+        h('div', { className: 'pl-section-head' },
+          h('h2', { className: 'pl-section-title' }, 'Player bar'),
+          h('span', { className: 'ic-meta' }, 'Like · Queue · Device picker · Expand')
+        ),
+        h('div', { className: 'pl-bar' },
+          h('div', { className: 'pl-bar-now' },
+            h('div', { className: 'pl-bar-cover' }, h(I.Artwork, { art: 0 })),
+            h('div', { className: 'pl-bar-meta' },
+              h('span', { className: 'pl-bar-title' }, 'Glass Tides'),
+              h('span', { className: 'pl-bar-artist' }, 'Nova Hale')
+            ),
+            h(I.IconButton, {
+              icon: 'heart',
+              size: 'sm',
+              variant: liked ? 'active' : 'neutral',
+              pressed: liked,
+              label: liked ? 'Remove from Liked tracks' : 'Save to Liked tracks',
+              onClick: function () { setLiked(!liked); }
+            })
+          ),
+          h('div', { className: 'pl-bar-center' },
+            h('div', { className: 'pl-controls' },
+              h(I.PlayerButton, { kind: 'shuffle', active: shuffle, onClick: function () { setShuffle(!shuffle); } }),
+              h(I.PlayerButton, { kind: 'previous' }),
+              h(I.PlayerButton, { kind: 'play', playing: playing, onClick: function () { setPlaying(!playing); } }),
+              h(I.PlayerButton, { kind: 'next' }),
+              h(I.PlayerButton, { kind: 'repeat', repeatMode: repeat, onClick: function () { setRepeat(repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off'); } })
+            ),
+            h(I.ProgressBar, { duration: 227, position: pos, buffered: 180, onSeek: setPos })
+          ),
+          h('div', { className: 'pl-bar-side' },
+            h(I.IconButton, { icon: 'queue', size: 'sm', variant: 'active', pressed: true, label: 'Queue' }),
+            h('button', { type: 'button', className: 'ic-iconbtn ic-iconbtn-active ic-iconbtn-sm', 'aria-label': 'Connect to a device' }, h(DeviceGlyph)),
+            h(I.VolumeSlider, { value: vol, muted: muted, onChange: setVol, onMutedChange: setMuted, width: 96 }),
+            h('button', { type: 'button', className: 'ic-iconbtn ic-iconbtn-neutral ic-iconbtn-sm', 'aria-label': 'Open expanded player' }, h(ExpandGlyph))
+          )
+        )
+      ),
+
+      h('section', { className: 'pl-section' },
+        h('div', { className: 'pl-section-head' },
+          h('h2', { className: 'pl-section-title' }, 'Expanded player'),
+          h('span', { className: 'ic-meta' }, 'Full-stage listening view + Up next')
+        ),
+        h('div', { className: 'pl-stage' },
+          h('div', { className: 'pl-expanded-top' },
+            h('div', null,
+              h('span', { className: 'ic-overline' }, 'Playing from album'),
+              h('div', { className: 'ic-meta' }, 'Prism Hours · No. 014')
+            ),
+            h(I.IconButton, { icon: 'chevron-down', label: 'Collapse player' })
+          ),
+          h('div', { className: 'pl-expanded' },
+            h('div', { className: 'pl-expanded-main' },
+              h('div', { className: 'pl-art-frame' },
+                h('div', { className: 'pl-art-inner' }, h(I.Artwork, { art: 0 }))
+              ),
+              h('div', { className: 'pl-track-head' },
+                h('div', { className: 'pl-track-meta' },
+                  h('h3', { className: 'pl-track-title' }, 'Glass Tides', h(I.Badge, { tone: 'explicit' })),
+                  h('span', { className: 'pl-track-sub' }, 'Nova Hale · Prism Hours')
+                ),
+                h(I.IconButton, {
+                  icon: 'heart',
+                  size: 'md',
+                  variant: liked ? 'active' : 'neutral',
+                  pressed: liked,
+                  label: liked ? 'Remove from Liked tracks' : 'Save to Liked tracks',
+                  onClick: function () { setLiked(!liked); }
+                })
+              ),
+              h(I.ProgressBar, { duration: 227, position: pos, buffered: 180, onSeek: setPos }),
+              h('div', { className: 'pl-controls' },
+                h(I.PlayerButton, { kind: 'shuffle', active: shuffle, onClick: function () { setShuffle(!shuffle); } }),
+                h(I.PlayerButton, { kind: 'previous' }),
+                h(I.PlayerButton, { kind: 'play', size: 'lg', playing: playing, onClick: function () { setPlaying(!playing); } }),
+                h(I.PlayerButton, { kind: 'next' }),
+                h(I.PlayerButton, { kind: 'repeat', repeatMode: repeat, onClick: function () { setRepeat(repeat === 'off' ? 'all' : repeat === 'all' ? 'one' : 'off'); } })
+              ),
+              h('div', { className: 'pl-util' },
+                h(I.VolumeSlider, { value: vol, muted: muted, onChange: setVol, onMutedChange: setMuted, width: 120 }),
+                h('div', { style: { display: 'flex', gap: 8 } },
+                  h('button', { type: 'button', className: 'ic-iconbtn ic-iconbtn-neutral ic-iconbtn-md', 'aria-label': 'Connect to a device' }, h(DeviceGlyph)),
+                  h(I.IconButton, { icon: 'queue', label: 'Queue', size: 'md' })
+                )
+              )
+            ),
+            h('div', { className: 'pl-queue-panel' },
+              h('div', { className: 'pl-queue-group' },
+                h('div', { className: 'pl-queue-group-head' },
+                  h('span', { className: 'ic-overline' }, 'Now playing')
+                ),
+                h(I.QueueItem, { title: 'Glass Tides', artist: 'Nova Hale', duration: 227, art: 0, status: 'current', onPlay: function () {}, onRemove: function () {} })
+              ),
+              h('div', { className: 'pl-queue-group' },
+                h('div', { className: 'pl-queue-group-head' },
+                  h('span', { className: 'ic-overline' }, 'Next up · 3'),
+                  h(I.Button, { variant: 'ghost', size: 'sm' }, 'Clear')
+                ),
+                h(I.QueueItem, { title: 'Hollow Signal', artist: 'Kai Frost', duration: 198, art: 4, explicit: true, draggable: true, onPlay: function () {}, onRemove: function () {} }),
+                h(I.QueueItem, { title: 'Pearl Static', artist: 'Mira Solen', duration: 254, art: 7, draggable: true, onPlay: function () {}, onRemove: function () {} }),
+                h(I.QueueItem, { title: 'Slow Aurora', artist: 'Nova Hale', duration: 311, art: 2, draggable: true, onPlay: function () {}, onRemove: function () {} })
+              )
+            )
+          )
+        )
+      ),
+
+      h('section', { className: 'pl-section' },
+        h('div', { className: 'pl-section-head' },
+          h('h2', { className: 'pl-section-title' }, 'Queue drawer & Device picker'),
+          h('span', { className: 'ic-meta' }, 'Right drawer (400px) · Audio output popover')
+        ),
+        h('div', { className: 'pl-grid-2' },
+          h('div', { className: 'pl-drawer-frame' },
+            h(I.Drawer, {
+              open: true,
+              inline: true,
+              title: 'Queue',
+              onClose: function () {},
+              footer: h('div', { style: { width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' } },
+                h('span', { className: 'ic-meta' }, '4 tracks · 16 min'),
+                h(I.Button, { variant: 'ghost', size: 'sm' }, 'Clear queue')
+              )
+            },
+              h('div', { className: 'pl-queue-group' },
+                h('div', { className: 'pl-queue-group-head' }, h('span', { className: 'ic-overline' }, 'Played · 1')),
+                h(I.QueueItem, { title: 'Night Index', artist: 'Lumen Park', duration: 189, art: 6, status: 'played', onPlay: function () {}, onRemove: function () {} })
+              ),
+              h('div', { className: 'pl-queue-group' },
+                h('div', { className: 'pl-queue-group-head' }, h('span', { className: 'ic-overline' }, 'Now playing')),
+                h(I.QueueItem, { title: 'Glass Tides', artist: 'Nova Hale', duration: 227, art: 0, status: 'current', onPlay: function () {}, onRemove: function () {} })
+              ),
+              h('div', { className: 'pl-queue-group' },
+                h('div', { className: 'pl-queue-group-head' },
+                  h('span', { className: 'ic-overline' }, 'Next up · 2'),
+                  h(I.Button, { variant: 'ghost', size: 'sm' }, 'Clear')
+                ),
+                h(I.QueueItem, { title: 'Hollow Signal', artist: 'Kai Frost', duration: 198, art: 4, explicit: true, draggable: true, onPlay: function () {}, onRemove: function () {} }),
+                h(I.QueueItem, { title: 'Pearl Static', artist: 'Mira Solen', duration: 254, art: 7, draggable: true, onPlay: function () {}, onRemove: function () {} })
+              )
+            )
+          ),
+          h(I.Popover, {
+            title: 'Audio output',
+            width: 340,
+            onClose: function () {},
+            footer: h(I.Button, { variant: 'ghost', size: 'sm', onClick: function () {} }, 'Refresh devices')
+          },
+            h('div', { className: 'pl-device-list', role: 'radiogroup', 'aria-label': 'Audio output devices' },
+              DEVICES.map(function (d) {
+                var selected = device === d.id;
+                return h('button', {
+                  key: d.id,
+                  type: 'button',
+                  role: 'radio',
+                  'aria-checked': selected,
+                  className: 'pl-device-row' + (selected ? ' is-selected' : ''),
+                  onClick: function () { setDevice(d.id); }
+                },
+                  h(DeviceGlyph),
+                  h('span', { className: 'pl-device-info' },
+                    h('span', { className: 'pl-device-name' }, d.name),
+                    h('span', { className: 'pl-device-kind' }, d.kind)
+                  ),
+                  selected ? h(I.Icon, { name: 'check', size: 16 }) : null
+                );
+              })
+            )
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>

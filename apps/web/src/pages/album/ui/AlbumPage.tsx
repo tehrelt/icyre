@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 
 import { albumTypeLabel } from '@/entities/album/model';
+import { useSavedAlbumsContains } from '@/entities/library/api';
 import type { Track } from '@/entities/track/model';
 import { LikeableTrackRow } from '@/features/like-track';
 import { usePlayerStore, useSourcePlayback, type PlaybackSource } from '@/features/player';
+import { useAlbumSave } from '@/features/save-album';
 import { ApiError } from '@/shared/api/errors';
 import { routes } from '@/shared/config/routes';
 import { cx } from '@/shared/lib/cx';
@@ -75,6 +77,8 @@ function AlbumContent({ data }: { data: AlbumPageData }) {
   const { album, artist, tracks } = data;
   const source = useMemo<PlaybackSource>(() => ({ kind: 'album', id: album.id }), [album.id]);
   const { state, playAll, shuffleAll, playTrack } = useSourcePlayback(source, tracks);
+  const savedAlbums = useSavedAlbumsContains([album.id]);
+  const { saved, toggle: toggleSave, pending: savePending } = useAlbumSave(album.id, savedAlbums.data?.has(album.id));
   const [view, setView] = useState<ListView>('list');
   const playing = state === 'playing';
 
@@ -121,7 +125,15 @@ function AlbumContent({ data }: { data: AlbumPageData }) {
         <Button variant="secondary" size="lg" iconStart="shuffle" onClick={shuffleAll}>
           Shuffle
         </Button>
-        <IconButton icon="plus" label={`Save ${album.title} to library`} size="lg" disabled title={LATER} />
+        <IconButton
+          icon={saved ? 'check' : 'plus'}
+          variant={saved ? 'selected' : 'neutral'}
+          pressed={saved}
+          disabled={savePending}
+          label={saved ? `Remove ${album.title} from library` : `Save ${album.title} to library`}
+          size="lg"
+          onClick={() => void toggleSave()}
+        />
         <IconButton icon="more" label={`More options for ${album.title}`} size="lg" disabled title={LATER} />
         <div className={styles.spacer} />
         <SegmentedControl<ListView> size="sm" label="Track list view" options={VIEW_OPTIONS} value={view} onChange={setView} />

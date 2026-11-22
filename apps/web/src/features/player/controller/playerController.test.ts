@@ -7,6 +7,7 @@ import { bindPlayer } from './playerController';
 
 class FakeEngine extends BaseEngine {
   calls: string[] = [];
+  setOutputDevice?: (deviceId: string) => Promise<void>;
   load(src: string | null, d: number) {
     this.calls.push(`load:${src}:${d}`);
   }
@@ -116,6 +117,124 @@ describe('bindPlayer', () => {
     await flush();
     expect(resolver).toHaveBeenCalledTimes(2);
     expect(usePlayerStore.getState().error).toBe('This track could not be played');
+    dispose();
+  });
+
+  it('confirms output device on resolve and keeps previous device on rejection', async () => {
+    const engine = new FakeEngine();
+    const setOutputDevice = vi.fn(async (id: string) => {
+      if (id === 'bad-dac') throw new DOMException('Device unavailable', 'NotFoundError');
+    });
+    engine.setOutputDevice = setOutputDevice;
+    const dispose = bindPlayer(usePlayerStore, engine, async () => ({ url: 'u', expiresAt: null }));
+
+    usePlayerStore.getState().setOutputDevice('dac-1');
+    await flush();
+    expect(setOutputDevice).toHaveBeenCalledWith('dac-1');
+    expect(usePlayerStore.getState().outputDeviceId).toBe('dac-1');
+    expect(usePlayerStore.getState().outputDeviceError).toBeNull();
+
+    usePlayerStore.getState().setOutputDevice('bad-dac');
+    await flush();
+    expect(setOutputDevice).toHaveBeenCalledWith('bad-dac');
+    expect(usePlayerStore.getState().outputDeviceId).toBe('dac-1');
+    expect(usePlayerStore.getState().pendingOutputDeviceId).toBeNull();
+    expect(usePlayerStore.getState().outputDeviceError).toBe('Could not switch audio output');
+    dispose();
+  });
+
+  it('serializes rapid output switches so A stays active when A resolves and B rejects', async () => {
+    const engine = new FakeEngine();
+    const deferred = new Map<string, { resolve: () => void; reject: (err: Error) => void }>();
+    const calls: string[] = [];
+    engine.setOutputDevice = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve, reject) => {
+          calls.push(id);
+          deferred.set(id, { resolve, reject });
+        }),
+    );
+    const dispose = bindPlayer(usePlayerStore, engine, async () => ({ url: 'u', expiresAt: null }));
+
+    usePlayerStore.getState().setOutputDevice('dac-a');
+    usePlayerStore.getState().setOutputDevice('dac-b');
+    await flush();
+
+    // B must not start until A settles.
+    expect(calls).toEqual(['dac-a']);
+    expect(usePlayerStore.getState().outputDeviceId).toBe('default');
+
+    deferred.get('dac-a')!.resolve();
+    await flush();
+
+    expect(calls).toEqual(['dac-a', 'dac-b']);
+    expect(usePlayerStore.getState().outputDeviceId).toBe('dac-a');
+
+    deferred.get('dac-b')!.reject(new Error('Device disconnected'));
+    await flush();
+
+    expect(usePlayerStore.getState().outputDeviceId).toBe('dac-a');
+    expect(usePlayerStore.getState().pendingOutputDeviceId).toBeNull();
+    expect(usePlayerStore.getState().outputDeviceError).toBe('Could not switch audio output');
+    dispose();
+  });
+
+  it('restores confirmed output on rebind without re-running failed requests and resets if new engine rejects', async () => {
+    const engine1 = new FakeEngine();
+    engine1.setOutputDevice = vi.fn(async (id: string) => {
+      if (id === 'dac-b') throw new Error('Device disconnected');
+    });
+    const dispose1 = bindPlayer(usePlayerStore, engine1, async () => ({ url: 'u', expiresAt: null }));
+
+    usePlayerStore.getState().setOutputDevice('dac-a');
+    await flush();
+    usePlayerStore.getState().setOutputDevice('dac-b');
+    await flush();
+    expect(usePlayerStore.getState().outputDeviceId).toBe('dac-a');
+    expect(usePlayerStore.getState().pendingOutputDeviceId).toBeNull();
+    dispose1();
+
+    // Rebind to a new engine starting on default that accepts dac-a.
+    const engine2 = new FakeEngine();
+    let engine2Sink = 'default';
+    const engine2Calls: string[] = [];
+    engine2.setOutputDevice = vi.fn(async (id: string) => {
+      engine2Calls.push(id);
+      engine2Sink = id;
+    });
+    const dispose2 = bindPlayer(usePlayerStore, engine2, async () => ({ url: 'u', expiresAt: null }));
+    await flush();
+
+    expect(engine2Calls).toEqual(['dac-a']);
+    expect(engine2Sink).toBe('dac-a');
+    expect(usePlayerStore.getState().outputDeviceId).toBe('dac-a');
+    dispose2();
+
+    // Rebind to a third engine starting on default that rejects dac-a.
+    const engine3 = new FakeEngine();
+    const engine3Sink = 'default';
+    engine3.setOutputDevice = vi.fn(async () => {
+      throw new Error('Unavailable on new engine');
+    });
+    const dispose3 = bindPlayer(usePlayerStore, engine3, async () => ({ url: 'u', expiresAt: null }));
+    await flush();
+
+    expect(engine3Sink).toBe('default');
+    expect(usePlayerStore.getState().outputDeviceId).toBe('default');
+    expect(usePlayerStore.getState().outputDeviceError).toBe('Could not switch audio output');
+    dispose3();
+  });
+
+  it('rejects external output selection when engine.setOutputDevice is missing', async () => {
+    const engine = new FakeEngine();
+    const dispose = bindPlayer(usePlayerStore, engine, async () => ({ url: 'u', expiresAt: null }));
+
+    usePlayerStore.getState().setOutputDevice('dac-1');
+    await flush();
+
+    expect(usePlayerStore.getState().outputDeviceId).toBe('default');
+    expect(usePlayerStore.getState().pendingOutputDeviceId).toBeNull();
+    expect(usePlayerStore.getState().outputDeviceError).toBe('Output switching is not supported in this browser');
     dispose();
   });
 });

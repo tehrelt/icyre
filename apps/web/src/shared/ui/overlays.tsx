@@ -13,6 +13,7 @@ import {
 import { createPortal } from 'react-dom';
 
 import { useControlled } from '@/shared/hooks/useControlled';
+import { useDialogLifecycle } from '@/shared/hooks/useDialogLifecycle';
 import { cx } from '@/shared/lib/cx';
 
 import { Icon, IconButton } from './core';
@@ -34,7 +35,11 @@ function useOutsideDismiss(open: boolean, ref: RefObject<HTMLElement | null>, on
       if (event.target instanceof Node && !ref.current?.contains(event.target)) onClose();
     };
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        onClose();
+      }
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -236,9 +241,22 @@ export interface PopoverProps {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   align?: 'start' | 'end';
+  placement?: 'top' | 'bottom';
+  width?: number;
 }
 
-export function Popover({ trigger, title, children, footer, open, defaultOpen = false, onOpenChange, align = 'start' }: PopoverProps) {
+export function Popover({
+  trigger,
+  title,
+  children,
+  footer,
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  align = 'start',
+  placement = 'bottom',
+  width,
+}: PopoverProps) {
   const [shown, setShown] = useControlled(open, defaultOpen, onOpenChange);
   const ref = useRef<HTMLSpanElement>(null);
   const close = () => {
@@ -258,7 +276,12 @@ export function Popover({ trigger, title, children, footer, open, defaultOpen = 
     <span className="ic-dropdown" ref={ref}>
       {control}
       {shown ? (
-        <div role="dialog" aria-label={title ?? 'Details'} className={cx('ic-dropdown-panel', `ic-align-${align}`, 'ic-popover')}>
+        <div
+          role="dialog"
+          aria-label={title ?? 'Details'}
+          className={cx('ic-dropdown-panel', placement === 'top' && 'ic-dropdown-panel-top', `ic-align-${align}`, 'ic-popover')}
+          style={width ? { width } : undefined}
+        >
           {title ? (
             <div className="ic-popover-head">
               <span className="ic-popover-title">{title}</span>
@@ -271,43 +294,6 @@ export function Popover({ trigger, title, children, footer, open, defaultOpen = 
       ) : null}
     </span>
   );
-}
-
-const FOCUSABLE = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
-
-function useDialogLifecycle(open: boolean, onClose: () => void, ref: RefObject<HTMLElement | null>) {
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    queueMicrotask(() => ref.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus());
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab' || !ref.current) return;
-      const focusable = Array.from(ref.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = overflow;
-      previous?.focus();
-    };
-  }, [onClose, open, ref]);
 }
 
 interface DialogBaseProps {

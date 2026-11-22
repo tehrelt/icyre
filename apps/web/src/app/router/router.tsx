@@ -3,6 +3,7 @@ import { createBrowserRouter, type RouteObject } from 'react-router';
 import { AlbumPage } from '@/pages/album';
 import { AuthPage } from '@/pages/auth';
 import { HomePage } from '@/pages/home';
+import { LibraryPage } from '@/pages/library';
 import { SearchPage } from '@/pages/search';
 import { NotBuiltPage } from '@/pages/not-built/NotBuiltPage';
 
@@ -17,6 +18,8 @@ export const appRoutes: RouteObject[] = [
       { index: true, element: <HomePage /> },
       { path: 'album/:albumId', element: <AlbumPage /> },
       { path: 'search', element: <SearchPage /> },
+      { path: 'library', element: <LibraryPage mode="library" /> },
+      { path: 'liked', element: <LibraryPage mode="liked" /> },
       // Screens from the canvas planned in the next frontend epics.
       { path: '*', element: <NotBuiltPage /> },
     ],

@@ -1,41 +1,20 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useTrackLike } from '@/features/like-track';
-import { usePlayerStore } from '@/features/player';
+import { DevicePicker, ExpandedPlayer, ExpandGlyph, QueueDrawer, usePlayerStore } from '@/features/player';
 import { routes } from '@/shared/config/routes';
 import { cx } from '@/shared/lib/cx';
 import { Artwork, Icon, IconButton, PlayerButton, ProgressBar, VolumeSlider } from '@/shared/ui';
 
 import styles from './PlayerBar.module.css';
 
-// Canvas-only glyphs (not in the Design System icon set yet), drawn to the DS
-// icon grid: 24px, 1.75 stroke, round caps.
-function DeviceGlyph() {
-  return (
-    <svg className="ic-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="6" y="3.5" width="12" height="17" rx="2.5" />
-      <circle cx="12" cy="14" r="3" />
-      <path d="M12 7.5h.01" />
-    </svg>
-  );
-}
-
-function ExpandGlyph() {
-  return (
-    <svg className="ic-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14.5 4.5h5v5" />
-      <path d="M9.5 19.5h-5v-5" />
-      <path d="M19.5 4.5 14 10" />
-      <path d="M4.5 19.5 10 14" />
-    </svg>
-  );
-}
-
-const LATER = 'Available in a later iteration';
-
 /** Shell / Global player from the product canvas (CPlayerBar). Never unmounts. */
 export function PlayerBar() {
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [expandedOpen, setExpandedOpen] = useState(false);
+
   const p = usePlayerStore(
     useShallow((s) => ({
       track: s.currentTrack,
@@ -76,10 +55,15 @@ export function PlayerBar() {
             <Link to={routes.album(p.track.albumId)} aria-label={`Open ${p.track.albumTitle}`} className={styles.cover}>
               <Artwork art={p.track.art} src={p.track.coverUrl} />
             </Link>
-            <div className={styles.meta}>
+            <button
+              type="button"
+              className={styles.metaBtn}
+              aria-label={`Open expanded player for ${p.track.title}`}
+              onClick={() => setExpandedOpen(true)}
+            >
               <span className={styles.title}>{p.track.title}</span>
               <span className={styles.artist}>{p.error ?? p.track.artistName}</span>
-            </div>
+            </button>
             <span className={styles.like}>
               <IconButton
                 icon="heart"
@@ -126,14 +110,26 @@ export function PlayerBar() {
       </div>
 
       <div className={styles.side}>
-        <IconButton icon="queue" label="Queue" size="sm" disabled title={LATER} />
-        <button type="button" className="ic-iconbtn ic-iconbtn-neutral ic-iconbtn-sm" aria-label="Connect to a device" title={LATER} disabled>
-          <DeviceGlyph />
-        </button>
+        <IconButton
+          icon="queue"
+          label="Queue"
+          size="sm"
+          variant={queueOpen ? 'active' : 'neutral'}
+          pressed={queueOpen}
+          onClick={() => setQueueOpen((v) => !v)}
+        />
+        <DevicePicker placement="top" align="end" size="sm" />
         <div className={styles.volume}>
           <VolumeSlider value={p.volume} muted={p.muted} onChange={actions.setVolume} onMutedChange={actions.setMuted} width={96} />
         </div>
-        <button type="button" className="ic-iconbtn ic-iconbtn-neutral ic-iconbtn-sm" aria-label="Open expanded player" title={LATER} disabled>
+        <button
+          type="button"
+          className="ic-iconbtn ic-iconbtn-neutral ic-iconbtn-sm"
+          aria-label="Open expanded player"
+          title="Open expanded player"
+          disabled={idle}
+          onClick={() => setExpandedOpen(true)}
+        >
           <ExpandGlyph />
         </button>
       </div>
@@ -142,6 +138,9 @@ export function PlayerBar() {
       <div className={styles.miniProgress} aria-hidden="true">
         <span style={{ width: `${progress}%` }} />
       </div>
+
+      <QueueDrawer open={queueOpen} onClose={() => setQueueOpen(false)} />
+      <ExpandedPlayer open={expandedOpen && !idle} onClose={() => setExpandedOpen(false)} />
     </div>
   );
 }

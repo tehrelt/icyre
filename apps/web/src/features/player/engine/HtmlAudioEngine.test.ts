@@ -27,4 +27,20 @@ describe('HtmlAudioEngine.play', () => {
     await engine.play();
     expect(events.some((e) => e.type === 'error')).toBe(false);
   });
+
+  it('routes audio output via setSinkId and propagates rejection', async () => {
+    const audio = document.createElement('audio') as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
+    const setSinkId = vi.fn(async () => undefined);
+    audio.setSinkId = setSinkId;
+    const engine = new HtmlAudioEngine(audio);
+
+    await engine.setOutputDevice('dac-1');
+    expect(setSinkId).toHaveBeenCalledWith('dac-1');
+
+    await engine.setOutputDevice('default');
+    expect(setSinkId).toHaveBeenLastCalledWith('');
+
+    setSinkId.mockRejectedValueOnce(new DOMException('Device disconnected', 'NotFoundError'));
+    await expect(engine.setOutputDevice('dac-2')).rejects.toThrow('Device disconnected');
+  });
 });

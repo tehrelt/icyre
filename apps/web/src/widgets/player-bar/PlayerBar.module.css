@@ -48,13 +48,36 @@
   color: var(--text-tertiary);
 }
 
-.meta {
+.meta,
+.metaBtn {
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
+.metaBtn {
+  flex: 0 1 auto;
+  align-items: flex-start;
+  overflow: hidden;
+  padding: var(--space-1) var(--space-2);
+  margin: calc(var(--space-1) * -1) 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+.metaBtn:hover {
+  background: var(--surface-hover);
+}
+.metaBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
 .title,
 .artist {
+  display: block;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

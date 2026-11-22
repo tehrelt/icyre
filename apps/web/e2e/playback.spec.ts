@@ -58,4 +58,67 @@ test.describe('ICYRE web e2e', () => {
       }
     });
   }
+
+  test('truncates long track title and artist on separate lines in mobile mini-player without hiding play button', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Play album' }).click();
+
+    const player = page.getByRole('region', { name: 'Player' });
+    const playBtn = player.getByRole('button', { name: 'Pause' });
+    await expect(playBtn).toBeVisible();
+
+    const metaBtn = player.getByRole('button', { name: /Open expanded player for/ });
+    await expect(metaBtn).toBeVisible();
+
+    const metrics = await page.evaluate(() => {
+      const region = document.querySelector('[role="region"][aria-label="Player"]')!;
+      const btn = region.querySelector('button[aria-label^="Open expanded player for"]') as HTMLButtonElement;
+      const spans = btn.querySelectorAll('span');
+      const titleEl = spans[0]!;
+      const artistEl = spans[1]!;
+      const pauseBtn = region.querySelector('button[aria-label="Pause"]') as HTMLButtonElement;
+
+      titleEl.textContent = 'A Very Long Track Title That Must Truncate Cleanly On Narrow Mobile Viewports';
+      artistEl.textContent = 'An Equally Long Artist Name That Must Stay On Its Own Line Without Pushing Controls';
+
+      const btnRect = btn.getBoundingClientRect();
+      const titleRect = titleEl.getBoundingClientRect();
+      const artistRect = artistEl.getBoundingClientRect();
+      const playRect = pauseBtn.getBoundingClientRect();
+      const titleStyle = getComputedStyle(titleEl);
+      const artistStyle = getComputedStyle(artistEl);
+
+      return {
+        titleTop: titleRect.top,
+        titleBottom: titleRect.bottom,
+        artistTop: artistRect.top,
+        titleScrollW: titleEl.scrollWidth,
+        titleClientW: titleEl.clientWidth,
+        artistScrollW: artistEl.scrollWidth,
+        artistClientW: artistEl.clientWidth,
+        titleOverflow: titleStyle.textOverflow,
+        artistOverflow: artistStyle.textOverflow,
+        metaRight: btnRect.right,
+        playLeft: playRect.left,
+        playRight: playRect.right,
+        playWidth: playRect.width,
+        playHeight: playRect.height,
+        viewportWidth: window.innerWidth,
+        docOverflow: document.documentElement.scrollWidth - window.innerWidth,
+      };
+    });
+
+    expect(metrics.artistTop).toBeGreaterThanOrEqual(metrics.titleBottom - 1);
+    expect(metrics.titleScrollW).toBeGreaterThan(metrics.titleClientW);
+    expect(metrics.artistScrollW).toBeGreaterThan(metrics.artistClientW);
+    expect(metrics.titleOverflow).toBe('ellipsis');
+    expect(metrics.artistOverflow).toBe('ellipsis');
+    expect(metrics.metaRight).toBeLessThanOrEqual(metrics.playLeft + 1);
+    expect(metrics.playWidth).toBeGreaterThanOrEqual(40);
+    expect(metrics.playHeight).toBeGreaterThanOrEqual(40);
+    expect(metrics.playRight).toBeLessThanOrEqual(metrics.viewportWidth);
+    expect(metrics.docOverflow).toBeLessThanOrEqual(0);
+  });
 });

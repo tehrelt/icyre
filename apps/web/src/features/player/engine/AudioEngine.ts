@@ -21,6 +21,8 @@ export interface AudioEngine {
   seek(seconds: number): void;
   /** volume 0–1 */
   setVolume(volume: number, muted: boolean): void;
+  /** Routes audio to a specific output device when supported by the browser. */
+  setOutputDevice?(deviceId: string): Promise<void>;
   subscribe(listener: EngineListener): () => void;
   destroy(): void;
 }

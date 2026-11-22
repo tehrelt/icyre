@@ -379,6 +379,7 @@ export interface QueueItemProps {
   state?: 'default' | 'current' | 'played';
   playbackState?: 'playing' | 'paused' | 'buffering';
   draggable?: boolean;
+  explicit?: boolean;
   onPlay?: () => void;
   onRemove?: () => void;
 }
@@ -392,6 +393,7 @@ export function QueueItem({
   state = 'default',
   playbackState = 'playing',
   draggable,
+  explicit,
   onPlay,
   onRemove,
 }: QueueItemProps) {
@@ -415,7 +417,10 @@ export function QueueItem({
       </button>
       <span className="ic-queue-text">
         <span className="ic-queue-title">{title}</span>
-        <span className="ic-queue-artist">{artist}</span>
+        <span className="ic-queue-artist">
+          {explicit && <ExplicitMark />}
+          {artist}
+        </span>
       </span>
       <span className="ic-time ic-time-tertiary">{formatTime(duration)}</span>
       <span className="ic-queue-remove">
