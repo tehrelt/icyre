@@ -1,0 +1,30 @@
+<!-- @dsCard group="Feedback" height=240 subtitle="Loading placeholders" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Skeleton — preview</title>
+<style>
+html,body{margin:0}
+body{padding:16px;background:var(--background);color:var(--text-primary);font-family:var(--font-sans);font-size:15px;line-height:22px}
+.pv-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.pv-col{display:flex;flex-direction:column;gap:12px}
+.pv-grid{display:grid;gap:16px}
+.pv-cap{font-family:var(--font-mono);font-size:11px;line-height:14px;font-weight:500;letter-spacing:.02em;color:var(--text-tertiary);min-width:64px}
+.pv-sep{width:1px;height:28px;background:var(--border-subtle);margin:0 4px}
+.pv-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:10px;background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.pv-icon .pv-cap{min-width:0;font-size:10px}
+
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var I = window.Icyre, h = React.createElement;
+function row(){ return h.apply(null, ['div', {className:'pv-row'}].concat([].slice.call(arguments))); }
+function cap(t){ return h('span',{className:'pv-cap'},t); }
+function mount(el){ ReactDOM.createRoot(document.getElementById('root')).render(el); }
+mount(row(
+  h('div',{style:{width:160}}, h('div',{className:'pv-col',style:{gap:8}}, h(I.Skeleton,{shape:'rect',width:160,height:160,radius:'md'}), h(I.Skeleton,{width:'70%'}), h(I.Skeleton,{width:'45%'}))),
+  h('div',{style:{flex:1,minWidth:280}}, h('div',{className:'pv-col',style:{gap:10}}, row(h(I.Skeleton,{shape:'circle',width:40,height:40}), h('div',{className:'pv-col',style:{gap:6,flex:1}}, h(I.Skeleton,{width:'50%'}), h(I.Skeleton,{width:'30%'}))), h(I.Skeleton,{}), h(I.Skeleton,{width:'80%'})))
+));
+</script>
+</body>
+</html>

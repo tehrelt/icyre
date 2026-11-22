@@ -1,0 +1,250 @@
+/* ICYRE — generated from tokens.json */
+:root, [data-theme="light"] {
+  --ice-0: #ffffff; /* Primitive. Pure white — reserved for surface-raised (menus, popovers, modals). Never the page. */
+  --ice-25: #fbfcfe; /* Primitive. Pearl white — cards, inputs, panels. */
+  --ice-50: #f5f7fa; /* Primitive. Icy page ground. */
+  --ice-75: #eef1f6; /* Primitive. Sidebar, wells, disabled fills. */
+  --ice-100: #ebeef4; /* Primitive. Hover fill. */
+  --ice-150: #e2e6ee; /* Primitive. Pressed fill, slider and progress tracks. */
+  --ice-200: #e4e8ef; /* Primitive. Hairline dividers and card edges. */
+  --ice-300: #d3d9e3; /* Primitive. Default decorative border. */
+  --ice-400: #b3bccb; /* Primitive. Strong decorative border, skeleton shimmer peak. */
+  --ice-500: #7f899d; /* Primitive. Control borders (3:1 on every ground). */
+  --ice-550: #9aa2b1; /* Primitive. Disabled text (exempt from contrast). */
+  --ice-600: #5d667a; /* Primitive. Tertiary text. */
+  --ice-700: #4b5467; /* Primitive. Secondary text. */
+  --ice-900: #141821; /* Primitive. Ink — primary text and primary action fill. */
+  --electric-50: #e9edff; /* Primitive. Brand soft tint. */
+  --electric-500: #3350ea; /* Primitive. Electric blue — the one saturated brand hue. */
+  --electric-600: #2940d4; /* Primitive. Electric blue hover. */
+  --electric-700: #2234b3; /* Primitive. Electric blue pressed; brand text on tints. */
+  --violet-50: #f1ecff; /* Primitive. Violet tint. */
+  --violet-600: #6440e0; /* Primitive. Cool violet — secondary brand hue. */
+  --focus-500: #5b3df5; /* Primitive. Focus ring hue, 5.4:1+ on every ground. */
+  --holo-ice: #b8eef7; /* Spectral stop 1 — icy cyan. Only inside iridescent gradients. */
+  --holo-blue: #b9c8ff; /* Spectral stop 2 — electric blue, pastel. */
+  --holo-violet: #d2c2ff; /* Spectral stop 3 — cool violet, pastel. */
+  --holo-magenta: #f5c3ec; /* Spectral stop 4 — soft magenta, pastel. */
+  --holo-pearl: #d3f3e6; /* Spectral accent — pearl green. A sliver at the end of a gradient, never a fill. */
+  --holo-cyan-deep: #1b86a8; /* Saturated spectral stop for progress fills (3.2:1 on the track). */
+  --holo-blue-deep: #3d5cff; /* Saturated spectral stop for progress fills and holo borders. */
+  --holo-violet-deep: #7a4cf5; /* Saturated spectral stop for progress fills and holo borders. */
+  --holo-magenta-deep: #c0459f; /* Saturated spectral stop for progress fills and holo borders. */
+  --background: var(--ice-50); /* App page ground behind everything. */
+  --background-subtle: var(--ice-75); /* Sidebar, section wells, segmented-control track. */
+  --surface: var(--ice-25); /* Neutral Surface material: cards, inputs, list panels. */
+  --surface-raised: var(--ice-0); /* Elevated Surface material: menus, popovers, toasts, modals, player bar. */
+  --surface-hover: var(--ice-100); /* Hover fill for rows, ghost buttons, nav items. */
+  --surface-pressed: var(--ice-150); /* Pressed fill; slider and progress tracks. */
+  --surface-inverse: var(--ice-900); /* Tooltips and the primary button fill. */
+  --border-subtle: var(--ice-200); /* Dividers, card edges, row separators. Decorative only. */
+  --border: var(--ice-300); /* Default container border: menus, modals, secondary button edge. */
+  --border-strong: var(--ice-400); /* Hovered cards, emphasized containers. */
+  --border-interactive: var(--ice-500); /* Resting edge of inputs, checkboxes, radios, switch tracks. 3:1 on background and surface. */
+  --border-selected: var(--electric-500); /* Selected card, selected chip, checked control edge. */
+  --text-primary: var(--ice-900); /* Titles and body on background, surface, surface-raised, hover and pressed (14:1+). */
+  --text-secondary: var(--ice-700); /* Artist names, descriptions, inactive nav on every neutral ground (6:1+). */
+  --text-tertiary: var(--ice-600); /* Metadata, durations, placeholders, captions on every neutral ground (4.6:1+). */
+  --text-disabled: var(--ice-550); /* Disabled labels only — exempt from contrast; always paired with a disabled cursor/state. */
+  --text-inverse: var(--ice-0); /* Text on surface-inverse, brand-primary, danger fills. */
+  --text-brand: var(--electric-500); /* Links, active nav label, now-playing title on neutral and holo-soft grounds (5.2:1+). */
+  --brand-primary: var(--electric-500); /* Checked controls, switch-on track, selected borders, links. White text on it reads 6:1. */
+  --brand-secondary: var(--violet-600); /* Secondary brand accent — featured labels, rare emphasis. */
+  --brand-soft: var(--electric-50); /* Tonal button fill, selected row/chip fill. */
+  --brand-hover: var(--electric-600); /* Hover on brand-primary fills. */
+  --brand-active: var(--electric-700); /* Pressed brand fill; brand text on brand-soft (8:1). */
+  --action-primary: var(--ice-900); /* Primary button fill — ink, not blue. Premium, neutral. */
+  --action-primary-hover: #262c3a; /* Primary button hover. */
+  --action-primary-pressed: #000000; /* Primary button pressed. */
+  --success: #13774f; /* Success text/icon on success-soft, surface, background (4.9:1+). */
+  --success-soft: #e3f5ec; /* Success badge and toast tint. */
+  --warning: #8f5400; /* Warning text/icon on warning-soft, surface, background (5.4:1+). */
+  --warning-soft: #fdf1da; /* Warning badge and toast tint. */
+  --danger: #c42039; /* Destructive fill (white text 5.8:1), error text and icons. */
+  --danger-hover: #a51a30; /* Destructive button hover and pressed. */
+  --danger-soft: #fdebee; /* Danger badge, destructive ghost hover. */
+  --info: #0c6a86; /* Info text/icon on info-soft, surface, background (5.3:1+). */
+  --info-soft: #e0f3f8; /* Info badge tint. */
+  --focus: var(--focus-500); /* The one focus ring: 2px solid, 2px offset, on every interactive element. */
+  --selected: var(--electric-50); /* Selected row/option fill. */
+  --hover: var(--ice-100); /* Generic hover fill (alias of surface-hover). */
+  --pressed: var(--ice-150); /* Generic pressed fill (alias of surface-pressed). */
+  --disabled: var(--ice-75); /* Disabled control fill. */
+  --scrim: rgba(20, 24, 33, 0.32); /* Backdrop behind modals and drawers. */
+  --shadow-flat: none; /* Default — rows, inline cards. */
+  --shadow-raised: 0 1px 2px rgba(20,24,33,0.05), 0 1px 1px rgba(20,24,33,0.03); /* Hovered cards, active sidebar item, selected segment. */
+  --shadow-floating: 0 10px 28px -8px rgba(20,24,33,0.14), 0 2px 6px rgba(20,24,33,0.05); /* Menus, popovers, toasts, player bar. */
+  --shadow-modal: 0 28px 64px -16px rgba(20,24,33,0.22), 0 4px 12px rgba(20,24,33,0.06); /* Modals and drawers. */
+  --shadow-collectible: inset 0 1px 0 rgba(255,255,255,0.9), 0 14px 32px -14px rgba(61,92,255,0.28), 0 2px 6px rgba(20,24,33,0.05); /* FeaturedCard only — a cool lift under the foil frame. */
+}
+:root {
+  --space-0-5: 2px; /* Optical nudges, badge vertical padding. */
+  --space-1: 4px; /* Icon-to-text in badges, collectible frame padding. */
+  --space-2: 8px; /* Icon-to-label gap, TrackRow vertical padding. */
+  --space-3: 12px; /* Control horizontal padding, card inner padding. */
+  --space-4: 16px; /* Default gap between related blocks; mobile gutter. */
+  --space-5: 20px; /* Card grid gap on tablet. */
+  --space-6: 24px; /* Panel padding; card grid gap on desktop. */
+  --space-8: 32px; /* Desktop gutter; gap between shelf title and shelf. */
+  --space-10: 40px; /* Gap between page header and content. */
+  --space-12: 48px; /* Between sections on home. */
+  --space-16: 64px; /* Hero vertical padding (tablet). */
+  --space-20: 80px; /* Hero vertical padding (desktop), splash. */
+  --inset-row: 8px; /* DENSE — TrackRow, QueueItem, menu item vertical padding. */
+  --inset-card: 12px; /* MEDIUM — card metadata padding. */
+  --inset-panel: 24px; /* Popover, modal, drawer padding. */
+  --inset-hero: 80px; /* SPACIOUS — hero and featured banner padding. */
+  --gap-grid: 24px; /* Card grid gap (desktop). */
+  --gap-section: 48px; /* Vertical rhythm between page sections. */
+  --radius-xs: 4px; /* Checkbox, badges, tags, cover thumbs in rows. */
+  --radius-sm: 6px; /* Small buttons, chips-in-inputs, tooltips, menu items. */
+  --radius-md: 10px; /* Buttons, inputs, menus, card artwork inside a frame. */
+  --radius-card: 14px; /* All media cards and the collectible frame. */
+  --radius-lg: 20px; /* Modals, drawers, hero panels. */
+  --radius-pill: 999px; /* Chips, switches, avatars, the Play button, search input. */
+  --iridescent-primary: linear-gradient(115deg, #b8eef7 0%, #b9c8ff 34%, #d2c2ff 62%, #f5c3ec 90%, #d3f3e6 100%); /* Fill of the iridescent Button and the Play button. Ink text/icons on it (10:1+). */
+  --iridescent-soft: linear-gradient(115deg, #effbfd 0%, #eef1ff 40%, #f4efff 72%, #fdf0fa 100%); /* Featured card ground, splash. Barely-there pearl. */
+  --iridescent-border: linear-gradient(135deg, #1b86a8 0%, #3d5cff 38%, #7a4cf5 70%, #c0459f 100%); /* 1.5px ring on the Play button, playing cards and the brand symbol. */
+  --iridescent-foil: conic-gradient(from 210deg, #7fd6ea, #93a8ff, #b9a2ff, #eaa2da, #a9e6cf, #7fd6ea); /* Collectible frame of FeaturedCard only. */
+  --iridescent-highlight: linear-gradient(105deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.7) 48%, rgba(255,255,255,0) 66%); /* Foil glint swept slowly across a featured image on hover (duration-holo). */
+  --iridescent-progress: linear-gradient(90deg, #1b86a8 0%, #3d5cff 45%, #7a4cf5 78%, #c0459f 100%); /* Active track of the player ProgressBar; underline of the active TopNavItem. */
+  --iridescent-selected: linear-gradient(90deg, #e3f7fb 0%, #e6ebff 50%, #f1e9ff 100%); /* Now-playing TrackRow and QueueItem ground. Paired with the PlaybackState bars. */
+  --border-hairline: 1px; /* Subtle, default, strong and interactive borders. */
+  --border-thick: 1.5px; /* Selected and iridescent borders. */
+  --focus-ring-width: 2px; /* Focus outline width. */
+  --focus-ring-offset: 2px; /* Focus outline offset — clears the element's own border. */
+  --opacity-disabled: 0.45; /* Disabled cards and unavailable rows' artwork. */
+  --opacity-muted: 0.64; /* Played QueueItems. */
+  --opacity-holo: 0.55; /* Foil glint overlay strength. */
+  --duration-fast: 120ms; /* Hover fills, icon swaps, press. */
+  --duration-normal: 200ms; /* Menus, popovers, tooltips, card lift, player state. */
+  --duration-slow: 320ms; /* Drawer, modal, toast enter. */
+  --duration-holo: 2400ms; /* Foil glint sweep on FeaturedCard hover. Once per hover, never looped. */
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1); /* Hover, menus, card interaction. */
+  --easing-emphasized: cubic-bezier(0.16, 1, 0.3, 1); /* Drawer, modal, play/pause morph. */
+  --easing-exit: cubic-bezier(0.4, 0, 1, 1); /* Anything leaving the screen. */
+  --bp-tablet: 768px; /* Tablet starts here. */
+  --bp-desktop: 1200px; /* Desktop starts here; sidebar becomes persistent. */
+  --container-max: 1440px; /* Max content width inside the main column. */
+  --gutter-desktop: 32px; /* Main column side padding, desktop. */
+  --gutter-tablet: 24px; /* Side padding, tablet. */
+  --gutter-mobile: 16px; /* Side padding, mobile. */
+  --grid-columns-desktop: 6; /* Card columns per shelf, desktop (gap 24). */
+  --grid-columns-tablet: 4; /* Card columns, tablet (gap 20). */
+  --grid-columns-mobile: 2; /* Card columns, mobile (gap 16); shelves scroll horizontally. */
+  --sidebar-width: 248px; /* Desktop sidebar; collapses to 72px icon rail on tablet. */
+  --player-height: 80px; /* Desktop/tablet player bar; 64px mini-player on mobile. */
+  --mobile-nav-height: 64px; /* Bottom navigation on mobile. */
+  --z-player: 100; /* Sticky player bar. */
+  --z-dropdown: 1000; /* Dropdowns, context menus, popovers. */
+  --z-drawer: 1100; /* Drawers. */
+  --z-modal: 1200; /* Modals. */
+  --z-toast: 1300; /* Toasts. */
+  --z-tooltip: 1400; /* Tooltips. */
+  --font-sans: Manrope, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --text-display: 600 56px/60px var(--font-sans); /* Hero and splash titles only; one per screen. */
+  --text-h1: 600 40px/46px var(--font-sans); /* Album, artist and playlist page titles. */
+  --text-h2: 600 30px/36px var(--font-sans); /* Section headers on home and library. */
+  --text-h3: 600 22px/28px var(--font-sans); /* Shelf titles, modal titles. */
+  --text-h4: 600 18px/24px var(--font-sans); /* FeaturedCard title, drawer headers. */
+  --text-body-lg: 400 17px/26px var(--font-sans); /* Editorial descriptions, artist bios. */
+  --text-body: 400 15px/22px var(--font-sans); /* Default UI copy, track titles (weight 500). */
+  --text-body-sm: 400 13px/18px var(--font-sans); /* Artist lines, card subtitles, menu hints. */
+  --text-caption: 400 12px/16px var(--font-sans); /* Helper text, timestamps. */
+  --text-label: 500 13px/16px var(--font-sans); /* Form labels, nav items, chips, tabs. */
+  --text-button: 600 14px/20px var(--font-sans); /* Button labels (sm uses 13px). */
+  --text-overline: 600 11px/14px var(--font-sans); /* UPPERCASE category labels on collectible cards and section kickers. */
+  --text-metadata: 500 12px/16px var(--font-mono); /* Durations, time labels, bitrate, catalog numbers. Tabular figures. */
+}
+.display {
+  font-family: var(--font-sans);
+  font-size: 56px;
+  line-height: 60px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.h1 {
+  font-family: var(--font-sans);
+  font-size: 40px;
+  line-height: 46px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.h2 {
+  font-family: var(--font-sans);
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.h3 {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.h4 {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.body-lg {
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+.body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.body-sm {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.caption {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+}
+.label {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.button {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.overline {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.metadata {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}

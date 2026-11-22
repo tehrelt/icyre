@@ -1,0 +1,60 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ICYRE</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--background); color:var(--text-primary); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; }
+  .art svg { display:block; }
+  .ink { fill:var(--ice-900); }
+  .brand { fill:var(--electric-500); }
+  .violet { fill:var(--holo-violet); }
+  .ice { fill:var(--holo-ice); }
+  .pink { fill:var(--holo-magenta); }
+  .card { rx:var(--radius-card); }
+  .chip { rx:var(--radius-xs); }
+  .frame { fill:none; stroke:var(--border-strong); stroke-width:1; }
+  .hair { fill:none; stroke:var(--surface-raised); stroke-width:1.5; }
+  .words { position:absolute; left:32px; bottom:32px; max-width:440px; }
+  .name { margin:0; font-size:112px; line-height:.92; font-weight:600; letter-spacing:-.03em; }
+  .tag { margin:8px 0 0 4px; font-size:14px; line-height:20px; color:var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      ink 128×176 · electric-500 128×176 bled off the top · holo-violet 128×176 · holo-ice 96×132 bled off the right · holo-magenta 48×64 once — ≈35% of 960×288
+  arrangement a staggered hand of portrait cards (5:7), like a collectible fan, gutters space-4, bottoms stepping by space-6
+  pattern     card outlines, from "objects feel collectible": 16×22 frames at a space-8 pitch along the base, three filled in holo tints; a nested hairline inside the electric card (frame → gutter → inner border)
+  scales      sides in space-4 multiples; gutters space-4; pitch space-8; corners radius-card, small frames radius-xs
+-->
+<rect class="ink card" x="16" y="56" width="128" height="176" rx="14"/>
+<rect class="brand card" x="160" y="-16" width="128" height="176" rx="14"/>
+<rect class="hair card" x="164" y="-12" width="120" height="168" rx="10"/>
+<rect class="violet card" x="304" y="40" width="128" height="176" rx="14"/>
+<rect class="ice card" x="400" y="120" width="96" height="132" rx="14"/>
+<rect class="pink card" x="200" y="176" width="48" height="64" rx="10"/>
+<rect class="frame chip" x="16"  y="252" width="16" height="22" rx="4"/>
+<rect class="frame chip" x="48"  y="252" width="16" height="22" rx="4"/>
+<rect class="ice chip"   x="80"  y="252" width="16" height="22" rx="4"/>
+<rect class="frame chip" x="112" y="252" width="16" height="22" rx="4"/>
+<rect class="frame chip" x="144" y="252" width="16" height="22" rx="4"/>
+<rect class="violet chip" x="272" y="252" width="16" height="22" rx="4"/>
+<rect class="frame chip" x="304" y="252" width="16" height="22" rx="4"/>
+<rect class="frame chip" x="336" y="252" width="16" height="22" rx="4"/>
+<rect class="pink chip"  x="368" y="252" width="16" height="22" rx="4"/>
+</svg>
+</div>
+<div class="words">
+  <h1 class="name">ICYRE</h1>
+  <p class="tag">Light, premium, collectible — the design system for listening.</p>
+</div>
+</div>
+</body>
+</html>

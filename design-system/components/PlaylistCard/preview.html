@@ -1,0 +1,33 @@
+<!-- @dsCard group="Media" height=310 subtitle="Stacked layers — the collectible pile" -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>PlaylistCard — preview</title>
+<style>
+html,body{margin:0}
+body{padding:16px;background:var(--background);color:var(--text-primary);font-family:var(--font-sans);font-size:15px;line-height:22px}
+.pv-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.pv-col{display:flex;flex-direction:column;gap:12px}
+.pv-grid{display:grid;gap:16px}
+.pv-cap{font-family:var(--font-mono);font-size:11px;line-height:14px;font-weight:500;letter-spacing:.02em;color:var(--text-tertiary);min-width:64px}
+.pv-sep{width:1px;height:28px;background:var(--border-subtle);margin:0 4px}
+.pv-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:10px;background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.pv-icon .pv-cap{min-width:0;font-size:10px}
+
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var I = window.Icyre, h = React.createElement;
+function row(){ return h.apply(null, ['div', {className:'pv-row'}].concat([].slice.call(arguments))); }
+function cap(t){ return h('span',{className:'pv-cap'},t); }
+function mount(el){ ReactDOM.createRoot(document.getElementById('root')).render(el); }
+mount(h('div',{className:'pv-grid',style:{gridTemplateColumns:'repeat(5,1fr)',gap:16}},
+  h(I.PlaylistCard,{title:'Late night drives',owner:'You',trackCount:42,art:7}),
+  h(I.PlaylistCard,{title:'Ice Age',owner:'ICYRE',trackCount:60,art:2,badge:'featured'}),
+  h(I.PlaylistCard,{title:'Deep focus',owner:'ICYRE',trackCount:120,art:5,state:'selected'}),
+  h(I.PlaylistCard,{title:'Run club',owner:'Mira',trackCount:28,art:4}),
+  h(I.PlaylistCard,{title:'Archive',owner:'You',trackCount:0,art:3,state:'disabled'})
+));
+</script>
+</body>
+</html>

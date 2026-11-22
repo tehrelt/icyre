@@ -1,0 +1,1 @@
+ICYRE line icons: 24×24, 1.75 stroke, round caps and joins, drawn in ink `#141821` (text-primary). In product code use the `Icon` component so glyphs inherit `currentColor`; these SVGs are for design tools and non-React surfaces. Filled variants (play, pause, heart, spark) come from the component's `filled` prop.

@@ -1,0 +1,127 @@
+<!-- @dsCard group="Examples" height=1300 subtitle="Album page — every foundation in one screen" width=1280 page -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Showcase — preview</title>
+<style>
+html,body{margin:0}
+body{padding:16px;background:var(--background);color:var(--text-primary);font-family:var(--font-sans);font-size:15px;line-height:22px}
+.pv-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.pv-col{display:flex;flex-direction:column;gap:12px}
+.pv-grid{display:grid;gap:16px}
+.pv-cap{font-family:var(--font-mono);font-size:11px;line-height:14px;font-weight:500;letter-spacing:.02em;color:var(--text-tertiary);min-width:64px}
+.pv-sep{width:1px;height:28px;background:var(--border-subtle);margin:0 4px}
+.pv-icon{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:10px;background:var(--surface);border:1px solid var(--border-subtle);color:var(--text-primary)}
+.pv-icon .pv-cap{min-width:0;font-size:10px}
+
+body { padding: 0 !important; }
+.sc-app { display: grid; grid-template-columns: 248px 1fr; grid-template-rows: 1fr 80px; height: 1300px; background: var(--background); overflow: hidden; }
+.sc-side { grid-row: 1; background: var(--background-subtle); border-right: 1px solid var(--border-subtle); padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; }
+.sc-logo { padding: 4px 12px 20px; }
+.sc-nav { display: flex; flex-direction: column; gap: 2px; }
+.sc-sidehead { display: flex; align-items: center; justify-content: space-between; padding: 24px 4px 8px 12px; }
+.sc-main { grid-row: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.sc-head { display: flex; align-items: center; gap: 16px; padding: 16px 32px; border-bottom: 1px solid var(--border-subtle); }
+.sc-topnav { display: flex; gap: 4px; margin-right: auto; }
+.sc-scroll { padding: 32px 32px 24px; display: flex; flex-direction: column; gap: 40px; overflow: hidden; }
+.sc-hero { display: flex; gap: 40px; align-items: center; }
+.sc-herotext { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+.sc-h1 { margin: 0; font-size: 56px; line-height: 60px; font-weight: 600; letter-spacing: -.03em; }
+.sc-lede { margin: 0; font-size: 17px; line-height: 26px; color: var(--text-secondary); }
+.sc-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.sc-tags { display: flex; gap: 6px; align-items: center; }
+.sc-list { display: flex; flex-direction: column; }
+.sc-listhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; }
+.sc-listhead .ic-tabs { border-bottom: 0; }
+.sc-shelfhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sc-h3 { margin: 0; font-size: 22px; line-height: 28px; font-weight: 600; letter-spacing: -.015em; }
+.sc-shelf { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+.sc-player { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; gap: 24px; padding: 0 24px; background: var(--surface-raised); border-top: 1px solid var(--border-subtle); box-shadow: 0 -8px 24px -12px rgba(20,24,33,.10); }
+.sc-now { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sc-nowart { width: 48px; height: 48px; border-radius: 6px; overflow: hidden; flex: none; box-shadow: 0 0 0 1px rgba(20,24,33,.06); }
+.sc-nowtitle { font-size: 14px; line-height: 20px; font-weight: 600; }
+.sc-nowartist { font-size: 13px; line-height: 18px; color: var(--text-secondary); }
+.sc-transport { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sc-ctl { display: flex; align-items: center; gap: 8px; }
+.sc-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+</style></head>
+<body>
+<div id="root"></div>
+<script>
+var I = window.Icyre, h = React.createElement;
+function row(){ return h.apply(null, ['div', {className:'pv-row'}].concat([].slice.call(arguments))); }
+function cap(t){ return h('span',{className:'pv-cap'},t); }
+function mount(el){ ReactDOM.createRoot(document.getElementById('root')).render(el); }
+var tracks = [
+  [1,'Glass Tides','Nova Hale','Prism Hours',227,0,'playing',{liked:true}],
+  [2,'Frozen Choir','Nova Hale','Prism Hours',240,1,'default',{}],
+  [3,'Mirror Weather','Nova Hale · Kai Frost','Prism Hours',198,4,'default',{explicit:true}],
+  [4,'Pearl Static','Nova Hale','Prism Hours',254,7,'default',{badge:'new'}],
+  [5,'Slow Aurora','Nova Hale','Prism Hours',311,2,'default',{liked:true}]
+];
+function Side(){
+  return h('aside',{className:'sc-side'},
+    h('div',{className:'sc-logo'}, h(I.Logo,{height:26})),
+    h('nav',{className:'sc-nav'},
+      h(I.SidebarItem,{icon:'home',label:'Home',active:true}),
+      h(I.SidebarItem,{icon:'search',label:'Search'}),
+      h(I.SidebarItem,{icon:'library',label:'Library',count:128}),
+      h(I.SidebarItem,{icon:'heart',label:'Liked Songs',count:342})),
+    h('div',{className:'sc-sidehead'}, h('span',{className:'ic-overline'},'Playlists'), h(I.IconButton,{icon:'plus',label:'New playlist',size:'sm'})),
+    h('nav',{className:'sc-nav'},
+      h(I.SidebarItem,{art:h(I.Artwork,{art:7}),label:'Late night drives'}),
+      h(I.SidebarItem,{art:h(I.Artwork,{art:5}),label:'Deep focus'}),
+      h(I.SidebarItem,{art:h(I.Artwork,{art:4}),label:'Run club'}),
+      h(I.SidebarItem,{art:h(I.Artwork,{art:3}),label:'Archive 2025'})));
+}
+function Header(){
+  return h('header',{className:'sc-head'},
+    h('div',{className:'sc-topnav'}, h(I.TopNavItem,{label:'For you',active:true}), h(I.TopNavItem,{label:'New releases'}), h(I.TopNavItem,{label:'Charts'})),
+    h('div',{style:{flex:1,maxWidth:360}}, h(I.SearchInput,{})),
+    h(I.IconButton,{icon:'settings',label:'Settings'}),
+    h(I.Avatar,{name:'Rin Aoki',size:'sm'}));
+}
+function Hero(){
+  return h('section',{className:'sc-hero'},
+    h(I.FeaturedCard,{title:'Prism Hours',artist:'Nova Hale',category:'Album',serial:'No. 014',art:0,meta:['2026','11 tracks','42 min'],badges:['featured','new'],width:248,state:'playing'}),
+    h('div',{className:'sc-herotext'},
+      h('div',{className:'ic-overline'},'Album of the week'),
+      h('h1',{className:'sc-h1'},'Prism Hours'),
+      h('p',{className:'sc-lede'},'Nova Hale slows winter down to a crawl — glassy synths, close-mic vocals and a lot of air between the notes.'),
+      h('div',{className:'sc-actions'},
+        h(I.Button,{variant:'iridescent',size:'lg',iconStart:'play'},'Play album'),
+        h(I.Button,{variant:'secondary',size:'lg',iconStart:'plus'},'Add to library'),
+        h(I.IconButton,{icon:'heart',label:'Liked',variant:'active',pressed:true,size:'lg'}),
+        h(I.IconButton,{icon:'more',label:'More',size:'lg'})),
+      h('div',{className:'sc-tags'}, h(I.Tag,{},'Ambient pop'), h(I.Tag,{},'Downtempo'), h(I.Badge,{tone:'info'},'Hi-Res'))));
+}
+function List(){
+  return h('section',{className:'sc-list'},
+    h('div',{className:'sc-listhead'},
+      h(I.Tabs,{items:[{id:'t',label:'Tracks',count:11},{id:'a',label:'About'},{id:'r',label:'Related'}],defaultValue:'t'}),
+      h(I.SegmentedControl,{size:'sm',options:[{value:'l',icon:'menu',label:'List'},{value:'g',icon:'library',label:'Grid'}]})),
+    h(I.TrackListHeader,{}),
+    tracks.map(function(t){ return h(I.TrackRow,Object.assign({key:t[0],index:t[0],title:t[1],artist:t[2],album:t[3],duration:t[4],art:t[5],state:t[6]},t[7])); }));
+}
+function Shelf(){
+  return h('section',{},
+    h('div',{className:'sc-shelfhead'}, h('h3',{className:'sc-h3'},'More like this'), h(I.Button,{variant:'ghost',size:'sm',iconEnd:'chevron'},'See all')),
+    h('div',{className:'sc-shelf'},
+      h(I.AlbumCard,{title:'Hollow Signal',artist:'Kai Frost',year:2025,art:4,explicit:true}),
+      h(I.AlbumCard,{title:'Pearl Static',artist:'Mira Solen',year:2026,art:7,badge:'new'}),
+      h(I.PlaylistCard,{title:'Ice Age',owner:'ICYRE',trackCount:60,art:2}),
+      h(I.ArtistCard,{name:'Aster Vale',listeners:'96K',art:1}),
+      h(I.AlbumCard,{title:'Night Index',artist:'Lumen Park',year:2023,art:6})));
+}
+function Player(){
+  return h('footer',{className:'sc-player'},
+    h('div',{className:'sc-now'}, h('div',{className:'sc-nowart'},h(I.Artwork,{art:0})), h('div',{className:'sc-nowtext'}, h('div',{className:'sc-nowtitle'},'Glass Tides'), h('div',{className:'sc-nowartist'},'Nova Hale')), h(I.IconButton,{icon:'heart',label:'Liked',variant:'active',pressed:true,size:'sm'})),
+    h('div',{className:'sc-transport'},
+      h('div',{className:'sc-ctl'}, h(I.PlayerButton,{kind:'shuffle',active:true}), h(I.PlayerButton,{kind:'previous'}), h(I.PlayerButton,{kind:'play',playing:true}), h(I.PlayerButton,{kind:'next'}), h(I.PlayerButton,{kind:'repeat'})),
+      h(I.ProgressBar,{duration:227,defaultPosition:96,buffered:170})),
+    h('div',{className:'sc-right'}, h(I.IconButton,{icon:'queue',label:'Queue',variant:'selected',pressed:true,size:'sm'}), h(I.VolumeSlider,{defaultValue:70,width:96})));
+}
+mount(h('div',{className:'sc-app'}, h(Side), h('main',{className:'sc-main'}, h(Header), h('div',{className:'sc-scroll'}, h(Hero), h(List), h(Shelf))), h(Player)));
+</script>
+</body>
+</html>
