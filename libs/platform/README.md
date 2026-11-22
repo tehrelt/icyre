@@ -19,6 +19,7 @@
 | `kafka` | Producer и consumer helper (franz-go): retries, DLQ `<topic>.dlq`, trace propagation, метрики; `BatchConsumer` — batch по размеру/linger, commit после flush (для ClickHouse) |
 | `telemetry` | OpenTelemetry (OTLP → Jaeger), Prometheus registry и `/metrics` |
 | `httpclient` | Клиент межсервисных вызовов: trace propagation, `X-Request-ID`, таймаут |
+| `grpcx` | Композируемые gRPC client/server options: W3C trace/baggage propagation (`otelgrpc`) и корреляция `x-request-id` (unary и stream) |
 
 ## Правила
 

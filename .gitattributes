@@ -10,3 +10,12 @@
 *.yaml    text eol=lf
 *.sql     text eol=lf
 Dockerfile text eol=lf
+
+# Byte-compared proto and Go module/workspace files must keep LF even on
+# Windows checkouts (core.autocrlf=true) so proto-check/work-check/mod-check match.
+*.proto   text eol=lf
+*.pb.go   text eol=lf
+go.mod    text eol=lf
+go.sum    text eol=lf
+go.work   text eol=lf
+go.work.sum text eol=lf

@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package playback.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/tehrelt/icyre/libs/contracts/gen/playback/v1;playbackv1";
+
+enum RepeatMode {
+  REPEAT_MODE_UNSPECIFIED = 0;
+  REPEAT_MODE_OFF = 1;
+  REPEAT_MODE_ALL = 2;
+  REPEAT_MODE_ONE = 3;
+}
+
+enum PlaybackAction {
+  PLAYBACK_ACTION_UNSPECIFIED = 0;
+  PLAYBACK_ACTION_NEXT = 1;
+  PLAYBACK_ACTION_PREVIOUS = 2;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_STARTED = 1;
+  EVENT_TYPE_PROGRESS = 2;
+  EVENT_TYPE_FINISHED = 3;
+  EVENT_TYPE_SKIPPED = 4;
+}
+
+message Queue {
+  repeated string tracks = 1;
+  repeated int32 order = 2;
+  int32 cursor = 3;
+  string source = 4;
+}
+
+message Session {
+  string session_id = 1;
+  optional string track_id = 2;
+  optional string playback_id = 3;
+  string source = 4;
+  bool is_playing = 5;
+  int64 position_ms = 6;
+  int64 duration_ms = 7;
+  bool shuffle = 8;
+  RepeatMode repeat_mode = 9;
+  int32 queue_index = 10;
+  Queue queue = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+service PlaybackService {
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc SetQueue(SetQueueRequest) returns (SetQueueResponse);
+  rpc UpdateState(UpdateStateRequest) returns (UpdateStateResponse);
+  rpc ReportEvent(ReportEventRequest) returns (ReportEventResponse);
+}
+
+message StartSessionRequest {
+  repeated string tracks = 1;
+  int32 start_index = 2;
+  string source = 3;
+  int64 duration_ms = 4;
+  bool shuffle = 5;
+  RepeatMode repeat_mode = 6;
+}
+
+message StartSessionResponse {
+  Session session = 1;
+}
+
+message GetSessionRequest {}
+
+message GetSessionResponse {
+  Session session = 1;
+}
+
+message SetQueueRequest {
+  repeated string tracks = 1;
+  optional int32 start_index = 2;
+  string source = 3;
+}
+
+message SetQueueResponse {
+  Session session = 1;
+}
+
+message UpdateStateRequest {
+  optional bool is_playing = 1;
+  optional int64 position_ms = 2;
+  optional int64 duration_ms = 3;
+  optional bool shuffle = 4;
+  optional RepeatMode repeat_mode = 5;
+  optional int32 queue_index = 6;
+  optional PlaybackAction action = 7;
+}
+
+message UpdateStateResponse {
+  Session session = 1;
+}
+
+message ReportEventRequest {
+  EventType type = 1;
+  string playback_id = 2;
+  string track_id = 3;
+  string source = 4;
+  int64 duration_ms = 5;
+  int64 listened_ms = 6;
+}
+
+message ReportEventResponse {}
